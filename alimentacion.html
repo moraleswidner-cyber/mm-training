@@ -649,7 +649,7 @@ button:active{opacity:.7;transform:scale(.98);}
 <div class="overlay" id="modal-plan-alimento">
   <div class="modal">
     <div class="modal-hdr">
-      <span class="modal-title">Agregar al plan del día</span>
+      <span class="modal-title" id="modal-plan-title">Agregar al plan del día</span>
       <button class="modal-close" onclick="closeModal('modal-plan-alimento')">✕</button>
     </div>
     <div class="field">
@@ -700,8 +700,19 @@ button:active{opacity:.7;transform:scale(.98);}
       <div class="field"><label class="label">Gras (g)</label><input type="number" id="plan-gras" placeholder="0" min="0" step="0.1"/></div>
       <div class="field"><label class="label">Carb (g)</label><input type="number" id="plan-carb" placeholder="0" min="0" step="0.1"/></div>
     </div>
+    <div class="field" style="margin-top:10px;">
+      <label class="label">Momento del día</label>
+      <select id="plan-comida">
+        <option value="">Sin categoría</option>
+        <option value="desayuno">Desayuno (máx 11:00)</option>
+        <option value="colacion1">Colación (máx 12:30)</option>
+        <option value="almuerzo">Almuerzo (máx 14:30)</option>
+        <option value="colacion2">Colación tarde (máx 17:00)</option>
+        <option value="cena">Cena (máx 20:30)</option>
+      </select>
+    </div>
     <div class="modal-actions">
-      <button class="btn-blue btn-full" onclick="savePlanItem()">Agregar al plan</button>
+      <button class="btn-blue btn-full" id="btn-plan-save" onclick="savePlanItem()">Agregar al plan</button>
     </div>
     <input type="hidden" id="plan-db-id"/>
     <input type="hidden" id="plan-db-cal100"/>
@@ -710,6 +721,8 @@ button:active{opacity:.7;transform:scale(.98);}
     <input type="hidden" id="plan-db-carb100"/>
     <input type="hidden" id="plan-db-peso-unidad"/>
     <input type="hidden" id="plan-db-unit-nombre"/>
+    <input type="hidden" id="plan-edit-id"/>
+    <input type="hidden" id="plan-edit-plan-id"/>
   </div>
 </div>
 
@@ -850,6 +863,15 @@ var ACT_PRESETS_DEFAULT = [
   {id:"ap_d2", nombre:"Día 2 — Pierna (hip thrust/sentadilla/prensa)",    tipo:"gym", duracion:75, diaKey:"d2"},
   {id:"ap_d4", nombre:"Día 4 — Torso (remo/press mil./jalón/peck deck)", tipo:"gym", duracion:70, diaKey:"d4"},
   {id:"ap_d5", nombre:"Día 5 — Pierna (rumano/prensa unil./curl/ext.)",  tipo:"gym", duracion:80, diaKey:"d5"}
+];
+
+// ─────────── COMIDAS ───────────
+var COMIDAS = [
+  {key:"desayuno",  label:"Desayuno",       maxHora:"11:00"},
+  {key:"colacion1", label:"Colación",        maxHora:"12:30"},
+  {key:"almuerzo",  label:"Almuerzo",        maxHora:"14:30"},
+  {key:"colacion2", label:"Colación tarde",  maxHora:"17:00"},
+  {key:"cena",      label:"Cena",            maxHora:"20:30"},
 ];
 
 // ─────────── SCENARIOS ───────────
@@ -1477,10 +1499,22 @@ function renderMenuPropuesto(){
   var el2 = document.getElementById("menu-date-label2");
   if(el2) el2.textContent = "Plan del "+lbl;
 
-  var plan    = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
-  var listEl  = document.getElementById("list-menu-plan");
-  var summEl  = document.getElementById("plan-summary");
+  var plan   = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  var listEl = document.getElementById("list-menu-plan");
+  var summEl = document.getElementById("plan-summary");
   if(!listEl) return;
+
+  // Summary totals
+  var totalPlan = 0, totalConsumido = 0, actualCal = 0;
+  var nConsumidos = 0, totalItems = 0;
+  if(plan && plan.items.length){
+    plan.items.forEach(function(item){
+      totalPlan += item.cal||0;
+      if(item.consumido){ totalConsumido += item.cal||0; nConsumidos++; }
+      totalItems++;
+    });
+  }
+  DB.registros.filter(function(r){ return r.fecha===fecha; }).forEach(function(r){ actualCal += r.cal||0; });
 
   if(!plan || !plan.items.length){
     listEl.innerHTML = "<div class='empty-hint'>Sin plan para este día. Agregá alimentos o aplicá un preset.</div>";
@@ -1488,38 +1522,55 @@ function renderMenuPropuesto(){
     return;
   }
 
-  // Summary
-  var totalPlan = 0, totalConsumido = 0;
-  plan.items.forEach(function(item){
-    totalPlan += item.cal||0;
-    if(item.consumido) totalConsumido += item.cal||0;
-  });
-  var actualCal = 0;
-  DB.registros.filter(function(r){ return r.fecha===fecha; }).forEach(function(r){ actualCal += r.cal||0; });
-  var nConsumidos = plan.items.filter(function(i){ return i.consumido; }).length;
+  // Summary card
   var restante = Math.round(totalPlan - totalConsumido);
-
   if(summEl){
     summEl.style.display = "block";
     summEl.innerHTML =
       "<div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;'>"+
       "<div><div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Planificado</div><div style='font-size:17px;font-weight:700;'>"+Math.round(totalPlan)+" kcal</div></div>"+
       "<div><div style='font-size:10px;color:var(--green);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Marcado ✓</div><div style='font-size:17px;font-weight:700;color:var(--green);'>"+Math.round(totalConsumido)+" kcal</div></div>"+
-      "<div><div style='font-size:10px;color:var(--blue);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Registrado hoy</div><div style='font-size:17px;font-weight:700;color:var(--blue);'>"+Math.round(actualCal)+" kcal</div></div>"+
+      "<div><div style='font-size:10px;color:var(--blue);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Registrado</div><div style='font-size:17px;font-weight:700;color:var(--blue);'>"+Math.round(actualCal)+" kcal</div></div>"+
       "</div>"+
-      "<div style='font-size:11px;color:var(--text2);'>"+nConsumidos+" de "+plan.items.length+" alimentos marcados"+(restante>0?" · Faltan <strong style=\"color:var(--amber);\">"+restante+" kcal</strong> del plan":"")+"</div>";
+      "<div style='font-size:11px;color:var(--text2);'>"+nConsumidos+" de "+totalItems+" alimentos marcados"+(restante>0?" · Faltan <strong style=\"color:var(--amber);\">"+restante+" kcal</strong> del plan":"")+"</div>";
   }
 
-  listEl.innerHTML = plan.items.map(function(item){
-    return "<div class='plan-item"+(item.consumido?" consumido":"")+"'>"+
-      "<div class='plan-check' onclick='togglePlanItem(\""+plan.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
-      "<div class='plan-item-info'>"+
-        "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
-        "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal"+(item.cantUnidades&&item.unitNombre?" · "+item.cantUnidades+" "+item.unitNombre+(item.cantUnidades>1?"s":""):item.cantidad?" · "+item.cantidad+"g":"")+" · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g C:"+Math.round(item.carb||0)+"g</div>"+
+  // Render by comida category
+  var allComidas = COMIDAS.concat([{key:null, label:"Sin categoría", maxHora:null}]);
+  var html = "";
+  allComidas.forEach(function(c){
+    var items = plan.items.filter(function(i){
+      return c.key===null ? (!i.comida) : (i.comida===c.key);
+    });
+    if(c.key===null && !items.length) return; // hide "Sin categoría" if empty
+    var catCal = items.reduce(function(s,i){ return s+(i.cal||0); }, 0);
+    var catCons = items.filter(function(i){ return i.consumido; }).length;
+    html += "<div style='margin-bottom:16px;'>"+
+      "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;'>"+
+        "<div>"+
+          "<span style='font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;'>"+c.label+"</span>"+
+          (c.maxHora ? "<span style='font-size:10px;color:var(--text3);margin-left:6px;'>máx "+c.maxHora+"</span>" : "")+
+          (items.length ? "<span style='font-size:10px;color:var(--text2);margin-left:8px;'>"+Math.round(catCal)+" kcal · "+catCons+"/"+items.length+"</span>" : "")+
+        "</div>"+
+        (c.key!==null ? "<button class='btn-xs' style='padding:3px 8px;font-size:10px;' onclick='openModalAddPlanItem(\""+c.key+"\")'>+ agregar</button>" : "")+
       "</div>"+
-      "<button class='btn-xs btn-red' onclick='deletePlanItem(\""+plan.id+"\",\""+item.id+"\")'>✕</button>"+
-      "</div>";
-  }).join("");
+      (items.length ? items.map(function(item){
+        var cantLbl = item.cantUnidades&&item.unitNombre ? item.cantUnidades+" "+item.unitNombre+(item.cantUnidades>1?"s":"") : (item.cantidad ? item.cantidad+"g" : "");
+        return "<div class='plan-item"+(item.consumido?" consumido":"")+"'>"+
+          "<div class='plan-check' onclick='togglePlanItem(\""+plan.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
+          "<div class='plan-item-info'>"+
+            "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
+            "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal"+(cantLbl?" · "+cantLbl:"")+" · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g C:"+Math.round(item.carb||0)+"g</div>"+
+          "</div>"+
+          "<div style='display:flex;gap:4px;flex-shrink:0;'>"+
+            "<button class='btn-xs btn-amber' onclick='openModalEditPlanItem(\""+plan.id+"\",\""+item.id+"\")' title='Editar'>✎</button>"+
+            "<button class='btn-xs btn-red' onclick='deletePlanItem(\""+plan.id+"\",\""+item.id+"\")'>✕</button>"+
+          "</div>"+
+          "</div>";
+      }).join("") : "<div style='font-size:11px;color:var(--text3);padding:6px 0 2px;font-style:italic;'>Sin alimentos</div>")+
+    "</div>";
+  });
+  listEl.innerHTML = html;
 }
 
 // ─────────── RENDER METAS ───────────
@@ -2190,7 +2241,7 @@ function confirmSaveMenu(){
   var items;
   if(_presetSaveSource==="plan"){
     var plan = DB.menusPropuestos.find(function(m){ return m.fecha===_viewDate; });
-    items = (plan ? plan.items : []).map(function(i){ return {nombre:i.nombre,cal:i.cal,prot:i.prot||0,gras:i.gras||0,carb:i.carb||0,dbId:i.dbId||null,cantidad:i.cantidad||null}; });
+    items = (plan ? plan.items : []).map(function(i){ return {nombre:i.nombre,cal:i.cal,prot:i.prot||0,gras:i.gras||0,carb:i.carb||0,dbId:i.dbId||null,cantidad:i.cantidad||null,comida:i.comida||null}; });
   } else {
     var regsHoy = DB.registros.filter(function(r){ return r.fecha===_viewDate; });
     items = regsHoy.map(function(r){ return {nombre:r.nombre,cal:r.cal,prot:r.prot,gras:r.gras,carb:r.carb,dbId:r.dbId,cantidad:r.cantidad}; });
@@ -2269,7 +2320,7 @@ function deletePlanItem(planId, itemId){
 }
 
 // Modal: agregar alimento al plan
-function openModalAddPlanItem(){
+function openModalAddPlanItem(comida){
   document.getElementById("plan-search-input").value = "";
   document.getElementById("plan-food-results").classList.remove("show");
   document.getElementById("plan-food-badge").style.display = "none";
@@ -2279,7 +2330,51 @@ function openModalAddPlanItem(){
   ["plan-db-id","plan-db-cal100","plan-db-prot100","plan-db-gras100","plan-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
   ["plan-db-peso-unidad","plan-db-unit-nombre"].forEach(function(id){ document.getElementById(id).value=""; });
   document.getElementById("plan-cant").value = "100";
+  document.getElementById("plan-comida").value = comida||"";
+  document.getElementById("plan-edit-id").value = "";
+  document.getElementById("plan-edit-plan-id").value = "";
+  document.getElementById("modal-plan-title").textContent = "Agregar al plan del día";
+  document.getElementById("btn-plan-save").textContent = "Agregar al plan";
   _resetPlanCantMode();
+  openModal("modal-plan-alimento");
+}
+
+function openModalEditPlanItem(planId, itemId){
+  var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
+  if(!plan) return;
+  var item = plan.items.find(function(i){ return i.id===itemId; });
+  if(!item) return;
+  // Reset first
+  document.getElementById("plan-search-input").value = "";
+  document.getElementById("plan-food-results").classList.remove("show");
+  document.getElementById("plan-food-badge").style.display = "none";
+  document.getElementById("plan-or-label").style.display = "block";
+  document.getElementById("plan-nombre-field").style.display = "block";
+  _resetPlanCantMode();
+  // Fill with item data
+  document.getElementById("plan-edit-id").value = itemId;
+  document.getElementById("plan-edit-plan-id").value = planId;
+  document.getElementById("plan-comida").value = item.comida||"";
+  document.getElementById("plan-nombre").value = item.nombre||"";
+  document.getElementById("plan-cal").value  = item.cal||0;
+  document.getElementById("plan-prot").value = item.prot||0;
+  document.getElementById("plan-gras").value = item.gras||0;
+  document.getElementById("plan-carb").value = item.carb||0;
+  document.getElementById("plan-cant").value = item.cantidad||100;
+  document.getElementById("plan-db-id").value = item.dbId||"";
+  ["plan-db-cal100","plan-db-prot100","plan-db-gras100","plan-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("plan-db-peso-unidad").value = "";
+  document.getElementById("plan-db-unit-nombre").value = "";
+  if(item.cantUnidades && item.unitNombre){
+    document.getElementById("plan-cant-units").value = item.cantUnidades;
+    document.getElementById("plan-db-unit-nombre").value = item.unitNombre;
+    document.getElementById("plan-u-label").textContent = "¿Cuántos "+item.unitNombre+"s?";
+    document.getElementById("plan-u-hint").textContent = item.cantUnidades+" "+item.unitNombre+"s = "+(item.cantidad||0)+"g";
+    document.getElementById("plan-mode-toggle").style.display = "block";
+    setPlanCantMode("u");
+  }
+  document.getElementById("modal-plan-title").textContent = "Editar alimento del plan";
+  document.getElementById("btn-plan-save").textContent = "Guardar cambios";
   openModal("modal-plan-alimento");
 }
 
@@ -2401,19 +2496,38 @@ function savePlanItem(){
   var gras   = parseFloat(document.getElementById("plan-gras").value)||0;
   var carb   = parseFloat(document.getElementById("plan-carb").value)||0;
   var cant   = parseFloat(document.getElementById("plan-cant").value)||null;
+  var comida = document.getElementById("plan-comida").value||null;
   if(!nombre){ alert("Ingresá el nombre del alimento"); return; }
   var cantUnidades = null, planUnitNombre = null;
   if(_planCantMode === "u"){
     cantUnidades   = parseFloat(document.getElementById("plan-cant-units").value)||null;
     planUnitNombre = document.getElementById("plan-db-unit-nombre").value||null;
   }
-  var plan = _getOrCreatePlan(_viewDate);
-  plan.items.push({
-    id:"pi"+Date.now(), nombre:nombre, cal:cal, prot:prot, gras:gras, carb:carb,
-    cantidad:cant, cantUnidades:cantUnidades, unitNombre:planUnitNombre,
-    dbId:document.getElementById("plan-db-id").value||null,
-    consumido:false, registroId:null
-  });
+  var editItemId = document.getElementById("plan-edit-id").value;
+  var editPlanId = document.getElementById("plan-edit-plan-id").value;
+  if(editItemId && editPlanId){
+    var ePlan = DB.menusPropuestos.find(function(m){ return m.id===editPlanId; });
+    if(ePlan){
+      var eItem = ePlan.items.find(function(i){ return i.id===editItemId; });
+      if(eItem){
+        eItem.nombre=nombre; eItem.cal=cal; eItem.prot=prot; eItem.gras=gras; eItem.carb=carb;
+        eItem.cantidad=cant; eItem.comida=comida;
+        eItem.cantUnidades=cantUnidades; eItem.unitNombre=planUnitNombre;
+        if(eItem.consumido && eItem.registroId){
+          var reg = DB.registros.find(function(r){ return r.id===eItem.registroId; });
+          if(reg){ reg.nombre=nombre; reg.cal=cal; reg.prot=prot; reg.gras=gras; reg.carb=carb; reg.cantidad=cant; }
+        }
+      }
+    }
+  } else {
+    var plan = _getOrCreatePlan(_viewDate);
+    plan.items.push({
+      id:"pi"+Date.now(), nombre:nombre, cal:cal, prot:prot, gras:gras, carb:carb,
+      cantidad:cant, cantUnidades:cantUnidades, unitNombre:planUnitNombre,
+      dbId:document.getElementById("plan-db-id").value||null,
+      consumido:false, registroId:null, comida:comida
+    });
+  }
   saveDB(); closeModal("modal-plan-alimento"); renderMenuPropuesto();
 }
 
@@ -2437,7 +2551,7 @@ function applyPresetToPlan(presetId){
     plan.items.push({
       id:"pi"+Date.now()+"_"+Math.random().toString(36).slice(2,5),
       nombre:item.nombre, cal:item.cal, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
-      cantidad:item.cantidad||null, dbId:item.dbId||null, consumido:false, registroId:null
+      cantidad:item.cantidad||null, dbId:item.dbId||null, consumido:false, registroId:null, comida:item.comida||null
     });
   });
   saveDB(); closeModal("modal-preset-to-plan"); renderMenuPropuesto();
