@@ -461,6 +461,10 @@ button:active{opacity:.7;transform:scale(.98);}
         <input type="number" id="na-carb" placeholder="0" min="0" step="0.1"/>
       </div>
     </div>
+    <div class="field">
+      <label class="label">Nota / porción típica (opcional)</label>
+      <input type="text" id="na-nota" placeholder="ej. Por barra 45g ≈ 160 kcal"/>
+    </div>
     <div class="modal-actions">
       <button class="btn-red btn-sm" id="btn-na-delete" onclick="deleteAlimentoDB()" style="display:none;">Eliminar</button>
       <button class="btn-blue" style="flex:1;" onclick="saveAlimentoDB()">Guardar</button>
@@ -525,36 +529,64 @@ var FIREBASE_CONFIG = {
 };
 
 // ─────────── PRELOADED FOODS ───────────
+// Todos los valores son por 100g o 100ml · nota = info de porción típica
 var FOODS_DEFAULT = [
-  {id:"fd1", nombre:"Arroz (cocido)",        cal:130, prot:2.7, gras:0.3, carb:28.2, unit:"g"},
-  {id:"fd2", nombre:"Pollo pechuga (coc.)",  cal:165, prot:31,  gras:3.6, carb:0,    unit:"g"},
-  {id:"fd3", nombre:"Bife de lomo",          cal:200, prot:28,  gras:10,  carb:0,    unit:"g"},
-  {id:"fd4", nombre:"Asado (vacuno)",        cal:250, prot:26,  gras:16,  carb:0,    unit:"g"},
-  {id:"fd5", nombre:"Huevo entero",          cal:155, prot:13,  gras:11,  carb:1.1,  unit:"g"},
-  {id:"fd6", nombre:"Clara de huevo",        cal:52,  prot:11,  gras:0.2, carb:0.7,  unit:"g"},
-  {id:"fd7", nombre:"Leche entera",          cal:61,  prot:3.2, gras:3.3, carb:4.7,  unit:"ml"},
-  {id:"fd8", nombre:"Yogur natural",         cal:59,  prot:3.5, gras:3.3, carb:4.7,  unit:"g"},
-  {id:"fd9", nombre:"Pan blanco (lactal)",   cal:265, prot:8.9, gras:3.2, carb:49,   unit:"g"},
-  {id:"fd10",nombre:"Papa (cocida)",         cal:86,  prot:2,   gras:0.1, carb:20,   unit:"g"},
-  {id:"fd11",nombre:"Batata (cocida)",       cal:86,  prot:1.6, gras:0.1, carb:20,   unit:"g"},
-  {id:"fd12",nombre:"Avena",                 cal:389, prot:16.9,gras:6.9, carb:66,   unit:"g"},
-  {id:"fd13",nombre:"Atún en agua",          cal:116, prot:25.5,gras:1,   carb:0,    unit:"g"},
-  {id:"fd14",nombre:"Lenteja (cocida)",      cal:116, prot:9,   gras:0.4, carb:20,   unit:"g"},
-  {id:"fd15",nombre:"Fideos (cocidos)",      cal:158, prot:5.8, gras:0.9, carb:31,   unit:"g"},
-  {id:"fd16",nombre:"Banana",                cal:89,  prot:1.1, gras:0.3, carb:23,   unit:"g"},
-  {id:"fd17",nombre:"Manzana",               cal:52,  prot:0.3, gras:0.2, carb:14,   unit:"g"},
-  {id:"fd18",nombre:"Naranja",               cal:47,  prot:0.9, gras:0.1, carb:12,   unit:"g"},
-  {id:"fd19",nombre:"Manteca",               cal:717, prot:0.9, gras:81,  carb:0.1,  unit:"g"},
-  {id:"fd20",nombre:"Aceite de oliva",       cal:884, prot:0,   gras:100, carb:0,    unit:"ml"},
-  {id:"fd21",nombre:"Queso cremoso",         cal:300, prot:16,  gras:26,  carb:2,    unit:"g"},
-  {id:"fd22",nombre:"Whey protein",          cal:400, prot:80,  gras:5,   carb:8,    unit:"g"},
-  {id:"fd23",nombre:"Milanesa de pollo",     cal:220, prot:22,  gras:10,  carb:12,   unit:"g"},
-  {id:"fd24",nombre:"Zanahoria",             cal:41,  prot:0.9, gras:0.2, carb:10,   unit:"g"},
-  {id:"fd25",nombre:"Espinaca",              cal:23,  prot:2.9, gras:0.4, carb:3.6,  unit:"g"},
-  {id:"fd26",nombre:"Tomate",                cal:18,  prot:0.9, gras:0.2, carb:3.9,  unit:"g"},
-  {id:"fd27",nombre:"Palta (aguacate)",      cal:160, prot:2,   gras:15,  carb:9,    unit:"g"},
-  {id:"fd28",nombre:"Queso rallado",         cal:431, prot:38,  gras:29,  carb:1.3,  unit:"g"},
-  {id:"fd29",nombre:"Proteína de suero c.",  cal:380, prot:76,  gras:6,   carb:6,    unit:"g"}
+  // ── LÁCTEOS / PROTEICOS ──────────────────────────────────────────────────
+  {id:"fd1", nombre:"Yogurt Soprole Protein+",          cal:68,  prot:6.5, gras:1.9, carb:6.5, unit:"g",  nota:"Por unidad 155g ≈ 105 kcal · 10g prot"},
+  {id:"fd2", nombre:"Postre Soprole Protein Snack",     cal:76,  prot:7.7, gras:1.9, carb:7.7, unit:"g",  nota:"Por unidad 130g ≈ 99 kcal · 10g prot"},
+  {id:"fd3", nombre:"Leche semidescremada",             cal:47,  prot:3.4, gras:1.7, carb:5,   unit:"ml", nota:"1 vaso 200ml ≈ 94 kcal"},
+  {id:"fd4", nombre:"Queso laminado (gouda/edam)",      cal:357, prot:25,  gras:27,  carb:2,   unit:"g",  nota:"1 lámina ~20g ≈ 71 kcal"},
+  {id:"fd5", nombre:"Mantequilla",                      cal:717, prot:0.9, gras:81,  carb:0.1, unit:"g",  nota:"1 cdta ~5g ≈ 36 kcal"},
+  // ── BARRAS PROTEICAS ─────────────────────────────────────────────────────
+  {id:"fd6", nombre:"Wild Protein Lemon Pie 14g",       cal:356, prot:31,  gras:11,  carb:40,  unit:"g",  nota:"Por barra 45g ≈ 160 kcal · 14g prot · sin azúcar añadida"},
+  {id:"fd7", nombre:"Wild Protein Pro Cookies&Cream 21g",cal:387,prot:35,  gras:12,  carb:37,  unit:"g",  nota:"Por barra 60g ≈ 232 kcal · 21g prot · sin azúcar añadida"},
+  // ── TORTILLAS ────────────────────────────────────────────────────────────
+  {id:"fd8", nombre:"Fajita Pancho Villa Integral XL",  cal:275, prot:9,   gras:6.8, carb:45,  unit:"g",  nota:"Por tortilla 44g ≈ 121 kcal · 8 unidades x paquete"},
+  // ── AVES ─────────────────────────────────────────────────────────────────
+  {id:"fd9", nombre:"Pollo pechuga cocida (Ariztia)",   cal:165, prot:31,  gras:3.6, carb:0,   unit:"g",  nota:""},
+  {id:"fd10",nombre:"Pollo molido Ariztia",             cal:113, prot:23,  gras:2,   carb:0,   unit:"g",  nota:""},
+  {id:"fd11",nombre:"Pechuga de pavo cocida",           cal:165, prot:30,  gras:4,   carb:0,   unit:"g",  nota:""},
+  {id:"fd12",nombre:"Molida pechuga de pavo Ariztia",   cal:105, prot:22,  gras:1.8, carb:0,   unit:"g",  nota:""},
+  // ── CARNES ───────────────────────────────────────────────────────────────
+  {id:"fd13",nombre:"Carne molida 7% grasa",            cal:152, prot:19,  gras:8,   carb:0,   unit:"g",  nota:"Cruda. Fuente: El Buen Corte / Lider"},
+  {id:"fd14",nombre:"Carne molida 4% grasa",            cal:115, prot:21,  gras:4,   carb:0,   unit:"g",  nota:"Cruda. Fuente: Cuisine & Co"},
+  {id:"fd15",nombre:"Asado de vacuno",                  cal:250, prot:26,  gras:16,  carb:0,   unit:"g",  nota:""},
+  {id:"fd16",nombre:"Bife / filete de vacuno",          cal:200, prot:28,  gras:10,  carb:0,   unit:"g",  nota:""},
+  // ── PESCADOS ─────────────────────────────────────────────────────────────
+  {id:"fd17",nombre:"Atún en tarro al agua (escurrido)",cal:110, prot:25,  gras:1,   carb:0,   unit:"g",  nota:"Tarro 150g escurrido ≈ 80g neto"},
+  {id:"fd18",nombre:"Jurel en tarro (escurrido)",       cal:130, prot:18,  gras:6,   carb:0,   unit:"g",  nota:"Tarro 190g escurrido ≈ 100g neto"},
+  {id:"fd19",nombre:"Jurel fresco",                     cal:150, prot:21,  gras:7,   carb:0,   unit:"g",  nota:""},
+  {id:"fd20",nombre:"Reineta",                          cal:105, prot:18,  gras:3.5, carb:0,   unit:"g",  nota:""},
+  // ── HUEVOS ───────────────────────────────────────────────────────────────
+  {id:"fd21",nombre:"Huevo entero",                     cal:155, prot:13,  gras:11,  carb:1.1, unit:"g",  nota:"1 huevo grande ≈ 60g = 93 kcal"},
+  {id:"fd22",nombre:"Clara de huevo",                   cal:52,  prot:11,  gras:0.2, carb:0.7, unit:"g",  nota:"1 clara ≈ 35g = 18 kcal"},
+  {id:"fd23",nombre:"Huevos revueltos (2 h. + aceite)", cal:184, prot:12.5,gras:14.6,carb:1,   unit:"g",  nota:"Porción típica 125g ≈ 230 kcal"},
+  // ── PAN Y CEREALES ────────────────────────────────────────────────────────
+  {id:"fd24",nombre:"Pan integral (rebanada)",           cal:233, prot:10,  gras:3.5, carb:42,  unit:"g",  nota:"1 rebanada ≈ 30g = 70 kcal"},
+  {id:"fd25",nombre:"Pan integral con palta",            cal:193, prot:5.6, gras:9.6, carb:24.3,unit:"g",  nota:"2 rebanadas + media palta · porción típica 135g ≈ 260 kcal"},
+  {id:"fd26",nombre:"Pan integral con 2 huevos",         cal:164, prot:10.7,gras:7,   carb:14.8,unit:"g",  nota:"2 rebanadas + 2 huevos · porción típica 180g ≈ 295 kcal"},
+  {id:"fd27",nombre:"Arroz cocido",                      cal:130, prot:2.7, gras:0.3, carb:28.2,unit:"g",  nota:""},
+  {id:"fd28",nombre:"Fideos cocidos",                    cal:158, prot:5.8, gras:0.9, carb:31,  unit:"g",  nota:""},
+  {id:"fd29",nombre:"Avena",                             cal:389, prot:16.9,gras:6.9, carb:66,  unit:"g",  nota:""},
+  {id:"fd30",nombre:"Lenteja cocida",                    cal:116, prot:9,   gras:0.4, carb:20,  unit:"g",  nota:""},
+  // ── VERDURAS ─────────────────────────────────────────────────────────────
+  {id:"fd31",nombre:"Tomate",                            cal:18,  prot:0.9, gras:0.2, carb:3.9, unit:"g",  nota:""},
+  {id:"fd32",nombre:"Palta (aguacate)",                  cal:160, prot:2,   gras:15,  carb:9,   unit:"g",  nota:"1 palta mediana ≈ 150g = 240 kcal"},
+  {id:"fd33",nombre:"Media palta",                       cal:107, prot:1.3, gras:10,  carb:6,   unit:"g",  nota:"≈ 75g = 80 kcal (ya calculado por porción)"},
+  {id:"fd34",nombre:"Choclo (maíz tierno cocido)",       cal:96,  prot:3.3, gras:1.3, carb:21,  unit:"g",  nota:"1 choclo entero ≈ 200g desgranado"},
+  {id:"fd35",nombre:"Lechuga",                           cal:15,  prot:1.4, gras:0.2, carb:2.9, unit:"g",  nota:""},
+  {id:"fd36",nombre:"Zanahoria",                         cal:41,  prot:0.9, gras:0.2, carb:10,  unit:"g",  nota:""},
+  {id:"fd37",nombre:"Pepino",                            cal:16,  prot:0.7, gras:0.1, carb:3.6, unit:"g",  nota:""},
+  {id:"fd38",nombre:"Espinaca",                          cal:23,  prot:2.9, gras:0.4, carb:3.6, unit:"g",  nota:""},
+  {id:"fd39",nombre:"Papa cocida",                       cal:86,  prot:2,   gras:0.1, carb:20,  unit:"g",  nota:""},
+  {id:"fd40",nombre:"Camote (zapallo camote) cocido",    cal:86,  prot:1.6, gras:0.1, carb:20,  unit:"g",  nota:""},
+  // ── FRUTAS ────────────────────────────────────────────────────────────────
+  {id:"fd41",nombre:"Plátano / Banana",                  cal:89,  prot:1.1, gras:0.3, carb:23,  unit:"g",  nota:"1 plátano mediano ≈ 120g = 107 kcal"},
+  {id:"fd42",nombre:"Manzana",                           cal:52,  prot:0.3, gras:0.2, carb:14,  unit:"g",  nota:""},
+  {id:"fd43",nombre:"Naranja",                           cal:47,  prot:0.9, gras:0.1, carb:12,  unit:"g",  nota:""},
+  // ── ACEITES Y OTROS ───────────────────────────────────────────────────────
+  {id:"fd44",nombre:"Aceite de oliva",                   cal:884, prot:0,   gras:100, carb:0,   unit:"ml", nota:"1 cda ≈ 10ml = 88 kcal"},
+  {id:"fd45",nombre:"Whey protein (genérico)",           cal:400, prot:80,  gras:5,   carb:8,   unit:"g",  nota:"1 scoop ≈ 30g = 120 kcal · 24g prot"}
 ];
 
 // ─────────── MET PRESETS ───────────
@@ -975,8 +1007,12 @@ function renderFoodDB(){
   var filtered = q ? all.filter(function(f){ return f.nombre.toLowerCase().includes(q); }) : all;
   var html = filtered.length ? filtered.map(function(f){
     return "<div class='food-db-row' onclick='openModalNuevoAlimento(\""+f.id+"\")'>"+
-      "<div><div class='food-db-name'>"+esc(f.nombre)+"</div><div class='food-db-macros'>"+f.cal+" kcal · P:"+f.prot+"g G:"+f.gras+"g C:"+f.carb+"g (por 100"+f.unit+")</div></div>"+
-      "<span style='color:var(--text3);font-size:18px;'>›</span></div>";
+      "<div style='flex:1;min-width:0;'>"+
+        "<div class='food-db-name'>"+esc(f.nombre)+"</div>"+
+        "<div class='food-db-macros'>"+f.cal+" kcal · P:"+f.prot+"g G:"+f.gras+"g C:"+f.carb+"g (por 100"+f.unit+")</div>"+
+        (f.nota?"<div style='font-size:10px;color:var(--amber);margin-top:2px;'>"+esc(f.nota)+"</div>":"")+
+      "</div>"+
+      "<span style='color:var(--text3);font-size:18px;flex-shrink:0;'>›</span></div>";
   }).join("") : "<div class='empty-hint'>Sin resultados</div>";
   document.getElementById("list-db").innerHTML = html;
 }
@@ -1099,7 +1135,9 @@ function searchFood(){
   res.innerHTML = matches.map(function(f){
     return "<div class='food-result-item' onclick='selectFoodFromDB(\""+f.id+"\")'>"+
       "<div class='food-result-name'>"+esc(f.nombre)+"</div>"+
-      "<div class='food-result-cal'>"+f.cal+" kcal / 100"+f.unit+" · P:"+f.prot+"g G:"+f.gras+"g C:"+f.carb+"g</div></div>";
+      "<div class='food-result-cal'>"+f.cal+" kcal / 100"+f.unit+" · P:"+f.prot+"g G:"+f.gras+"g C:"+f.carb+"g</div>"+
+      (f.nota?"<div style='font-size:10px;color:var(--amber);'>"+esc(f.nota)+"</div>":"")+
+      "</div>";
   }).join("");
   res.classList.add("show");
 }
@@ -1256,7 +1294,7 @@ function openModalNuevoAlimento(editId){
   document.getElementById("na-edit-id").value = "";
   document.getElementById("modal-na-title").textContent = "Nuevo alimento";
   document.getElementById("btn-na-delete").style.display = "none";
-  ["na-nombre","na-cal","na-prot","na-gras","na-carb"].forEach(function(id){ document.getElementById(id).value=""; });
+  ["na-nombre","na-cal","na-prot","na-gras","na-carb","na-nota"].forEach(function(id){ document.getElementById(id).value=""; });
   document.getElementById("na-unit").value = "g";
   if(editId){
     var f = DB.alimentos.find(function(f){ return f.id===editId; });
@@ -1270,6 +1308,7 @@ function openModalNuevoAlimento(editId){
       document.getElementById("na-gras").value   = f.gras;
       document.getElementById("na-carb").value   = f.carb;
       document.getElementById("na-unit").value   = f.unit||"g";
+      document.getElementById("na-nota").value   = f.nota||"";
     }
   }
   openModal("modal-nuevo-alimento");
@@ -1282,13 +1321,14 @@ function saveAlimentoDB(){
   var gras   = parseFloat(document.getElementById("na-gras").value)||0;
   var carb   = parseFloat(document.getElementById("na-carb").value)||0;
   var unit   = document.getElementById("na-unit").value;
+  var nota   = document.getElementById("na-nota").value.trim();
   if(!nombre){ alert("Ingresá el nombre"); return; }
   var editId = document.getElementById("na-edit-id").value;
   if(editId){
     var idx = DB.alimentos.findIndex(function(f){ return f.id===editId; });
-    if(idx>=0) DB.alimentos[idx] = {id:editId,nombre:nombre,cal:cal,prot:prot,gras:gras,carb:carb,unit:unit};
+    if(idx>=0) DB.alimentos[idx] = {id:editId,nombre:nombre,cal:cal,prot:prot,gras:gras,carb:carb,unit:unit,nota:nota};
   } else {
-    DB.alimentos.push({id:"u"+Date.now(),nombre:nombre,cal:cal,prot:prot,gras:gras,carb:carb,unit:unit});
+    DB.alimentos.push({id:"u"+Date.now(),nombre:nombre,cal:cal,prot:prot,gras:gras,carb:carb,unit:unit,nota:nota});
   }
   saveDB(); closeModal("modal-nuevo-alimento"); renderFoodDB();
 }
