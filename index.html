@@ -134,6 +134,24 @@ button:active{opacity:.7;transform:scale(.98);}
 .sem-filter{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
 .sf-pill{padding:4px 10px;border-radius:99px;border:1px solid var(--bord2);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;}
 .sf-pill.active{background:var(--amber);color:#000;border-color:var(--amber);}
+.week-group-hdr{background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:8px 12px;margin-bottom:6px;margin-top:14px;display:flex;justify-content:space-between;align-items:center;}
+.week-group-hdr:first-child{margin-top:0;}
+.week-group-title{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;}
+.week-group-meta{font-size:10px;color:var(--text2);}
+.prog-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px;}
+.prog-table th{font-size:10px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:6px 4px;text-align:center;border-bottom:1px solid var(--bord2);}
+.prog-table th:first-child{text-align:left;}
+.prog-table td{padding:5px 4px;border-bottom:1px solid var(--bord);vertical-align:top;}
+.prog-table td:first-child{color:var(--text);font-weight:500;font-size:11px;}
+.prog-cell{display:flex;flex-direction:column;gap:2px;}
+.prog-inp{background:var(--bg4);border:1px solid var(--bord);border-radius:var(--rxs);padding:3px 5px;font-size:10px;color:var(--text);width:100%;min-width:60px;}
+.prog-inp:focus{border-color:var(--blue);outline:none;}
+.prog-inp-lbl{font-size:9px;color:var(--text3);}
+.sem-col-hdr{font-size:10px;}
+.sem-cal-lbl{font-size:9px;color:var(--text3);font-weight:400;display:block;margin-top:1px;}
+.day-tab-bar{display:flex;gap:4px;margin-bottom:12px;background:var(--bg3);padding:4px;border-radius:var(--r);border:1px solid var(--bord);}
+.day-tab-btn{flex:1;padding:6px 4px;border:none;background:transparent;border-radius:var(--rsm);font-size:10px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;}
+.day-tab-btn.active{background:var(--bg2);color:var(--text);border:1px solid var(--bord2);}
 </style>
 </head>
 <body>
@@ -152,6 +170,7 @@ button:active{opacity:.7;transform:scale(.98);}
     <div id="nav">
       <button class="tab-btn active" onclick="showTab('registro',this)">+ Registrar</button>
       <button class="tab-btn" onclick="showTab('historial',this)">Historial</button>
+      <button class="tab-btn" onclick="showTab('progresion',this)">Progresión</button>
       <button class="tab-btn" onclick="showTab('graficos',this)">Gráficos</button>
       <button class="tab-btn" onclick="showTab('inbody',this)">InBody</button>
       <button class="tab-btn" onclick="showTab('exportar',this)">Exportar</button>
@@ -223,16 +242,40 @@ button:active{opacity:.7;transform:scale(.98);}
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
         <select id="h-dia" onchange="renderHistorial()" style="flex:1;font-size:12px;padding:7px 10px;">
           <option value="">Todos los días</option>
-          <option value="d1">Día 1</option><option value="d2">Día 2</option>
-          <option value="d4">Día 4</option><option value="d5">Día 5</option>
+          <option value="d1">Día 1 — Torso</option><option value="d2">Día 2 — Pierna</option>
+          <option value="d4">Día 4 — Torso</option><option value="d5">Día 5 — Pierna</option>
         </select>
-        <select id="h-sem" onchange="renderHistorial()" style="flex:1;font-size:12px;padding:7px 10px;">
-          <option value="">Todas las semanas</option>
-          <option value="S1">Sem 1</option><option value="S2">Sem 2</option>
-          <option value="S3">Sem 3</option><option value="S4">Sem 4</option><option value="S5">Sem 5</option>
+        <select id="h-mes" onchange="renderHistorial()" style="flex:1;font-size:12px;padding:7px 10px;">
+          <option value="">Todos los meses</option>
         </select>
       </div>
       <div id="hist-list"></div>
+    </div>
+
+    <!-- PROGRESION -->
+    <div id="tab-progresion" class="tab">
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:8px;">Ciclo de progresión</div>
+        <div class="row2">
+          <div class="field" style="margin:0;">
+            <span class="label">Inicio del ciclo (Lunes S1)</span>
+            <input type="date" id="prog-inicio" onchange="saveProgresion()"/>
+          </div>
+          <div class="field" style="margin:0;">
+            <span class="label">Semana actual</span>
+            <div id="prog-sem-actual" style="font-size:13px;font-weight:700;color:var(--blue);padding-top:6px;">—</div>
+          </div>
+        </div>
+        <div id="prog-cal-info" style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.8;"></div>
+      </div>
+      <div class="day-tab-bar">
+        <button class="day-tab-btn active" onclick="showProgDia('d1',this)">Torso A</button>
+        <button class="day-tab-btn" onclick="showProgDia('d2',this)">Pierna A</button>
+        <button class="day-tab-btn" onclick="showProgDia('d4',this)">Torso B</button>
+        <button class="day-tab-btn" onclick="showProgDia('d5',this)">Pierna B</button>
+      </div>
+      <div id="prog-dia-content"></div>
+      <button class="btn-blue" style="width:100%;margin-top:8px;" onclick="saveProgresion()">Guardar progresión</button>
     </div>
 
     <!-- GRAFICOS -->
@@ -423,7 +466,7 @@ var PLAN = {
 var SEM_KEYS = ["S1","S2","S3","S4","S5"];
 
 // ═══════════════════ DB ═══════════════════
-var DB = {sesiones:[], inbody:[]};
+var DB = {sesiones:[], inbody:[], progresion:{cicloInicio:"", plan:{}}};
 var exCount = 0;
 var exportJSON = "";
 var chEn=null, chEx=null, chSer=null, chCumpl=null, chIb1=null, chIb2=null, chIb3=null, chIb4=null, chIb5=null;
@@ -564,13 +607,14 @@ function _injectHistorical(){
   var existIbIds=new Set(DB.inbody.map(function(m){return m.id;}));
   HIST_INBODY.forEach(function(m){if(!existIbIds.has(m.id))DB.inbody.push(m);});
   DB.inbody.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+  _initProgresionFromPlan();
   updateUI();
 }
 
 function _loadLocalStorage(){
   try{
     var r=localStorage.getItem("nm-training-v5");
-    if(r){var d=JSON.parse(r);DB.sesiones=d.sesiones||[];DB.inbody=d.inbody||[];}
+    if(r){var d=JSON.parse(r);DB.sesiones=d.sesiones||[];DB.inbody=d.inbody||[];if(d.progresion)DB.progresion=d.progresion;}
   }catch(e){}
   _injectHistorical();
 }
@@ -583,6 +627,7 @@ function loadDB(){
         var d=doc.data();
         DB.sesiones=d.sesiones||[];
         DB.inbody=d.inbody||[];
+        if(d.progresion) DB.progresion=d.progresion;
       }
       _injectHistorical();
     }, function(err){
@@ -597,7 +642,7 @@ function loadDB(){
 function saveDB(){
   flash();
   if(_useFirestore && _fbDoc){
-    _fbDoc.set({sesiones:DB.sesiones, inbody:DB.inbody})
+    _fbDoc.set({sesiones:DB.sesiones, inbody:DB.inbody, progresion:DB.progresion||{}})
       .catch(function(e){
         console.error("Error al guardar en Firestore:", e);
         try{localStorage.setItem("nm-training-v5",JSON.stringify(DB));}catch(e2){}
@@ -631,6 +676,7 @@ function showTab(t,btn){
   document.getElementById("tab-"+t).classList.add("active");
   if(btn) btn.classList.add("active");
   if(t==="historial") renderHistorial();
+  if(t==="progresion") renderProgresion();
   if(t==="graficos"){updateExSel();renderGraficos();}
   if(t==="inbody") renderIbHistory();
   if(t==="exportar") updateStorageInfo();
@@ -797,33 +843,233 @@ function allSessions(){
   return DB.sesiones.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
 }
 
+// ═══════════════════ CALENDAR HELPERS ═══════════════════
+function pad2(n){return String(n).padStart(2,"0");}
+function weekMonday(fecha){
+  var d=new Date(fecha+"T12:00:00");
+  var dow=(d.getDay()+6)%7;
+  d.setDate(d.getDate()-dow);
+  return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+}
+function isoWeek(fecha){
+  var d=new Date(fecha+"T12:00:00");
+  var thu=new Date(d);thu.setDate(d.getDate()-((d.getDay()+6)%7)+3);
+  var jan4=new Date(thu.getFullYear(),0,4);
+  return 1+Math.round(((thu-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
+}
+function weekRangeLabel(mondayStr){
+  var mon=new Date(mondayStr+"T12:00:00");
+  var sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  if(mon.getMonth()===sun.getMonth()){
+    return mon.getDate()+" al "+sun.getDate()+" "+MESES[sun.getMonth()]+" "+sun.getFullYear();
+  }
+  return mon.getDate()+" "+MESES[mon.getMonth()]+" — "+sun.getDate()+" "+MESES[sun.getMonth()]+" "+sun.getFullYear();
+}
+function calWeekLabel(fecha){
+  var mon=weekMonday(fecha);
+  return "Sem "+isoWeek(fecha)+" · "+weekRangeLabel(mon);
+}
+
 // ═══════════════════ HISTORIAL ═══════════════════
 function renderHistorial(){
   var fd=document.getElementById("h-dia").value;
-  var fs=document.getElementById("h-sem").value;
-  var list=allSessions().filter(function(s){return(!fd||s.dia===fd)&&(!fs||s.semana===fs);}).slice().reverse();
+  var fm=document.getElementById("h-mes").value;
   var cont=document.getElementById("hist-list");
+
+  // Populate month selector
+  var mesSel=document.getElementById("h-mes");
+  var curMes=mesSel.value;
+  var allMonths={};
+  allSessions().forEach(function(s){var m=s.fecha.slice(0,7);allMonths[m]=true;});
+  var sortedMonths=Object.keys(allMonths).sort().reverse();
+  mesSel.innerHTML='<option value="">Todos los meses</option>';
+  sortedMonths.forEach(function(m){
+    var d=new Date(m+"-01T12:00:00");
+    var lbl=MESES[d.getMonth()]+" "+d.getFullYear();
+    mesSel.innerHTML+='<option value="'+m+'"'+(m===curMes?" selected":"")+'>'+lbl+'</option>';
+  });
+
+  var list=allSessions().filter(function(s){
+    return (!fd||s.dia===fd) && (!fm||s.fecha.slice(0,7)===fm);
+  }).slice().reverse();
+
   if(!list.length){cont.innerHTML='<div class="empty">Sin sesiones con estos filtros.</div>';return;}
-  cont.innerHTML=list.map(function(s){
-    var diaName=PLAN[s.dia]?PLAN[s.dia].nombre:s.dia;
-    var exStr=s.ejercicios.map(function(e){return '<b>'+e.n+'</b> '+(e.sr&&e.sr!=="omitido"?e.sr:"—")+(e.pr&&e.pr!=="—"?" / "+e.pr:"");}).join(" · ");
-    return '<div class="hist-card">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
-      +'<div><div class="hist-title">'+diaName+' · '+s.semana+'</div>'
-      +'<div class="hist-meta">'+s.fecha+(s.hora?" · "+s.hora:"")+(s.duracion?" · "+s.duracion+" min":"")+(s.energia?" · E "+s.energia+"/10":"")+'</div></div>'
-      +'<button class="btn-red btn-xs" onclick="delSession('+s.id+')">✕</button>'
-      +'</div>'
-      +(s.dolor?'<div style="font-size:11px;color:var(--amber);margin-bottom:4px;">&#9888; '+s.dolor+'</div>':"")
-      +'<div class="hist-exs">'+exStr+'</div>'
-      +(s.obs?'<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic;">'+s.obs+'</div>':"")
+
+  // Group by calendar week (Monday)
+  var weeks={};
+  list.forEach(function(s){
+    var mon=weekMonday(s.fecha);
+    if(!weeks[mon]) weeks[mon]=[];
+    weeks[mon].push(s);
+  });
+  var weekKeys=Object.keys(weeks).sort().reverse();
+
+  var html="";
+  weekKeys.forEach(function(mon){
+    var wLabel=weekRangeLabel(mon);
+    var wSessions=weeks[mon];
+    var wNum=isoWeek(mon);
+    html+='<div class="week-group-hdr">'
+      +'<span class="week-group-title">Semana '+wNum+'</span>'
+      +'<span class="week-group-meta">'+wLabel+'</span>'
       +'</div>';
-  }).join("");
+    wSessions.forEach(function(s){
+      var diaName=PLAN[s.dia]?PLAN[s.dia].nombre:s.dia;
+      var color=PLAN[s.dia]&&PLAN[s.dia].color==="green"?"var(--green)":"var(--blue)";
+      var exStr=s.ejercicios.map(function(e){
+        return '<b>'+e.n+'</b> '+(e.sr&&e.sr!=="omitido"?e.sr:"—")+(e.pr&&e.pr!=="—"?" / "+e.pr:"");
+      }).join(" · ");
+      var wbCls="wb-"+s.semana.toLowerCase();
+      html+='<div class="hist-card">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+        +'<div style="flex:1;">'
+        +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">'
+        +'<div class="hist-title" style="color:'+color+';">'+diaName+'</div>'
+        +'<span class="week-badge '+wbCls+'">'+s.semana+'</span>'
+        +'</div>'
+        +'<div class="hist-meta">'+s.fecha+(s.hora?" · "+s.hora:"")+(s.duracion?" · "+s.duracion+" min":"")+(s.energia?" · ⚡"+s.energia+"/10":"")+'</div>'
+        +'</div>'
+        +'<button class="btn-red btn-xs" onclick="delSession('+s.id+')">✕</button>'
+        +'</div>'
+        +(s.dolor?'<div style="font-size:11px;color:var(--amber);margin:4px 0;">⚠ '+s.dolor+'</div>':"")
+        +'<div class="hist-exs" style="margin-top:5px;">'+exStr+'</div>'
+        +(s.obs?'<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic;">'+s.obs+'</div>':"")
+        +'</div>';
+    });
+  });
+  cont.innerHTML=html;
 }
 
 function delSession(id){
   if(!confirm("Eliminar esta sesion?")) return;
   DB.sesiones=DB.sesiones.filter(function(s){return s.id!==id;});
   saveDB();updateUI();renderHistorial();
+}
+
+// ═══════════════════ PROGRESIÓN ═══════════════════
+var _progDia="d1";
+
+function _initProgresionFromPlan(){
+  // If DB.progresion.plan is empty, seed from hardcoded PLAN
+  if(!DB.progresion) DB.progresion={cicloInicio:"",plan:{}};
+  var dias=["d1","d2","d4","d5"];
+  dias.forEach(function(dia){
+    if(!DB.progresion.plan[dia]){
+      DB.progresion.plan[dia]={exs:PLAN[dia].exs.map(function(ex){
+        return {
+          n:ex.n,
+          s1:{ser:ex.s1?ex.s1.ser:"",p:ex.s1?ex.s1.p:""},
+          s2:{ser:ex.s2?ex.s2.ser:"",p:ex.s2?ex.s2.p:""},
+          s3:{ser:ex.s3?ex.s3.ser:"",p:ex.s3?ex.s3.p:""},
+          s4:{ser:ex.s4?ex.s4.ser:"",p:ex.s4?ex.s4.p:""},
+          s5:{ser:ex.s5?ex.s5.ser:"",p:ex.s5?ex.s5.p:""},
+        };
+      })};
+    }
+  });
+}
+
+function _semCalLabels(){
+  var inicio=DB.progresion&&DB.progresion.cicloInicio;
+  if(!inicio) return ["S1","S2","S3","S4","S5"];
+  return ["S1","S2","S3","S4","S5"].map(function(s,i){
+    var d=new Date(inicio+"T12:00:00");
+    d.setDate(d.getDate()+i*7);
+    var mon=d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+    var sun=new Date(d);sun.setDate(d.getDate()+6);
+    var lbl=d.getDate()+" "+MESES[d.getMonth()];
+    return s+"<br><span class='sem-cal-lbl'>"+lbl+"</span>";
+  });
+}
+
+function renderProgresion(){
+  _initProgresionFromPlan();
+  var inicio=DB.progresion.cicloInicio||"";
+  var el=document.getElementById("prog-inicio");
+  if(el) el.value=inicio;
+
+  // Show calendar info for each week
+  var calInfo="";
+  var semActual="—";
+  if(inicio){
+    var todayDate=today();
+    var labels=["S1","S2","S3","S4","S5"];
+    calInfo=labels.map(function(s,i){
+      var d=new Date(inicio+"T12:00:00");
+      d.setDate(d.getDate()+i*7);
+      var mon=d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+      var sun=new Date(d);sun.setDate(d.getDate()+6);
+      var sunStr=sun.getFullYear()+"-"+pad2(sun.getMonth()+1)+"-"+pad2(sun.getDate());
+      var isCurrent=todayDate>=mon&&todayDate<=sunStr;
+      if(isCurrent) semActual=s;
+      return '<span style="'+(isCurrent?"color:var(--blue);font-weight:700;":"color:var(--text2);")+'">'
+        +s+': '+weekRangeLabel(mon)+'</span>';
+    }).join("  ·  ");
+  }
+  var semActualEl=document.getElementById("prog-sem-actual");
+  if(semActualEl) semActualEl.textContent=semActual;
+  var calInfoEl=document.getElementById("prog-cal-info");
+  if(calInfoEl) calInfoEl.innerHTML=calInfo;
+
+  showProgDia(_progDia, null);
+}
+
+function showProgDia(dia, btn){
+  _progDia=dia;
+  document.querySelectorAll(".day-tab-btn").forEach(function(b){b.classList.remove("active");});
+  if(btn) btn.classList.add("active");
+  else {
+    document.querySelectorAll(".day-tab-btn").forEach(function(b,i){
+      var dias=["d1","d2","d4","d5"];if(dias[i]===dia)b.classList.add("active");
+    });
+  }
+  _initProgresionFromPlan();
+  var planDia=DB.progresion.plan[dia];
+  if(!planDia){document.getElementById("prog-dia-content").innerHTML='<div class="empty">Sin ejercicios para este día.</div>';return;}
+  var semLabels=_semCalLabels();
+  var html='<div class="card" style="overflow-x:auto;">'
+    +'<div class="card-title" style="margin-bottom:8px;">'+PLAN[dia].nombre+' — Editar progresión</div>'
+    +'<table class="prog-table">'
+    +'<tr><th>Ejercicio</th>'
+    +["S1","S2","S3","S4","S5"].map(function(s,i){return '<th class="sem-col-hdr">'+semLabels[i]+'</th>';}).join("")
+    +'</tr>';
+  planDia.exs.forEach(function(ex,ei){
+    html+='<tr><td style="min-width:90px;font-size:11px;">'+ex.n+'</td>';
+    ["s1","s2","s3","s4","s5"].forEach(function(sk){
+      var val=ex[sk]||{ser:"",p:""};
+      html+='<td><div class="prog-cell">'
+        +'<span class="prog-inp-lbl">Series</span>'
+        +'<input class="prog-inp" type="text" id="pi-'+dia+'-'+ei+'-'+sk+'-ser" value="'+esc2(val.ser)+'" placeholder="3x10"/>'
+        +'<span class="prog-inp-lbl" style="margin-top:3px;">Peso</span>'
+        +'<input class="prog-inp" type="text" id="pi-'+dia+'-'+ei+'-'+sk+'-p" value="'+esc2(val.p)+'" placeholder="50 kg"/>'
+        +'</div></td>';
+    });
+    html+='</tr>';
+  });
+  html+='</table></div>';
+  document.getElementById("prog-dia-content").innerHTML=html;
+}
+
+function esc2(s){return s?String(s).replace(/"/g,"&quot;").replace(/</g,"&lt;"):""; }
+
+function saveProgresion(){
+  _initProgresionFromPlan();
+  var inicio=document.getElementById("prog-inicio");
+  if(inicio) DB.progresion.cicloInicio=inicio.value||"";
+  var dias=["d1","d2","d4","d5"];
+  dias.forEach(function(dia){
+    var planDia=DB.progresion.plan[dia];
+    if(!planDia) return;
+    planDia.exs.forEach(function(ex,ei){
+      ["s1","s2","s3","s4","s5"].forEach(function(sk){
+        var serEl=document.getElementById("pi-"+dia+"-"+ei+"-"+sk+"-ser");
+        var pEl=document.getElementById("pi-"+dia+"-"+ei+"-"+sk+"-p");
+        if(serEl) ex[sk]={ser:serEl.value,p:pEl?pEl.value:""};
+      });
+    });
+  });
+  saveDB();
+  renderProgresion();
 }
 
 // ═══════════════════ GRÁFICOS ═══════════════════
@@ -842,7 +1088,7 @@ function parseReps(str){
 }
 function semLabel(fecha,semana){
   var d=new Date(fecha+"T12:00:00");
-  return MESES[d.getMonth()]+"'"+String(d.getFullYear()).slice(2)+" "+semana;
+  return MESES[d.getMonth()]+" "+d.getDate()+" ("+semana+")";
 }
 
 function renderGraficos(){
