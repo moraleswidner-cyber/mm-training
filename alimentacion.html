@@ -319,6 +319,12 @@ button:active{opacity:.7;transform:scale(.98);}
       </div>
 
       <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Base de alimentos</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6;">Restaura la lista de alimentos a los valores por defecto (alimentos chilenos). Los registros del día y la semana no se borran.</div>
+        <button class="btn-red btn-sm" onclick="resetFoods()">Restaurar alimentos por defecto</button>
+      </div>
+
+      <div class="card">
         <div class="card-title" style="margin-bottom:8px;">Ajuste calorías semanal</div>
         <div style="font-size:12px;color:var(--text2);line-height:1.6;">
           Si la diferencia acumulada entre lo consumido y el objetivo supera <strong>150 kcal</strong> en los días completados de la semana, se mostrará una sugerencia de ajuste para los días restantes.
@@ -555,6 +561,8 @@ var FIREBASE_CONFIG = {
 };
 
 // ─────────── PRELOADED FOODS ───────────
+// Incrementar FOODS_VERSION cada vez que se actualice la lista por defecto
+var FOODS_VERSION = 2;
 // Todos los valores son por 100g o 100ml · nota = info de porción típica
 var FOODS_DEFAULT = [
   // ── LÁCTEOS / PROTEICOS ──────────────────────────────────────────────────
@@ -682,8 +690,13 @@ function loadDB(){
         DB.menuPresets = d.menuPresets || [];
         DB.actPresets  = d.actPresets  || [];
       }
-      // Inject default foods if DB is empty
-      if(DB.alimentos.length === 0) DB.alimentos = FOODS_DEFAULT.slice();
+      // Inject default foods if DB is empty OR version is outdated
+      var storedV = parseInt(DB.config.foodsVersion)||0;
+      if(DB.alimentos.length === 0 || storedV < FOODS_VERSION){
+        DB.alimentos = FOODS_DEFAULT.slice();
+        DB.config.foodsVersion = FOODS_VERSION;
+        if(_useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets}).catch(function(){});
+      }
       renderAll();
     }, function(err){
       console.warn("Firestore error:", err);
@@ -721,7 +734,11 @@ function _loadLocal(){
       DB.actPresets  = d.actPresets  || [];
     }
   } catch(e){}
-  if(DB.alimentos.length === 0) DB.alimentos = FOODS_DEFAULT.slice();
+  var storedV = parseInt(DB.config.foodsVersion)||0;
+  if(DB.alimentos.length === 0 || storedV < FOODS_VERSION){
+    DB.alimentos = FOODS_DEFAULT.slice();
+    DB.config.foodsVersion = FOODS_VERSION;
+  }
 }
 
 function saveDB(){
@@ -1535,6 +1552,14 @@ function useActPreset(id){
 }
 
 // ─────────── CONFIG ───────────
+function resetFoods(){
+  if(!confirm("¿Restaurar la lista de alimentos por defecto? Los alimentos personalizados que hayas agregado se perderán.")) return;
+  DB.alimentos = FOODS_DEFAULT.slice();
+  DB.config.foodsVersion = FOODS_VERSION;
+  saveDB(); renderFoodDB();
+  alert("Lista de alimentos restaurada.");
+}
+
 function selectScenario(key){
   DB.config.escenario = key;
   saveDB(); renderConfig(); renderHoy(); renderSemana();
