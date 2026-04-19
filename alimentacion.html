@@ -374,6 +374,22 @@ button:active{opacity:.7;transform:scale(.98);}
         <div id="list-act-presets"></div>
         <button class="btn-sm btn-amber" style="margin-top:8px;" onclick="openModalNuevaActPreset(null)">+ Nuevo preset</button>
       </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Mover registros de día</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6;">Mueve todos los alimentos y actividades de una fecha a otra. Útil si registraste un día equivocado.</div>
+        <div class="row2">
+          <div class="field">
+            <label class="label">Desde</label>
+            <input type="date" id="move-from"/>
+          </div>
+          <div class="field">
+            <label class="label">Hacia</label>
+            <input type="date" id="move-to"/>
+          </div>
+        </div>
+        <button class="btn-amber btn-sm" onclick="moveDayRecords()">Mover registros →</button>
+      </div>
     </div>
 
   </div><!-- /content -->
@@ -800,8 +816,10 @@ var DB = {
   menusPropuestos: []    // [{id, fecha, items:[{id,nombre,cal,prot,gras,carb,dbId,cantidad,consumido,registroId}]}]
 };
 
-// InBody snapshot from nm-training
-var INBODY_DATA = null; // latest inbody record
+// InBody snapshots from nm-training — sorted by date ascending
+// We store all records so each day uses the most recent InBody at-or-before that date
+var INBODY_DATA     = null;  // latest record (for Config display)
+var INBODY_DATA_ALL = [];    // all records sorted ascending
 
 // ─────────── FIREBASE ───────────
 var _fbAlim  = null;
@@ -860,17 +878,18 @@ function loadDB(){
       renderAll();
     });
 
-    // Read InBody from nm-training
+    // Read InBody from nm-training (all historical records)
     _fbTrain.get().then(function(doc){
       if(doc.exists){
         var d = doc.data();
         var inbodyArr = d.inbody || [];
         if(inbodyArr.length){
-          var sorted = inbodyArr.slice().sort(function(a,b){ return a.fecha>b.fecha?1:-1; });
-          INBODY_DATA = sorted[sorted.length-1];
+          INBODY_DATA_ALL = inbodyArr.slice().sort(function(a,b){ return a.fecha>b.fecha?1:-1; });
+          INBODY_DATA     = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1]; // most recent
         }
       }
       renderConfigInbody();
+      renderAll(); // re-render with InBody data
     }).catch(function(){});
   } else {
     _loadLocal();
@@ -929,25 +948,48 @@ function flash(){
 }
 
 // ─────────── TARGETS ───────────
-function getWeight(){
-  if(DB.config.pesoManual) return parseFloat(DB.config.pesoManual);
-  if(INBODY_DATA && INBODY_DATA.peso) return parseFloat(INBODY_DATA.peso);
-  return 80; // fallback
+// Returns the most recent InBody record at or before `fecha`.
+// This means updating InBody in the training app never retroactively
+// changes historical day calculations — it only affects dates from
+// the new InBody measurement forward.
+function _inbodyForDate(fecha){
+  if(!INBODY_DATA_ALL.length) return null;
+  // Find most recent record with fecha <= target date
+  var candidates = INBODY_DATA_ALL.filter(function(r){ return r.fecha <= fecha; });
+  if(candidates.length) return candidates[candidates.length-1]; // sorted ascending, last = most recent
+  // If no record before this date, use the earliest available
+  return INBODY_DATA_ALL[0];
 }
 
-function getTMB(){
-  if(DB.config.tmbManual) return parseFloat(DB.config.tmbManual);
-  if(INBODY_DATA && INBODY_DATA.tmb) return parseFloat(INBODY_DATA.tmb);
-  return 1800; // fallback
+function getWeightForDate(fecha){
+  if(DB.config.pesoManual) return parseFloat(DB.config.pesoManual);
+  var ib = _inbodyForDate(fecha);
+  if(ib && ib.peso) return parseFloat(ib.peso);
+  return 80;
 }
+
+function getTMBForDate(fecha){
+  if(DB.config.tmbManual) return parseFloat(DB.config.tmbManual);
+  var ib = _inbodyForDate(fecha);
+  if(ib && ib.tmb) return parseFloat(ib.tmb);
+  return 1800;
+}
+
+// Convenience wrappers for today (used in UI/config display)
+function getWeight(){ return getWeightForDate(todayStr()); }
+function getTMB(){    return getTMBForDate(todayStr()); }
 
 function getActCalForDate(fecha){
+  var peso  = getWeightForDate(fecha);
   var total = 0;
-  var peso = getWeight();
   DB.actividades.filter(function(a){ return a.fecha===fecha; }).forEach(function(a){
-    var met = getMET(a.tipo);
-    var hrs = (a.duracion||0)/60;
-    total += (met-1) * peso * hrs;
+    // Trote with stored calExtra uses the accurate formula already saved at log time
+    if(a.calExtra !== undefined){
+      total += a.calExtra;
+    } else {
+      var met = getMET(a.tipo);
+      total += (met-1) * peso * ((a.duracion||0)/60);
+    }
   });
   return Math.round(total);
 }
@@ -958,17 +1000,18 @@ function getMET(key){
 }
 
 function getDailyTarget(fecha){
-  var tmb    = getTMB();
+  var tmb    = getTMBForDate(fecha);
   var factor = parseFloat(DB.config.factorBase) || 1.2;
   var scen   = SCENARIOS[DB.config.escenario] || SCENARIOS.mantencion;
   var actCal = getActCalForDate(fecha);
   return Math.round(tmb * factor + scen.calAdj + actCal);
 }
 
-function getMacroTargets(){
-  var peso  = getWeight();
+function getMacroTargets(fecha){
+  fecha = fecha || _viewDate;
+  var peso  = getWeightForDate(fecha);
   var scen  = SCENARIOS[DB.config.escenario] || SCENARIOS.mantencion;
-  var total = getDailyTarget(_viewDate);
+  var total = getDailyTarget(fecha);
   var prot  = Math.round(scen.protFactor * peso);
   var gras  = Math.round((total * 0.25) / 9);
   var carb  = Math.round((total - prot*4 - gras*9) / 4);
@@ -990,35 +1033,36 @@ function getWeekRange(dateStr){
 }
 
 function calcWeeklyAdjustment(){
-  var today = todayStr();
-  var days  = getWeekRange(today);
-  var tmb   = getTMB();
+  var today  = todayStr();
+  var days   = getWeekRange(today);
   var factor = parseFloat(DB.config.factorBase) || 1.2;
-  var scen  = SCENARIOS[DB.config.escenario] || SCENARIOS.mantencion;
-  var baseTarget = Math.round(tmb * factor + scen.calAdj);
+  var scen   = SCENARIOS[DB.config.escenario] || SCENARIOS.mantencion;
 
   var pastDays = days.filter(function(d){ return d < today; });
   if(!pastDays.length) return null;
 
-  var weeklyTarget = baseTarget * 7;
+  // Per-day target uses the InBody that was current on each specific day
+  var targetSoFar = 0;
+  pastDays.forEach(function(d){
+    targetSoFar += Math.round(getTMBForDate(d) * factor + scen.calAdj + getActCalForDate(d));
+  });
+
   var consumedSoFar = 0;
   pastDays.forEach(function(d){
-    var dayReg = DB.registros.filter(function(r){ return r.fecha===d; });
-    dayReg.forEach(function(r){ consumedSoFar += (r.cal||0); });
+    DB.registros.filter(function(r){ return r.fecha===d; }).forEach(function(r){ consumedSoFar += (r.cal||0); });
   });
 
   var daysRemaining = days.filter(function(d){ return d >= today; }).length;
   if(!daysRemaining) return null;
 
-  var consumed7 = consumedSoFar; // only past days so far
-  var targetSoFar = baseTarget * pastDays.length;
-  var cumDiff = consumed7 - targetSoFar; // positive = overeating
-
+  var cumDiff = Math.round(consumedSoFar - targetSoFar);
   if(Math.abs(cumDiff) < 150) return null;
 
-  var remaining = weeklyTarget - consumedSoFar;
-  var adjustedDaily = Math.round(remaining / daysRemaining);
-  return {cumDiff: Math.round(cumDiff), adjustedDaily: adjustedDaily, daysRemaining: daysRemaining, baseTarget: baseTarget};
+  // Estimate remaining days using today's InBody
+  var todayBase = Math.round(getTMBForDate(today) * factor + scen.calAdj);
+  var weeklyTotal = targetSoFar + todayBase * daysRemaining;
+  var adjustedDaily = Math.round((weeklyTotal - consumedSoFar) / daysRemaining);
+  return {cumDiff: cumDiff, adjustedDaily: adjustedDaily, daysRemaining: daysRemaining, baseTarget: todayBase};
 }
 
 // ─────────── DATE NAV ───────────
@@ -1186,16 +1230,15 @@ function renderHoy(){
 function renderSemana(){
   var today = todayStr();
   var days  = getWeekRange(today);
-  var tmb   = getTMB();
   var factor= parseFloat(DB.config.factorBase)||1.2;
   var scen  = SCENARIOS[DB.config.escenario]||SCENARIOS.mantencion;
-  var baseTarget = Math.round(tmb*factor+scen.calAdj);
 
   // Header: week range
   var d0 = new Date(days[0]+"T12:00:00"), d6 = new Date(days[6]+"T12:00:00");
+  var todayBase = Math.round(getTMBForDate(today)*factor+scen.calAdj);
   document.getElementById("semana-header").innerHTML =
     "<div style='font-size:13px;font-weight:700;'>Semana "+d0.getDate()+" "+MESES[d0.getMonth()]+" — "+d6.getDate()+" "+MESES[d6.getMonth()]+"</div>"+
-    "<div style='font-size:11px;color:var(--text2);margin-top:2px;'>Objetivo base: "+baseTarget+" kcal/día · Escenario: "+SCENARIOS[DB.config.escenario].label+"</div>";
+    "<div style='font-size:11px;color:var(--text2);margin-top:2px;'>Objetivo base hoy: "+todayBase+" kcal/día · Escenario: "+SCENARIOS[DB.config.escenario].label+"</div>";
 
   // Weekly adjustment banner
   var adj = calcWeeklyAdjustment();
@@ -1216,7 +1259,7 @@ function renderSemana(){
     var cal=0,prot=0,gras=0,carb=0;
     regs.forEach(function(r){ cal+=r.cal||0;prot+=r.prot||0;gras+=r.gras||0;carb+=r.carb||0; });
     var actCal = getActCalForDate(fecha);
-    var target = Math.round(baseTarget + actCal);
+    var target = getDailyTarget(fecha); // uses per-day InBody
     var pct    = target>0 ? Math.min(100,cal/target*100) : 0;
     var bal    = Math.round(cal-target);
     var isTday = fecha===today;
@@ -1359,6 +1402,15 @@ function renderConfig(){
   var fi = document.getElementById("cfg-factor");
   if(fi) fi.value = cfg.factorBase||1.2;
 
+  // Pre-fill Mover día: default from=today, to=yesterday
+  var mf = document.getElementById("move-from");
+  var mt = document.getElementById("move-to");
+  if(mf && !mf.value){ mf.value = todayStr(); }
+  if(mt && !mt.value){
+    var yd = new Date(todayStr()+"T12:00:00"); yd.setDate(yd.getDate()-1);
+    mt.value = yd.getFullYear()+"-"+pad2(yd.getMonth()+1)+"-"+pad2(yd.getDate());
+  }
+
   // Act presets
   renderActPresets();
   renderConfigInbody();
@@ -1374,11 +1426,17 @@ function renderConfig(){
 function renderConfigInbody(){
   var el = document.getElementById("inbody-status");
   if(!el) return;
-  if(INBODY_DATA){
-    var d = INBODY_DATA;
-    el.innerHTML = "<span class='tmb-badge'>TMB "+d.tmb+" kcal</span>"+
-      "<span class='tmb-badge' style='background:var(--green-d);color:var(--green);'>Peso "+d.peso+" kg</span>"+
-      "<span style='font-size:11px;color:var(--text2);'>Fecha InBody: "+d.fecha+"</span>";
+  if(INBODY_DATA_ALL.length){
+    var html = INBODY_DATA_ALL.slice().reverse().map(function(d, i){
+      var isLatest = (i===0);
+      return "<div style='display:flex;gap:8px;align-items:center;padding:6px 0;"+(i>0?"border-top:1px solid var(--bord);":"")+"'>"+
+        "<span style='font-size:11px;color:var(--text2);min-width:82px;'>"+d.fecha+"</span>"+
+        "<span class='tmb-badge'>TMB "+d.tmb+" kcal</span>"+
+        "<span class='tmb-badge' style='background:var(--green-d);color:var(--green);'>"+d.peso+" kg</span>"+
+        (isLatest?"<span style='font-size:10px;color:var(--blue);font-weight:700;'>↑ actual</span>":"")+
+        "</div>";
+    }).join("");
+    el.innerHTML = html;
   } else {
     el.innerHTML = "<span style='font-size:12px;color:var(--text2);'>Sin datos InBody. Usá los campos manuales ↓</span>";
   }
@@ -2058,6 +2116,27 @@ function useActPreset(id){
   }
   DB.actividades.push(record);
   saveDB(); renderHoy();
+}
+
+// ─────────── MOVER DÍA ───────────
+function moveDayRecords(){
+  var from = document.getElementById("move-from").value;
+  var to   = document.getElementById("move-to").value;
+  if(!from || !to){ alert("Seleccioná ambas fechas"); return; }
+  if(from === to){ alert("Las fechas deben ser distintas"); return; }
+  var nReg = DB.registros.filter(function(r){ return r.fecha===from; }).length;
+  var nAct = DB.actividades.filter(function(a){ return a.fecha===from; }).length;
+  var nPlan = DB.menusPropuestos.filter(function(m){ return m.fecha===from; }).length;
+  if(!nReg && !nAct && !nPlan){ alert("No hay registros en la fecha "+from); return; }
+  var msg = "Mover "+nReg+" alimento(s) y "+nAct+" actividad(es) de\n"+from+" → "+to+"?\n\n"+
+            "Si ya hay datos en "+to+" se agregarán a los existentes.";
+  if(!confirm(msg)) return;
+  DB.registros.forEach(function(r){ if(r.fecha===from) r.fecha=to; });
+  DB.actividades.forEach(function(a){ if(a.fecha===from) a.fecha=to; });
+  DB.menusPropuestos.forEach(function(m){ if(m.fecha===from) m.fecha=to; });
+  saveDB();
+  renderAll();
+  alert("Listo. Registros movidos a "+to+".");
 }
 
 // ─────────── CONFIG ───────────
