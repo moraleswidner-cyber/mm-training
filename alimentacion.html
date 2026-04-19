@@ -1014,6 +1014,8 @@ function loadDB(){
         // Also load sessions for gym calorie calculation
         var sesArr = d.sesiones || [];
         if(sesArr.length) SESSIONS_DATA = sesArr;
+        // Recalculate stored gym activities using real session volume
+        _recalcGymActividades();
       }
       renderConfigInbody();
       renderAll(); // re-render with InBody data
@@ -1156,6 +1158,41 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin){
   var volFactor = isLower ? 4500 : 5500; // lower body exercises = higher kcal per kg-rep
   var netKcal = Math.round(durMin * (2.0 + totalVol/volFactor) * (pesoKg/80));
   return {kcal:netKcal, volume:Math.round(totalVol), fecha:sess.fecha, nEx:(sess.ejercicios||[]).length};
+}
+
+// After Firestore sessions load: update stored calExtra for all gym activities
+function _recalcGymActividades(){
+  var updated = false;
+  // Build a map: preset nombre → diaKey (for activities saved without diaKey)
+  var nombreToDia = {};
+  DB.actPresets.concat(ACT_PRESETS_DEFAULT).forEach(function(p){
+    if(p.tipo==="gym" && p.diaKey) nombreToDia[p.nombre] = p.diaKey;
+  });
+  DB.actividades.forEach(function(a){
+    if(a.tipo!=="gym") return;
+    var dk = a.diaKey;
+    // Try to infer diaKey from notas (which useActPreset sets to preset nombre)
+    if(!dk && a.notas){
+      var key = Object.keys(nombreToDia).find(function(n){ return a.notas.indexOf(n.substring(0,8)) !== -1; });
+      if(!key){
+        // Simple fallback: "Día 1"→d1, "Día 2"→d2, "Día 4"→d4, "Día 5"→d5
+        var m = a.notas.match(/D[ií]a\s*([1245])/i);
+        if(m) dk = "d"+m[1];
+      } else {
+        dk = nombreToDia[key];
+      }
+    }
+    if(!dk) return;
+    var pesoAct = getWeightForDate(a.fecha);
+    var sessRes = calcGymCalFromSession(dk, pesoAct, a.duracion||60);
+    if(sessRes){
+      a.diaKey     = dk;
+      a.calExtra   = sessRes.kcal;
+      a.sessionInfo= sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
+      updated = true;
+    }
+  });
+  if(updated) saveDB();
 }
 
 function getDailyTarget(fecha){
@@ -2049,8 +2086,15 @@ function openModalActividad(editId){
     var a = DB.actividades.find(function(a){ return a.id===editId; });
     if(a){
       document.getElementById("act-edit-id").value = editId;
-      document.getElementById("act-tipo").value    = a.tipo;
       document.getElementById("act-notas").value   = a.notas||"";
+      // For gym activities with diaKey, select the matching preset so volume calc works
+      var tipoSelectVal = a.tipo;
+      if(a.tipo==="gym" && a.diaKey){
+        var matchPreset = DB.actPresets.find(function(p){ return p.tipo==="gym" && p.diaKey===a.diaKey; });
+        if(!matchPreset) matchPreset = ACT_PRESETS_DEFAULT.find(function(p){ return p.tipo==="gym" && p.diaKey===a.diaKey; });
+        if(matchPreset) tipoSelectVal = "preset:"+matchPreset.id;
+      }
+      document.getElementById("act-tipo").value = tipoSelectVal;
       if(a.tipo==="trote" && a.km){
         document.getElementById("act-km").value    = a.km;
         document.getElementById("act-ritmo").value = a.ritmo||7;
