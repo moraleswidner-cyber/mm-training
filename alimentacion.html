@@ -995,6 +995,8 @@ function loadDB(){
         needSave = true;
       }
       if(needSave && _useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos}).catch(function(){});
+      // If sessions already loaded, recalculate gym activities now
+      if(SESSIONS_DATA.length > 4) _recalcGymActividades();
       renderAll();
     }, function(err){
       console.warn("Firestore error:", err);
@@ -1112,8 +1114,15 @@ function getActCalForDate(fecha){
   var peso  = getWeightForDate(fecha);
   var total = 0;
   DB.actividades.filter(function(a){ return a.fecha===fecha; }).forEach(function(a){
-    // Trote with stored calExtra uses the accurate formula already saved at log time
-    if(a.calExtra !== undefined){
+    if(a.tipo==="gym"){
+      // Always recalculate gym from session volume (overrides stored calExtra)
+      var dk = _inferDiaKey(a);
+      if(dk){
+        var sr = calcGymCalFromSession(dk, peso, a.duracion||60);
+        if(sr){ total += sr.kcal; return; }
+      }
+    }
+    if(a.calExtra !== undefined && a.calExtra !== null){
       total += a.calExtra;
     } else {
       var met = getMET(a.tipo);
@@ -1160,28 +1169,29 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin){
   return {kcal:netKcal, volume:Math.round(totalVol), fecha:sess.fecha, nEx:(sess.ejercicios||[]).length};
 }
 
+// Infer diaKey from a stored activity (explicit field or notas string)
+function _inferDiaKey(a){
+  if(a.diaKey) return a.diaKey;
+  if(!a.notas) return null;
+  // Try regex: "Día 1", "Día 2", "Día 4", "Día 5"
+  var m = a.notas.match(/D[ií]a\s*([1245])/i);
+  if(m) return "d"+m[1];
+  // Try matching against preset nombres
+  var dk = null;
+  DB.actPresets.concat(ACT_PRESETS_DEFAULT).forEach(function(p){
+    if(p.tipo==="gym" && p.diaKey && !dk){
+      if(a.notas.indexOf(p.nombre.substring(0,6)) !== -1) dk = p.diaKey;
+    }
+  });
+  return dk;
+}
+
 // After Firestore sessions load: update stored calExtra for all gym activities
 function _recalcGymActividades(){
   var updated = false;
-  // Build a map: preset nombre → diaKey (for activities saved without diaKey)
-  var nombreToDia = {};
-  DB.actPresets.concat(ACT_PRESETS_DEFAULT).forEach(function(p){
-    if(p.tipo==="gym" && p.diaKey) nombreToDia[p.nombre] = p.diaKey;
-  });
   DB.actividades.forEach(function(a){
     if(a.tipo!=="gym") return;
-    var dk = a.diaKey;
-    // Try to infer diaKey from notas (which useActPreset sets to preset nombre)
-    if(!dk && a.notas){
-      var key = Object.keys(nombreToDia).find(function(n){ return a.notas.indexOf(n.substring(0,8)) !== -1; });
-      if(!key){
-        // Simple fallback: "Día 1"→d1, "Día 2"→d2, "Día 4"→d4, "Día 5"→d5
-        var m = a.notas.match(/D[ií]a\s*([1245])/i);
-        if(m) dk = "d"+m[1];
-      } else {
-        dk = nombreToDia[key];
-      }
-    }
+    var dk = _inferDiaKey(a);
     if(!dk) return;
     var pesoAct = getWeightForDate(a.fecha);
     var sessRes = calcGymCalFromSession(dk, pesoAct, a.duracion||60);
@@ -1388,8 +1398,15 @@ function renderHoy(){
       var detalle;
       if(a.tipo==="trote" && a.km){
         detalle = a.km+"km @ "+a.ritmo+" min/km · "+a.duracion+" min · "+a.calExtra+" kcal";
-      } else if(a.tipo==="gym" && a.sessionInfo){
-        detalle = a.duracion+" min · "+a.calExtra+" kcal ("+a.sessionInfo+")";
+      } else if(a.tipo==="gym"){
+        var dk = _inferDiaKey(a);
+        var dispKcal = a.calExtra||0;
+        var dispInfo = a.sessionInfo||"";
+        if(dk){
+          var sr = calcGymCalFromSession(dk, getWeightForDate(fecha), a.duracion||60);
+          if(sr){ dispKcal = sr.kcal; dispInfo = "vol. "+sr.volume+" kg·rep · "+sr.nEx+" ej. ("+sr.fecha+")"; }
+        }
+        detalle = (a.duracion||"?")+" min · "+dispKcal+" kcal"+(dispInfo?" · "+dispInfo:"");
       } else {
         detalle = a.duracion+" min · "+a.calExtra+" kcal quemadas";
       }
