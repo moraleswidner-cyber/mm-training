@@ -348,59 +348,68 @@ button:active{opacity:.7;transform:scale(.98);}
       <span class="modal-title">Registrar alimento</span>
       <button class="modal-close" onclick="closeModal('modal-alimento')">✕</button>
     </div>
+
+    <!-- Búsqueda -->
     <div class="field">
-      <label class="label">Buscar en base de datos</label>
+      <label class="label">Buscar alimento</label>
       <div class="food-search-wrap">
-        <input type="text" id="food-search-input" placeholder="Escribí el nombre..." oninput="searchFood()" autocomplete="off"/>
+        <input type="text" id="food-search-input" placeholder="Ej: huevo, palta, pollo..." oninput="searchFood()" autocomplete="off"/>
         <div class="food-results" id="food-results"></div>
       </div>
     </div>
-    <div id="food-manual-section">
-      <div style="margin-bottom:8px;font-size:11px;color:var(--text2);">— o ingresá manualmente —</div>
-      <div class="field">
-        <label class="label">Nombre</label>
-        <input type="text" id="fa-nombre" placeholder="Nombre del alimento"/>
-      </div>
-      <!-- Cantidad: toggle g/ml vs unidades -->
-      <div class="field">
-        <div id="fa-mode-toggle" style="display:none;margin-bottom:8px;">
-          <div style="display:flex;gap:6px;">
-            <button type="button" id="btn-mode-g" class="btn-sm" style="flex:1;background:var(--blue);color:#fff;" onclick="setCantMode('g')">por g / ml</button>
-            <button type="button" id="btn-mode-u" class="btn-sm" style="flex:1;" onclick="setCantMode('u')">por unidades</button>
-          </div>
-        </div>
-        <!-- Modo g/ml -->
-        <div id="fa-sect-g">
-          <label class="label">Cantidad (g/ml)</label>
-          <input type="number" id="fa-cant" placeholder="g o ml" min="1" value="100" oninput="updateFaPreview()"/>
-        </div>
-        <!-- Modo unidades -->
-        <div id="fa-sect-u" style="display:none;">
-          <label class="label" id="fa-u-label">Cantidad (unidades)</label>
-          <input type="number" id="fa-cant-units" placeholder="ej. 3" min="1" step="1" value="1" oninput="updateFaFromUnits()"/>
-          <div style="font-size:11px;color:var(--text2);margin-top:4px;" id="fa-u-hint"></div>
-        </div>
-      </div>
-      <div class="field">
-        <label class="label">Calorías totales</label>
-        <input type="number" id="fa-cal" placeholder="kcal" min="0"/>
-      </div>
-      <div class="row3">
-        <div class="field">
-          <label class="label">Prot (g)</label>
-          <input type="number" id="fa-prot" placeholder="0" min="0" step="0.1"/>
-        </div>
-        <div class="field">
-          <label class="label">Gras (g)</label>
-          <input type="number" id="fa-gras" placeholder="0" min="0" step="0.1"/>
-        </div>
-        <div class="field">
-          <label class="label">Carb (g)</label>
-          <input type="number" id="fa-carb" placeholder="0" min="0" step="0.1"/>
-        </div>
+
+    <!-- Badge: alimento seleccionado desde DB -->
+    <div id="fa-db-badge" style="display:none;background:var(--green-d);border:1px solid var(--green);border-radius:var(--rsm);padding:8px 12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="color:var(--green);font-weight:700;">✓</span>
+        <span id="fa-db-badge-nombre" style="font-size:13px;font-weight:600;flex:1;color:var(--green);"></span>
+        <button type="button" style="background:transparent;color:var(--text2);font-size:11px;padding:2px 8px;border:1px solid var(--bord2);border-radius:var(--rxs);" onclick="clearFoodSelection()">cambiar</button>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;" id="fa-preview"></div>
+
+    <div id="fa-or-label" style="margin-bottom:10px;font-size:11px;color:var(--text2);">— o ingresá manualmente —</div>
+
+    <!-- Nombre -->
+    <div class="field" id="fa-nombre-field">
+      <label class="label">Nombre</label>
+      <input type="text" id="fa-nombre" placeholder="Nombre del alimento"/>
+    </div>
+
+    <!-- Toggle g vs unidades (aparece al seleccionar alimento con unidad) -->
+    <div id="fa-mode-toggle" style="display:none;margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;">¿Cómo medís la cantidad?</div>
+      <div style="display:flex;gap:6px;">
+        <button type="button" id="btn-mode-g" class="btn-sm" style="flex:1;" onclick="setCantMode('g')">por g / ml</button>
+        <button type="button" id="btn-mode-u" class="btn-sm" style="flex:1;" onclick="setCantMode('u')">por unidades</button>
+      </div>
+    </div>
+
+    <!-- Cantidad g/ml -->
+    <div id="fa-sect-g" class="field">
+      <label class="label">Cantidad (g / ml)</label>
+      <input type="number" id="fa-cant" placeholder="ej. 100" min="1" value="100" oninput="updateFaPreview()"/>
+    </div>
+
+    <!-- Cantidad por unidades (grande y central) -->
+    <div id="fa-sect-u" style="display:none;margin-bottom:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:600;" id="fa-u-label">Cantidad (unidades)</div>
+      <input type="number" id="fa-cant-units" placeholder="1" min="1" step="1" value="1"
+        style="font-size:32px;font-weight:700;text-align:center;height:64px;width:100%;background:var(--bg3);border:2px solid var(--green);border-radius:var(--rsm);color:var(--green);"
+        oninput="updateFaFromUnits()"/>
+      <div style="font-size:13px;color:var(--green);font-weight:600;margin-top:8px;" id="fa-u-hint"></div>
+    </div>
+
+    <!-- Macros (se autocalculan al seleccionar DB, editables manualmente) -->
+    <div class="field">
+      <label class="label">Calorías totales (kcal)</label>
+      <input type="number" id="fa-cal" placeholder="0" min="0"/>
+    </div>
+    <div class="row3">
+      <div class="field"><label class="label">Prot (g)</label><input type="number" id="fa-prot" placeholder="0" min="0" step="0.1"/></div>
+      <div class="field"><label class="label">Gras (g)</label><input type="number" id="fa-gras" placeholder="0" min="0" step="0.1"/></div>
+      <div class="field"><label class="label">Carb (g)</label><input type="number" id="fa-carb" placeholder="0" min="0" step="0.1"/></div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-green btn-full" onclick="saveAlimentoHoy()">Agregar</button>
     </div>
@@ -625,15 +634,37 @@ var FOODS_DEFAULT = [
 
 // ─────────── MET PRESETS ───────────
 var METS_PRESETS = [
-  {key:"gym",      label:"Pesas / Gym",            met:5.0},
-  {key:"cardio_l", label:"Cardio leve (caminar)",  met:3.5},
-  {key:"cardio_m", label:"Cardio moderado",         met:6.5},
-  {key:"cardio_i", label:"Cardio intenso (HIIT)",  met:10.0},
-  {key:"deporte",  label:"Deporte grupal",          met:7.0},
-  {key:"pilates",  label:"Pilates / Yoga",          met:3.0},
-  {key:"natacion", label:"Natación",                met:6.0},
-  {key:"ciclismo", label:"Ciclismo (moderado)",     met:8.0},
-  {key:"otro",     label:"Otro",                    met:4.5}
+  {key:"gym",       label:"Pesas / Gym",              met:5.0},
+  {key:"cardio_l",  label:"Cardio leve (caminar)",    met:3.5},
+  {key:"cardio_m",  label:"Cardio moderado",           met:6.5},
+  {key:"cardio_i",  label:"Cardio intenso (HIIT)",    met:10.0},
+  {key:"padel",     label:"Pádel",                     met:7.3},
+  {key:"futbolito", label:"Futbolito (7v7)",           met:8.0},
+  {key:"futbol11",  label:"Fútbol (11v11)",            met:8.5},
+  {key:"trote",     label:"Trote / Jogging",           met:8.0},
+  {key:"deporte",   label:"Deporte grupal (otro)",    met:7.0},
+  {key:"pilates",   label:"Pilates / Yoga",            met:3.0},
+  {key:"natacion",  label:"Natación",                  met:6.0},
+  {key:"ciclismo",  label:"Ciclismo (moderado)",       met:8.0},
+  {key:"otro",      label:"Otro",                      met:4.5}
+];
+
+// ─────────── ACTIVITY PRESETS DEFAULT ───────────
+var PRESETS_VERSION = 1;
+var ACT_PRESETS_DEFAULT = [
+  // Deportes
+  {id:"ap_padel1",  nombre:"Partido de Pádel 1h",          tipo:"padel",     duracion:60},
+  {id:"ap_padel15", nombre:"Partido de Pádel 1.5h",        tipo:"padel",     duracion:90},
+  {id:"ap_fbito",   nombre:"Futbolito 75 min (7v7)",       tipo:"futbolito", duracion:75},
+  {id:"ap_fb11",    nombre:"Fútbol 11v11 (90 min)",        tipo:"futbol11",  duracion:90},
+  {id:"ap_t5",      nombre:"Trote 5 km (~35 min)",         tipo:"trote",     duracion:35},
+  {id:"ap_t75",     nombre:"Trote 7.5 km (~52 min)",       tipo:"trote",     duracion:52},
+  {id:"ap_t10",     nombre:"Trote 10 km (~70 min)",        tipo:"trote",     duracion:70},
+  // Entrenamiento NM (4-day split)
+  {id:"ap_d1",      nombre:"Día 1 — Torso (pecho/espalda/hombros/brazos)", tipo:"gym", duracion:70},
+  {id:"ap_d2",      nombre:"Día 2 — Pierna (hip thrust/sentadilla/prensa)", tipo:"gym", duracion:75},
+  {id:"ap_d4",      nombre:"Día 4 — Torso (remo/press mil./jalón/peck deck)", tipo:"gym", duracion:70},
+  {id:"ap_d5",      nombre:"Día 5 — Pierna (rumano/prensa unil./curl/ext.)", tipo:"gym", duracion:80}
 ];
 
 // ─────────── SCENARIOS ───────────
@@ -691,12 +722,20 @@ function loadDB(){
         DB.actPresets  = d.actPresets  || [];
       }
       // Inject default foods if DB is empty OR version is outdated
-      var storedV = parseInt(DB.config.foodsVersion)||0;
+      var storedV  = parseInt(DB.config.foodsVersion)||0;
+      var storedPV = parseInt(DB.config.presetsVersion)||0;
+      var needSave = false;
       if(DB.alimentos.length === 0 || storedV < FOODS_VERSION){
         DB.alimentos = FOODS_DEFAULT.slice();
         DB.config.foodsVersion = FOODS_VERSION;
-        if(_useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets}).catch(function(){});
+        needSave = true;
       }
+      if(DB.actPresets.length === 0 || storedPV < PRESETS_VERSION){
+        DB.actPresets = ACT_PRESETS_DEFAULT.slice();
+        DB.config.presetsVersion = PRESETS_VERSION;
+        needSave = true;
+      }
+      if(needSave && _useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets}).catch(function(){});
       renderAll();
     }, function(err){
       console.warn("Firestore error:", err);
@@ -734,10 +773,15 @@ function _loadLocal(){
       DB.actPresets  = d.actPresets  || [];
     }
   } catch(e){}
-  var storedV = parseInt(DB.config.foodsVersion)||0;
+  var storedV  = parseInt(DB.config.foodsVersion)||0;
+  var storedPV = parseInt(DB.config.presetsVersion)||0;
   if(DB.alimentos.length === 0 || storedV < FOODS_VERSION){
     DB.alimentos = FOODS_DEFAULT.slice();
     DB.config.foodsVersion = FOODS_VERSION;
+  }
+  if(DB.actPresets.length === 0 || storedPV < PRESETS_VERSION){
+    DB.actPresets = ACT_PRESETS_DEFAULT.slice();
+    DB.config.presetsVersion = PRESETS_VERSION;
   }
 }
 
@@ -1158,42 +1202,57 @@ function _resetCantMode(){
   document.getElementById("fa-mode-toggle").style.display = "none";
   document.getElementById("fa-sect-g").style.display = "block";
   document.getElementById("fa-sect-u").style.display = "none";
-  document.getElementById("btn-mode-g").style.cssText = "flex:1;background:var(--blue);color:#fff;";
-  document.getElementById("btn-mode-u").style.cssText = "flex:1;";
   document.getElementById("fa-db-peso-unidad").value = "";
   document.getElementById("fa-db-unit-nombre").value = "";
   document.getElementById("fa-cant-units").value = "1";
   document.getElementById("fa-u-hint").textContent = "";
+  // Hide badge, show manual label
+  document.getElementById("fa-db-badge").style.display = "none";
+  document.getElementById("fa-or-label").style.display = "block";
+  document.getElementById("fa-nombre-field").style.display = "block";
+}
+
+function clearFoodSelection(){
+  document.getElementById("food-search-input").value = "";
+  ["fa-db-id","fa-db-cal100","fa-db-prot100","fa-db-gras100","fa-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
+  ["fa-nombre","fa-cal","fa-cant","fa-prot","fa-gras","fa-carb"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("fa-cant").value = "100";
+  _resetCantMode();
 }
 
 function setCantMode(mode){
   _cantMode = mode;
   document.getElementById("fa-sect-g").style.display = mode==="g" ? "block" : "none";
   document.getElementById("fa-sect-u").style.display = mode==="u" ? "block" : "none";
-  document.getElementById("btn-mode-g").style.cssText = mode==="g" ? "flex:1;background:var(--blue);color:#fff;" : "flex:1;";
-  document.getElementById("btn-mode-u").style.cssText = mode==="u" ? "flex:1;background:var(--blue);color:#fff;" : "flex:1;";
-  if(mode==="u") updateFaFromUnits();
+  document.getElementById("btn-mode-g").style.cssText = mode==="g"
+    ? "flex:1;background:var(--blue);color:#fff;"
+    : "flex:1;background:var(--bg4);color:var(--text2);";
+  document.getElementById("btn-mode-u").style.cssText = mode==="u"
+    ? "flex:1;background:var(--green);color:#fff;"
+    : "flex:1;background:var(--bg4);color:var(--text2);";
+  if(mode==="u"){
+    updateFaFromUnits();
+    setTimeout(function(){ document.getElementById("fa-cant-units").focus(); document.getElementById("fa-cant-units").select(); }, 100);
+  }
 }
 
 function updateFaFromUnits(){
-  var n      = parseFloat(document.getElementById("fa-cant-units").value)||1;
-  var pesoU  = parseFloat(document.getElementById("fa-db-peso-unidad").value)||0;
-  var uNom   = document.getElementById("fa-db-unit-nombre").value;
+  var n     = parseFloat(document.getElementById("fa-cant-units").value)||1;
+  var pesoU = parseFloat(document.getElementById("fa-db-peso-unidad").value)||0;
+  var uNom  = document.getElementById("fa-db-unit-nombre").value;
   if(!pesoU) return;
   var totalG = Math.round(n * pesoU);
   document.getElementById("fa-cant").value = totalG;
-  document.getElementById("fa-u-hint").textContent = "= "+totalG+"g total";
-  document.getElementById("fa-u-label").textContent = "Cantidad ("+(uNom||"unidades")+")";
+  var label = n===1 ? (uNom||"unidad") : (uNom ? uNom+"s" : "unidades");
+  document.getElementById("fa-u-hint").textContent = n+" "+label+" = "+totalG+"g";
   updateFaPreview();
 }
 
 function openModalAlimento(editId){
-  // Reset
   ["fa-nombre","fa-cal","fa-cant","fa-prot","fa-gras","fa-carb"].forEach(function(id){ document.getElementById(id).value=""; });
   ["fa-edit-id","fa-db-id","fa-db-cal100","fa-db-prot100","fa-db-gras100","fa-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
   document.getElementById("food-search-input").value="";
   document.getElementById("food-results").classList.remove("show");
-  document.getElementById("fa-preview").textContent="";
   _resetCantMode();
 
   if(editId){
@@ -1232,7 +1291,7 @@ function searchFood(){
 function selectFoodFromDB(id){
   var f = DB.alimentos.find(function(f){ return f.id===id; });
   if(!f) return;
-  document.getElementById("food-search-input").value = f.nombre;
+  document.getElementById("food-search-input").value = "";
   document.getElementById("food-results").classList.remove("show");
   document.getElementById("fa-nombre").value     = f.nombre;
   document.getElementById("fa-db-id").value      = f.id;
@@ -1241,18 +1300,24 @@ function selectFoodFromDB(id){
   document.getElementById("fa-db-gras100").value = f.gras;
   document.getElementById("fa-db-carb100").value = f.carb;
 
-  // Unidad toggle
+  // Show badge, hide manual label and nombre field
+  document.getElementById("fa-db-badge").style.display = "block";
+  document.getElementById("fa-db-badge-nombre").textContent = f.nombre;
+  document.getElementById("fa-or-label").style.display = "none";
+  document.getElementById("fa-nombre-field").style.display = "none";
+
   if(f.pesoUnidad){
     document.getElementById("fa-db-peso-unidad").value = f.pesoUnidad;
     document.getElementById("fa-db-unit-nombre").value = f.unitNombre||"unidad";
+    document.getElementById("fa-u-label").textContent = "¿Cuántos "+( f.unitNombre||"unidades")+"?";
     document.getElementById("fa-mode-toggle").style.display = "block";
-    document.getElementById("fa-u-label").textContent = "Cantidad ("+(f.unitNombre||"unidades")+")";
-    // Default to unidades mode when food has unit info
-    setCantMode("u");
     document.getElementById("fa-cant-units").value = "1";
-    updateFaFromUnits();
+    setCantMode("u");
   } else {
-    _resetCantMode();
+    document.getElementById("fa-mode-toggle").style.display = "none";
+    document.getElementById("fa-sect-g").style.display = "block";
+    document.getElementById("fa-sect-u").style.display = "none";
+    _cantMode = "g";
     document.getElementById("fa-cant").value = "100";
     updateFaPreview();
   }
