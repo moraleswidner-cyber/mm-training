@@ -113,7 +113,7 @@ button:active{opacity:.7;transform:scale(.98);}
 .leg-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
 
 .export-box{background:var(--bg3);border:1px solid var(--bord);border-radius:var(--rsm);padding:10px;font-family:monospace;font-size:10px;color:var(--text2);max-height:200px;overflow-y:auto;margin-top:8px;white-space:pre-wrap;word-break:break-all;}
-.ib-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.ib-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
 .ib-box{background:var(--bg3);border-radius:var(--rsm);padding:9px;}
 .ib-lbl{font-size:10px;color:var(--text2);margin-bottom:2px;}
 .ib-val{font-size:15px;font-weight:700;}
@@ -290,9 +290,10 @@ button:active{opacity:.7;transform:scale(.98);}
         <div class="legend">
           <span class="leg"><span class="leg-sq" style="background:#f0f0f3;"></span>Peso</span>
           <span class="leg"><span class="leg-sq" style="background:#3ecf8e;"></span>Músculo</span>
-          <span class="leg"><span class="leg-sq" style="background:#f76f6f;"></span>Grasa</span>
+          <span class="leg"><span class="leg-sq" style="background:#f76f6f;"></span>Grasa kg</span>
+          <span class="leg"><span class="leg-sq" style="background:#f5a623;"></span>% Grasa</span>
         </div>
-        <div class="chart-wrap" style="height:200px;"><canvas id="ch-inbody" role="img" aria-label="Evolución InBody">Gráfico InBody.</canvas></div>
+        <div class="chart-wrap" style="height:240px;"><canvas id="ch-inbody" role="img" aria-label="Evolución InBody">Gráfico InBody.</canvas></div>
       </div>
     </div>
 
@@ -378,11 +379,148 @@ var exCount = 0;
 var exportJSON = "";
 var chEn=null, chEx=null, chCumpl=null, chIb=null;
 
+var HIST_SESIONES = [
+  {id:10001,fecha:"2026-04-05",dia:"d1",semana:"S1",energia:null,duracion:null,hora:"",dolor:"",obs:"Semana 1 base — resultados reales",
+   ejercicios:[
+    {n:"Press Pecho Manc.",     sp:"4x8", pp:"15 kg",  sr:"4x8",  pr:"15 kg",  notas:""},
+    {n:"Jalón Pecho Unilat.",  sp:"3x8", pp:"115 kg", sr:"3x8",  pr:"115 kg", notas:"Ultima rep 9"},
+    {n:"Elev. Lateral Manc.",  sp:"3x10",pp:"7,5 kg", sr:"3x10", pr:"7,5 kg", notas:""},
+    {n:"Press Incl. 30°",      sp:"3x10",pp:"15 kg",  sr:"3x10", pr:"15 kg",  notas:""},
+    {n:"Remo en Máquina",      sp:"3x8", pp:"65 kg",  sr:"3x8",  pr:"65 kg",  notas:""},
+    {n:"Elev. Lat. Polea",     sp:"3x8", pp:"10 kg",  sr:"3x8",  pr:"10 kg",  notas:""},
+    {n:"Curl Bíceps Incl. 45°",sp:"4x8", pp:"10 kg",  sr:"4x8",  pr:"10 kg",  notas:""},
+    {n:"Ext. Tríceps",         sp:"3x10",pp:"80 kg",  sr:"3x10", pr:"80 kg",  notas:""},
+  ]},
+  {id:10002,fecha:"2026-04-05",dia:"d2",semana:"S1",energia:null,duracion:null,hora:"",dolor:"",obs:"Semana 1 base",
+   ejercicios:[
+    {n:"Sentadilla Barra",     sp:"3x8", pp:"42,7 kg",sr:"3x8",  pr:"42,7 kg",notas:"50 lb + barra 20 kg"},
+    {n:"Hip Thrust",           sp:"4x10",pp:"0 kg",   sr:"4x10", pr:"0 kg",   notas:""},
+    {n:"Prensa",               sp:"3x10",pp:"100 kg", sr:"3x10", pr:"100 kg", notas:""},
+    {n:"Ext. Cuád. Unilat.",   sp:"3x8", pp:"27,5 kg",sr:"3x8",  pr:"27,5 kg",notas:""},
+    {n:"Curl Isquios Unilat.", sp:"3x10",pp:"25 kg",  sr:"3x10", pr:"25 kg",  notas:""},
+    {n:"Gemelo en MPW",        sp:"4x12",pp:"80 kg",  sr:"4x12", pr:"80 kg",  notas:""},
+    {n:"Rueda Abdominal",      sp:"4x12",pp:"+30 kg", sr:"4x12", pr:"+30 kg", notas:""},
+  ]},
+  {id:10003,fecha:"2026-04-05",dia:"d4",semana:"S1",energia:null,duracion:null,hora:"",dolor:"",obs:"Semana 1 base",
+   ejercicios:[
+    {n:"Remo Máq. Unilateral", sp:"3x8", pp:"50 kg",  sr:"3x8",  pr:"50 kg",  notas:""},
+    {n:"Press Mil. Manc.",     sp:"3x8", pp:"10 kg",  sr:"3x8",  pr:"10 kg",  notas:""},
+    {n:"Press Pecho Máquina",  sp:"4x10",pp:"30 kg",  sr:"4x10", pr:"30 kg",  notas:""},
+    {n:"Jalón al Pecho",       sp:"3x10",pp:"115 kg", sr:"3x10", pr:"115 kg", notas:""},
+    {n:"Peck Deck",            sp:"3x12",pp:"35 kg",  sr:"3x12", pr:"35 kg",  notas:""},
+    {n:"Elev. Lat. Polea",     sp:"3x10",pp:"7,5 kg", sr:"3x10", pr:"7,5 kg", notas:""},
+    {n:"Curl Barra Polea",     sp:"3x10",pp:"75 kg",  sr:"3x10", pr:"75 kg",  notas:""},
+    {n:"Ext. Tríceps Barra",   sp:"4x8", pp:"80 kg",  sr:"4x8",  pr:"80 kg",  notas:""},
+  ]},
+  {id:10004,fecha:"2026-04-05",dia:"d5",semana:"S1",energia:null,duracion:null,hora:"",dolor:"",obs:"Semana 1 base",
+   ejercicios:[
+    {n:"PM Rumano Barra",      sp:"3x10",pp:"42,7 kg",sr:"3x10", pr:"42,7 kg",notas:"50 lb + barra 20 kg"},
+    {n:"Prensa Unilateral",    sp:"3x8", pp:"50 kg",  sr:"3x8",  pr:"50 kg",  notas:""},
+    {n:"Curl de Isquios",      sp:"3x10",pp:"47,5 kg",sr:"3x10", pr:"47,5 kg",notas:""},
+    {n:"Ext. de Cuádriceps",   sp:"3x8", pp:"55 kg",  sr:"3x8",  pr:"55 kg",  notas:""},
+    {n:"Abductores",           sp:"3x10",pp:"110 kg", sr:"3x10", pr:"110 kg", notas:""},
+    {n:"Aductores",            sp:"3x10",pp:"110 kg", sr:"3x10", pr:"110 kg", notas:""},
+    {n:"Gemelo en MPW",        sp:"3x12",pp:"87,5 kg",sr:"3x12", pr:"87,5 kg",notas:""},
+    {n:"Plancha Abdominal",    sp:"3x12",pp:"30 kg",  sr:"3x12", pr:"30 kg",  notas:""},
+  ]},
+  {id:10005,fecha:"2026-04-07",dia:"d1",semana:"S2",energia:null,duracion:null,hora:"",dolor:"Hombro izquierdo",obs:"Sem 2 D1 — resultados reales",
+   ejercicios:[
+    {n:"Press Pecho Manc.",     sp:"4x10",pp:"15 kg",  sr:"4x10", pr:"15 kg",  notas:"Completado"},
+    {n:"Jalón Pecho Unilat.",  sp:"3x10",pp:"115 kg", sr:"2x10+1x9",pr:"115 kg",notas:"Ultima serie 9 reps"},
+    {n:"Elev. Lateral Manc.",  sp:"3x11",pp:"7,5 kg", sr:"3x12", pr:"7,5 kg", notas:"Supero progresion"},
+    {n:"Press Incl. 30°",      sp:"3x11",pp:"15 kg",  sr:"omitido",pr:"—",    notas:"Dolor hombro"},
+    {n:"Remo en Máquina",      sp:"3x10",pp:"65 kg",  sr:"1x10+2x9",pr:"65 kg",notas:"Ultima series 9 reps"},
+    {n:"Elev. Lat. Polea",     sp:"3x10",pp:"10 kg",  sr:"3x10", pr:"10 kg",  notas:"Chequear peso proxima"},
+    {n:"Curl Bíceps Incl. 45°",sp:"4x10",pp:"10 kg",  sr:"3x10+1x9",pr:"10 kg",notas:"Ultima serie 9 reps"},
+    {n:"Ext. Tríceps",         sp:"3x11",pp:"80 kg",  sr:"3x10", pr:"22,5 kg",notas:"Alternativa mancuerna trasnuca"},
+  ]},
+  {id:10006,fecha:"2026-04-09",dia:"d2",semana:"S2",energia:null,duracion:null,hora:"",dolor:"",obs:"Sem 2 D2 — datos parciales",
+   ejercicios:[
+    {n:"Sentadilla Barra",     sp:"3x10",pp:"42,7 kg",sr:"3x10", pr:"42,7 kg",notas:""},
+    {n:"Prensa",               sp:"3x11",pp:"100 kg", sr:"3x12", pr:"100 kg", notas:"Aprox 70x12 reps"},
+    {n:"Ext. Cuád. Unilat.",   sp:"3x10",pp:"27,5 kg",sr:"2x10+1x9",pr:"27,5 kg",notas:""},
+    {n:"Curl Isquios Unilat.", sp:"3x11",pp:"25 kg",  sr:"1x11+1x9+1x8",pr:"25 kg",notas:""},
+  ]},
+  {id:10007,fecha:"2026-04-11",dia:"d4",semana:"S2",energia:8,duracion:null,hora:"20:31",dolor:"Dolor leve hombro izquierdo",obs:"Siento que puedo subir el peso del remo unilateral. Debo bajar el jalon. No hare press militar por dolor.",
+   ejercicios:[
+    {n:"Remo Máq. Unilateral", sp:"3x10",pp:"50 kg",  sr:"3x12", pr:"50 kg",  notas:"Debo subir peso"},
+    {n:"Press Mil. Manc.",     sp:"3x10",pp:"10 kg",  sr:"omitido",pr:"—",    notas:"Dolor hombro"},
+    {n:"Press Pecho Máquina",  sp:"4x11",pp:"30 kg",  sr:"4x12", pr:"30 kg",  notas:"Se siente bien"},
+    {n:"Jalón al Pecho",       sp:"3x11",pp:"115 kg", sr:"3x8",  pr:"115 kg", notas:"Se siente pesado. Ultima serie 3x7"},
+    {n:"Peck Deck",            sp:"3x13",pp:"35 kg",  sr:"omitido",pr:"—",    notas:"Dolor hombro"},
+    {n:"Elev. Lat. Polea",     sp:"3x11",pp:"7,5 kg", sr:"3x12", pr:"7,5 kg", notas:"Con mancuernas"},
+    {n:"Curl Barra Polea",     sp:"3x11",pp:"75 kg",  sr:"3x10", pr:"12,5 kg",notas:"Con mancuernas. 2da serie 8 reps"},
+    {n:"Ext. Tríceps Barra",   sp:"4x10",pp:"80 kg",  sr:"3x8",  pr:"25 kg",  notas:"Triceps trasnuca manc. 3ra serie baje a 22,5 kg"},
+  ]},
+  {id:10008,fecha:"2026-04-14",dia:"d1",semana:"S3",energia:7,duracion:null,hora:"21:56",dolor:"Sigue molestando hombro",obs:"",
+   ejercicios:[
+    {n:"Press Pecho Manc.",     sp:"4x11",pp:"15 kg",  sr:"4x11", pr:"15 kg",  notas:"Dolor leve"},
+    {n:"Jalón Pecho Unilat.",  sp:"3x11",pp:"115 kg", sr:"1x11+1x10+1x9",pr:"115 kg",notas:"Fatiga intraserie"},
+    {n:"Elev. Lateral Manc.",  sp:"3x11",pp:"7,5 kg", sr:"3x12", pr:"7,5 kg", notas:""},
+    {n:"Press Incl. 30°",      sp:"3x11",pp:"15 kg",  sr:"omitido",pr:"—",    notas:"Dolor hombro"},
+    {n:"Remo en Máquina",      sp:"3x11",pp:"65 kg",  sr:"1x11+1x9+1x8",pr:"65 kg",notas:"Fatiga intraserie"},
+    {n:"Elev. Lat. Polea",     sp:"3x11",pp:"10 kg",  sr:"omitido",pr:"—",    notas:"Dolor hombro"},
+    {n:"Curl Bíceps Incl. 45°",sp:"4x11",pp:"10 kg",  sr:"1x11+1x8+1x6+1x8",pr:"10 kg",notas:"Baje a 7,5 kg ultima serie"},
+    {n:"Ext. Tríceps",         sp:"3x11",pp:"50 kg",  sr:"2x11+1x8",pr:"50 kg",notas:"Base real 50 kg"},
+  ]},
+  {id:10009,fecha:"2026-04-16",dia:"d2",semana:"S3",energia:7,duracion:null,hora:"22:46",dolor:"Cansado. Agotado con poca fuerza en cuadriceps",obs:"Ayer jugue futbol, quizas fue eso",
+   ejercicios:[
+    {n:"Sentadilla Barra",     sp:"3x11",pp:"42,7 kg",sr:"3x8",  pr:"51,8 kg",notas:"70 lb + barra 20 kg = 51,8 kg real"},
+    {n:"Hip Thrust",           sp:"4x12",pp:"0 kg",   sr:"omitido",pr:"—",    notas:"Por tiempo"},
+    {n:"Prensa",               sp:"3x12",pp:"100 kg", sr:"3x12", pr:"100 kg", notas:"Aprox 70x12 rep"},
+    {n:"Ext. Cuád. Unilat.",   sp:"3x11",pp:"27,5 kg",sr:"1x11+1x9+1x8",pr:"27,5 kg",notas:"Fatiga intraserie"},
+    {n:"Curl Isquios Unilat.", sp:"3x12",pp:"25 kg",  sr:"1x12+1x9+1x7",pr:"25 kg",  notas:"Fatiga fuerte"},
+    {n:"Gemelo en MPW",        sp:"4x14",pp:"80 kg",  sr:"4x14", pr:"80 kg",  notas:""},
+    {n:"Rueda Abdominal",      sp:"4x14",pp:"+30 kg", sr:"omitido",pr:"—",    notas:"Por tiempo"},
+  ]},
+  {id:10010,fecha:"2026-04-18",dia:"d4",semana:"S3",energia:7,duracion:null,hora:"20:52",dolor:"Dolor hombro menos que anterior pero sigue",obs:"Ayer jugue futbolito. Antier D2. Antes futbol. Antes D1. Piernas adoloridas pero brazos bien.",
+   ejercicios:[
+    {n:"Remo Máq. Unilateral", sp:"3x11",pp:"50 kg",  sr:"3x12", pr:"50 kg",  notas:""},
+    {n:"Press Mil. Manc.",     sp:"3x11",pp:"10 kg",  sr:"omitido",pr:"—",    notas:"Cuidar hombro"},
+    {n:"Press Pecho Máquina",  sp:"4x11",pp:"30 kg",  sr:"3x12+1x10",pr:"30 kg",notas:""},
+    {n:"Jalón al Pecho",       sp:"3x11",pp:"115 kg", sr:"1x11+2x12",pr:"100 kg",notas:"1a serie 115 kg, luego baje a 100 kg"},
+    {n:"Peck Deck",            sp:"3x13",pp:"35 kg",  sr:"omitido",pr:"—",    notas:"Dolor hombro"},
+    {n:"Elev. Lat. Polea",     sp:"3x12",pp:"7,5 kg", sr:"omitido",pr:"—",    notas:"Dolor hombro"},
+    {n:"Curl Barra Polea",     sp:"3x11",pp:"75 kg",  sr:"3x12", pr:"50 kg",  notas:""},
+    {n:"Ext. Tríceps Barra",   sp:"4x11",pp:"80 kg",  sr:"4x12", pr:"70-100 kg",notas:"Progresion dentro sesion: 70->90->90->100 kg"},
+  ]},
+  {id:10011,fecha:"2026-04-18",dia:"d5",semana:"S3",energia:7,duracion:null,hora:"18:00",dolor:"",obs:"Cansado. Jugue 35 min futbol Copa Scuola Italiana a las 12.",
+   ejercicios:[
+    {n:"PM Rumano Barra",      sp:"3x12",pp:"42,7 kg",sr:"2x12+1x10",pr:"56,3 kg",notas:"80 lb + barra 20 kg = 56,3 kg real"},
+    {n:"Prensa Unilateral",    sp:"3x11",pp:"50 kg",  sr:"3x11", pr:"50 kg",  notas:"RIR 1-2"},
+    {n:"Curl de Isquios",      sp:"3x12",pp:"47,5 kg",sr:"3x12", pr:"47,5 kg",notas:""},
+    {n:"Ext. de Cuádriceps",   sp:"3x11",pp:"60 kg",  sr:"3x11", pr:"60 kg",  notas:""},
+    {n:"Abductores",           sp:"3x12",pp:"110 kg", sr:"1x9+1x9+1x11",pr:"110 kg",notas:"Biserie con aductores — separar en S4"},
+    {n:"Aductores",            sp:"3x12",pp:"110 kg", sr:"3x12", pr:"110 kg", notas:"Bien"},
+    {n:"Gemelo en MPW",        sp:"3x14",pp:"87,5 kg",sr:"3x14", pr:"87,5 kg",notas:"Ultima serie al fallo"},
+    {n:"Plancha Abdominal",    sp:"3x14",pp:"30 kg",  sr:"omitida",pr:"—",   notas:"Por tiempo"},
+  ]},
+];
+var HIST_INBODY = [
+  {id:20001,fecha:"2025-12-03",ctx:"Medicion 1 — diciembre 2025",
+   peso:85.7,musculo:40.4,grasa:15.2,pctGrasa:17.7,agua:51.6,imc:25.3,osea:4.84,tmb:1893,
+   puntuacion:84,grasaVisc:6,cinturaCadera:0.86,masaLibreGrasa:70.5},
+  {id:20002,fecha:"2026-01-05",ctx:"Medicion 2 — enero 2026",
+   peso:83.4,musculo:40.2,grasa:13.7,pctGrasa:16.4,agua:51.0,imc:24.9,osea:4.71,tmb:1875,
+   puntuacion:85,grasaVisc:5,cinturaCadera:0.91,masaLibreGrasa:69.7},
+  {id:20003,fecha:"2026-02-02",ctx:"Medicion 3 — febrero 2026",
+   peso:85.6,musculo:39.6,grasa:16.4,pctGrasa:19.1,agua:50.6,imc:25.3,osea:4.73,tmb:1866,
+   puntuacion:82,grasaVisc:6,cinturaCadera:0.90,masaLibreGrasa:69.2},
+];
+
 function loadDB(){
   try{
     var r=localStorage.getItem("nm-training-v5");
     if(r){var d=JSON.parse(r);DB.sesiones=d.sesiones||[];DB.inbody=d.inbody||[];}
   }catch(e){}
+  // Inject historical sessions if not already present
+  var existIds=new Set(DB.sesiones.map(function(s){return s.id;}));
+  HIST_SESIONES.forEach(function(s){if(!existIds.has(s.id))DB.sesiones.push(s);});
+  DB.sesiones.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+  // Inject historical inbody if not already present
+  var existIbIds=new Set(DB.inbody.map(function(m){return m.id;}));
+  HIST_INBODY.forEach(function(m){if(!existIbIds.has(m.id))DB.inbody.push(m);});
+  DB.inbody.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
   updateUI();
 }
 
@@ -744,7 +882,9 @@ function renderIbHistory(){
   var fields=[
     {k:"peso",l:"Peso",u:"kg",up:false},{k:"musculo",l:"Musculo",u:"kg",up:true},
     {k:"grasa",l:"Grasa",u:"kg",up:false},{k:"pctGrasa",l:"% Grasa",u:"%",up:false},
-    {k:"agua",l:"Agua",u:"kg",up:true},{k:"tmb",l:"TMB",u:"kcal",up:true}
+    {k:"agua",l:"Agua",u:"kg",up:true},{k:"tmb",l:"TMB",u:"kcal",up:true},
+    {k:"puntuacion",l:"Score InBody",u:"/100",up:true},{k:"grasaVisc",l:"Grasa Visceral",u:"",up:false},
+    {k:"imc",l:"IMC",u:"",up:false},{k:"masaLibreGrasa",l:"Masa Libre Grasa",u:"kg",up:true}
   ];
   cont.innerHTML='<div class="card"><div class="card-hdr"><div class="card-title">Ultima medicion</div>'
     +'<div style="font-size:11px;color:var(--text2);">'+last.fecha+(last.ctx?" · "+last.ctx:"")+'</div></div>'
@@ -761,9 +901,10 @@ function renderIbHistory(){
     chIb=new Chart(document.getElementById("ch-inbody"),{
       type:"line",
       data:{labels:lbs,datasets:[
-        {label:"Peso",data:sorted.map(function(m){return m.peso;}),borderColor:"#f0f0f3",tension:.35,fill:false,pointRadius:5,borderDash:[]},
-        {label:"Musculo",data:sorted.map(function(m){return m.musculo;}),borderColor:"#3ecf8e",tension:.35,fill:false,pointRadius:5,borderDash:[5,3]},
-        {label:"Grasa",data:sorted.map(function(m){return m.grasa;}),borderColor:"#f76f6f",tension:.35,fill:false,pointRadius:5,borderDash:[2,2]},
+        {label:"Peso",data:sorted.map(function(m){return m.peso;}),borderColor:"#f0f0f3",backgroundColor:"rgba(240,240,243,0.05)",tension:.35,fill:false,pointRadius:6,borderDash:[],pointStyle:"circle"},
+        {label:"Musculo",data:sorted.map(function(m){return m.musculo;}),borderColor:"#3ecf8e",backgroundColor:"rgba(62,207,142,0.05)",tension:.35,fill:false,pointRadius:6,borderDash:[5,3],pointStyle:"rect"},
+        {label:"Grasa",data:sorted.map(function(m){return m.grasa;}),borderColor:"#f76f6f",backgroundColor:"rgba(247,111,111,0.05)",tension:.35,fill:false,pointRadius:6,borderDash:[2,2],pointStyle:"triangle"},
+        {label:"% Grasa",data:sorted.map(function(m){return m.pctGrasa;}),borderColor:"#f5a623",backgroundColor:"rgba(245,166,35,0.05)",tension:.35,fill:false,pointRadius:6,borderDash:[4,4],pointStyle:"star"},
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false}},
