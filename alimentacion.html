@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -275,7 +278,12 @@ button:active{opacity:.7;transform:scale(.98);}
         <span class="section-title">Actividades</span>
         <button class="btn-sm btn-amber" onclick="openModalActividad()">+ Actividad</button>
       </div>
+      <!-- Estimación de entrenamiento (se muestra si no hay gym registrado aún) -->
+      <div id="gym-estimate-section"></div>
       <div id="list-actividades"></div>
+
+      <!-- Plan de comidas del día (refleja la ficha Menús → plan propuesto) -->
+      <div id="plan-hoy-section"></div>
 
       <!-- Alimentos -->
       <div class="section-hdr">
@@ -341,8 +349,25 @@ button:active{opacity:.7;transform:scale(.98);}
         </div>
       </div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px;" id="menu-date-label2"></div>
+
+      <!-- Objetivos del día — SIEMPRE VISIBLE, valores actualizados por JS -->
+      <div style="background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">🎯 Objetivo diario</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;text-align:center;margin-bottom:12px;">
+          <div><div id="pmb-tcal" style="font-size:16px;font-weight:700;color:var(--blue);">—</div><div style="font-size:9px;color:var(--text2);">kcal</div></div>
+          <div><div id="pmb-tprot" style="font-size:16px;font-weight:700;color:var(--green);">—</div><div style="font-size:9px;color:var(--text2);">prot</div></div>
+          <div><div id="pmb-tgras" style="font-size:16px;font-weight:700;color:var(--amber);">—</div><div style="font-size:9px;color:var(--text2);">grasas</div></div>
+          <div><div id="pmb-tcarb" style="font-size:16px;font-weight:700;color:var(--purple);">—</div><div style="font-size:9px;color:var(--text2);">carbos</div></div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Tu plan aporta</div>
+        <div id="pmb-bars">
+          <!-- Bars rendered by JS -->
+          <div style="font-size:11px;color:var(--text2);">Agregá alimentos al plan para ver el progreso.</div>
+        </div>
+      </div>
+
       <div id="plan-summary" style="display:none;background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;"></div>
-      <div id="plan-macros-bar" style="display:none;background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;"></div>
+      <div id="plan-macros-bar" style="display:none;"></div>
       <div id="list-menu-plan"></div>
 
       <div style="height:1px;background:var(--bord);margin:18px 0 14px;"></div>
@@ -907,11 +932,40 @@ var DB = {
 // Fallback: same records as in index.html (HIST_INBODY).
 // Updated automatically when nm-training/main syncs from Firestore.
 var INBODY_DATA     = null;
-var INBODY_DATA_ALL = [
-  {id:20001,fecha:"2025-12-03",peso:85.7,tmb:1893},
-  {id:20002,fecha:"2026-01-05",peso:83.4,tmb:1875},
-  {id:20003,fecha:"2026-02-02",peso:85.6,tmb:1866}
+// Hardcoded baseline — always valid, used to backfill Firestore records missing fields
+var _INBODY_BASELINE = [
+  {id:20001,fecha:"2025-12-03",peso:85.7,tmb:1893,musculo:40.4,pctGrasa:17.7,grasa:15.2},
+  {id:20002,fecha:"2026-01-05",peso:83.4,tmb:1875,musculo:40.2,pctGrasa:16.4,grasa:13.7},
+  {id:20003,fecha:"2026-02-02",peso:85.6,tmb:1866,musculo:39.6,pctGrasa:19.1,grasa:16.4}
 ];
+var INBODY_DATA_ALL = _INBODY_BASELINE.slice();
+
+// Helper: merge Firestore inbody array with baseline so tmb/musculo/pctGrasa are always valid
+function _mergeInbodyArr(fsArr){
+  var baseById = {};
+  _INBODY_BASELINE.forEach(function(b){ baseById[b.id] = b; });
+  // Map existing Firestore records, backfilling missing critical fields from baseline
+  var result = fsArr.map(function(rec){
+    var base = baseById[rec.id];
+    if(base){
+      var merged = Object.assign({}, base, rec);
+      // Ensure tmb, musculo, pctGrasa are never falsy/zero when baseline has values
+      if(!merged.tmb   || merged.tmb   < 1000) merged.tmb      = base.tmb;
+      if(!merged.musculo)                       merged.musculo   = base.musculo;
+      if(!merged.pctGrasa)                      merged.pctGrasa  = base.pctGrasa;
+      return merged;
+    }
+    return rec;
+  });
+  // Ensure baseline records are always present even if missing from Firestore
+  _INBODY_BASELINE.forEach(function(base){
+    if(!result.find(function(r){ return r.id === base.id; })){
+      result.push(base);
+    }
+  });
+  result.sort(function(a,b){ return a.fecha > b.fecha ? 1 : -1; });
+  return result;
+}
 
 // Sessions from nm-training — loaded from Firestore, fallback to HIST
 var SESSIONS_DATA = [
@@ -1026,25 +1080,41 @@ function loadDB(){
       renderAll();
     });
 
-    // Read InBody from nm-training (all historical records)
-    _fbTrain.get().then(function(doc){
+    // Listen to nm-training in real time — updates automatically when a session
+    // is saved in the training app (same Firestore doc), re-calculates gym calories.
+    _fbTrain.onSnapshot(function(doc){
       if(doc.exists){
         var d = doc.data();
         var inbodyArr = d.inbody || [];
-        if(inbodyArr.length){
-          INBODY_DATA_ALL = inbodyArr.slice().sort(function(a,b){ return a.fecha>b.fecha?1:-1; });
-          INBODY_DATA     = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1]; // most recent
-        }
+        // Always merge with baseline so tmb/musculo/pctGrasa are guaranteed valid
+        INBODY_DATA_ALL = _mergeInbodyArr(inbodyArr);
+        INBODY_DATA     = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1]; // most recent
         // Also load sessions for gym calorie calculation
         var sesArr = d.sesiones || [];
         if(sesArr.length) SESSIONS_DATA = sesArr;
         // Recalculate stored gym activities using real session volume
+        // (if a real session now exists for a date that had a theoretical estimate, it updates)
         _recalcGymActividades();
       }
       renderConfigInbody();
       renderPerfil();
-      renderAll(); // re-render with InBody data
-    }).catch(function(){});
+      renderAll(); // re-render with InBody / session data
+    }, function(err){
+      console.warn("nm-training snapshot error, falling back to one-time read:", err);
+      // Fallback: try one-time read
+      _fbTrain.get().then(function(doc){
+        if(doc.exists){
+          var d = doc.data();
+          var inbodyArr = d.inbody || [];
+          INBODY_DATA_ALL = _mergeInbodyArr(inbodyArr);
+          INBODY_DATA     = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1];
+          var sesArr = d.sesiones || [];
+          if(sesArr.length) SESSIONS_DATA = sesArr;
+          _recalcGymActividades();
+        }
+        renderConfigInbody(); renderPerfil(); renderAll();
+      }).catch(function(){});
+    });
   } else {
     _loadLocal();
     renderAll();
@@ -1213,6 +1283,8 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
     } else {
       kg = _parseKg(ej.pp);
       sr = _parseSR(ej.sp);
+      // If no explicit program data (pp/sp), use real results as baseline for theoretical estimate
+      if(!kg || !sr.sets){ kg = _parseKg(ej.pr); sr = _parseSR(ej.sr); }
     }
     if(kg>0 && sr.sets>0 && sr.reps>0){
       var vol = kg * sr.sets * sr.reps;
@@ -1502,6 +1574,103 @@ function renderHoy(){
     }).join("");
   }
 
+  // ── Gym estimate section (shows quick-add buttons when no gym logged yet) ──
+  var gymEstEl = document.getElementById("gym-estimate-section");
+  if(gymEstEl){
+    var gymActs = actsHoy.filter(function(a){ return a.tipo==="gym"; });
+    if(!gymActs.length){
+      // Build deduplicated list of gym presets
+      var allGymPresets = [];
+      var seenDk = {};
+      DB.actPresets.concat(ACT_PRESETS_DEFAULT).forEach(function(p){
+        if(p.tipo==="gym" && p.diaKey && !seenDk[p.diaKey]){
+          seenDk[p.diaKey] = true;
+          allGymPresets.push(p);
+        }
+      });
+      if(allGymPresets.length){
+        var pesoEst = getWeightForDate(fecha);
+        var btns = allGymPresets.map(function(p){
+          var est = calcGymCalFromSession(p.diaKey, pesoEst, p.duracion||60, null);
+          if(!est) return "";
+          // Find if this preset is in DB.actPresets (for useActPreset) or default
+          var dbP = DB.actPresets.find(function(dp){ return dp.diaKey===p.diaKey && dp.tipo==="gym"; });
+          var presetId = dbP ? dbP.id : p.id;
+          var shortName = p.nombre.split("—")[0].trim(); // "Día 1 " or "Día 2 "
+          var dayNum = p.diaKey.replace("d","");
+          return "<button class='btn-xs' "+
+            "style='background:var(--amber-d);color:var(--amber);border:1px solid var(--amber);padding:5px 9px;font-size:11px;' "+
+            "onclick='useActPreset(\""+esc(presetId)+"\")'>"+
+            "Día "+dayNum+" · ~"+est.kcal+" kcal</button>";
+        }).filter(Boolean).join("");
+        if(btns){
+          gymEstEl.innerHTML =
+            "<div style='background:var(--bg3);border:1px solid var(--amber);border-opacity:.5;border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;'>"+
+            "<div style='font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;'>"+
+            "⚡ Estimación entrenamiento — pulsá para agregar al día</div>"+
+            "<div style='display:flex;flex-wrap:wrap;gap:6px;'>"+btns+"</div>"+
+            "<div style='font-size:10px;color:var(--text3);margin-top:6px;'>Calculado desde última sesión (80%). Se actualiza con los datos reales al volver del gym.</div>"+
+            "</div>";
+        } else { gymEstEl.innerHTML = ""; }
+      } else { gymEstEl.innerHTML = ""; }
+    } else {
+      gymEstEl.innerHTML = ""; // already has gym activity logged
+    }
+  }
+
+  // ── Plan de comidas del día (compacto, con checkboxes → sync a Alimentos registrados) ──
+  var planHoyEl = document.getElementById("plan-hoy-section");
+  if(planHoyEl){
+    var planHoy = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+    if(planHoy && planHoy.items.length){
+      var totalPlanCal = planHoy.items.reduce(function(s,i){ return s+(i.cal||0); }, 0);
+      var nConsPlan    = planHoy.items.filter(function(i){ return i.consumido; }).length;
+      var planGroupHtml = "";
+      // Grouped by meal category
+      COMIDAS.forEach(function(c){
+        var cItems = planHoy.items.filter(function(i){ return i.comida===c.key; });
+        if(!cItems.length) return;
+        planGroupHtml += "<div style='font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px;'>"+c.label+
+          " <span style='color:var(--text3);font-weight:400;'>máx "+c.maxHora+"</span></div>";
+        planGroupHtml += cItems.map(function(item){
+          var consPct = item.consumido ? " consumido" : "";
+          return "<div class='plan-item"+consPct+"' style='margin-bottom:4px;'>"+
+            "<div class='plan-check' onclick='togglePlanItem(\""+planHoy.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
+            "<div class='plan-item-info'>"+
+              "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
+              "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g</div>"+
+            "</div>"+
+          "</div>";
+        }).join("");
+      });
+      // Items without category
+      var nocat = planHoy.items.filter(function(i){ return !i.comida; });
+      if(nocat.length){
+        planGroupHtml += "<div style='font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px;'>Sin categoría</div>";
+        planGroupHtml += nocat.map(function(item){
+          return "<div class='plan-item"+(item.consumido?" consumido":"")+"' style='margin-bottom:4px;'>"+
+            "<div class='plan-check' onclick='togglePlanItem(\""+planHoy.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
+            "<div class='plan-item-info'>"+
+              "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
+              "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g</div>"+
+            "</div>"+
+          "</div>";
+        }).join("");
+      }
+      planHoyEl.innerHTML =
+        "<div class='section-hdr' style='margin-top:12px;'>"+
+          "<span class='section-title'>Plan de comidas</span>"+
+          "<span style='font-size:11px;color:var(--text2);'>"+nConsPlan+"/"+planHoy.items.length+" · "+Math.round(totalPlanCal)+" kcal</span>"+
+        "</div>"+
+        "<div style='font-size:11px;color:var(--text2);margin-bottom:8px;'>"+
+          "✓ = marca como comido y suma a <em>Alimentos registrados</em>"+
+        "</div>"+
+        "<div>"+planGroupHtml+"</div>";
+    } else {
+      planHoyEl.innerHTML = "";
+    }
+  }
+
   // List alimentos
   var listAlim = document.getElementById("list-alimentos-hoy");
   var regsHoy  = DB.registros.filter(function(r){ return r.fecha===fecha; });
@@ -1609,6 +1778,78 @@ function renderFoodDB(){
   document.getElementById("list-db").innerHTML = html;
 }
 
+// ─────────── PLAN MACROS BAR (static HTML elements) ───────────
+function _renderPlanMacrosBar(fecha){
+  var tgt   = getMacroTargets(fecha);
+  var tCal  = Math.round(tgt.cal  || 0);
+  var tProt = Math.round((tgt.prot || 0) * 10) / 10;
+  var tGras = Math.round((tgt.gras || 0) * 10) / 10;
+  var tCarb = Math.round((tgt.carb || 0) * 10) / 10;
+
+  // Update objective labels
+  var elCal  = document.getElementById("pmb-tcal");
+  var elProt = document.getElementById("pmb-tprot");
+  var elGras = document.getElementById("pmb-tgras");
+  var elCarb = document.getElementById("pmb-tcarb");
+  if(elCal)  elCal.textContent  = tCal  ? tCal+" kcal"  : "—";
+  if(elProt) elProt.textContent = tProt ? tProt+"g"      : "—";
+  if(elGras) elGras.textContent = tGras ? tGras+"g"      : "—";
+  if(elCarb) elCarb.textContent = tCarb ? tCarb+"g"      : "—";
+
+  // Sum plan macros
+  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  var mCal = 0, mProt = 0, mGras = 0, mCarb = 0;
+  if(plan && plan.items && plan.items.length){
+    plan.items.forEach(function(i){
+      mCal  += parseFloat(i.cal)  || 0;
+      mProt += parseFloat(i.prot) || 0;
+      mGras += parseFloat(i.gras) || 0;
+      mCarb += parseFloat(i.carb) || 0;
+    });
+  }
+  mCal  = Math.round(mCal);
+  mProt = Math.round(mProt * 10) / 10;
+  mGras = Math.round(mGras * 10) / 10;
+  mCarb = Math.round(mCarb * 10) / 10;
+
+  var barsEl = document.getElementById("pmb-bars");
+  if(!barsEl) return;
+
+  if(!plan || !plan.items || !plan.items.length){
+    barsEl.innerHTML = "<div style='font-size:11px;color:var(--text2);'>Agregá alimentos al plan para ver el progreso.</div>";
+    return;
+  }
+
+  var _bar = function(label, planVal, objVal, unit, color){
+    var pct = objVal > 0 ? Math.min(110, Math.round(planVal / objVal * 100)) : 0;
+    var pctColor = pct > 105 ? "var(--red)" : pct >= 90 ? color : pct >= 70 ? "var(--amber)" : "var(--text2)";
+    var resta = Math.round((objVal - planVal) * (unit==="g"?10:1)) / (unit==="g"?10:1);
+    var restaLbl = resta > 0
+      ? "faltan <strong style='color:"+color+";'>"+resta+unit+"</strong>"
+      : "<strong style='color:var(--green);'>✓ objetivo cubierto</strong>";
+    return "<div style='margin-bottom:10px;'>"+
+      "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;'>"+
+        "<span style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;'>"+label+"</span>"+
+        "<span style='font-size:12px;'>"+
+          "<strong style='color:"+color+";'>"+planVal+unit+"</strong>"+
+          "<span style='color:var(--text2);'> / "+objVal+unit+"</span>"+
+          " <span style='font-size:11px;font-weight:700;color:"+pctColor+";'>("+pct+"%)</span>"+
+        "</span>"+
+      "</div>"+
+      "<div style='height:7px;background:var(--bg4);border-radius:4px;overflow:hidden;margin-bottom:3px;'>"+
+        "<div style='height:100%;width:"+Math.min(100,pct)+"%;background:"+color+";border-radius:4px;transition:width .4s;'></div>"+
+      "</div>"+
+      "<div style='font-size:10px;color:var(--text2);'>"+restaLbl+"</div>"+
+    "</div>";
+  };
+
+  barsEl.innerHTML =
+    _bar("Calorías", mCal,  tCal,  " kcal", "var(--blue)")  +
+    _bar("Proteína", mProt, tProt, "g",      "var(--green)") +
+    _bar("Grasas",   mGras, tGras, "g",      "var(--amber)") +
+    _bar("Carbos",   mCarb, tCarb, "g",      "var(--purple)");
+}
+
 // ─────────── RENDER MENUS ───────────
 function renderMenus(){
   renderMenuPropuesto();
@@ -1641,6 +1882,9 @@ function renderMenuPropuesto(){
   var summEl = document.getElementById("plan-summary");
   if(!listEl) return;
 
+  // ── Macro objectives + plan comparison — update static HTML elements ──
+  _renderPlanMacrosBar(fecha);
+
   // Summary totals
   var totalPlan = 0, totalConsumido = 0, actualCal = 0;
   var nConsumidos = 0, totalItems = 0;
@@ -1656,9 +1900,7 @@ function renderMenuPropuesto(){
   if(!plan || !plan.items.length){
     listEl.innerHTML = "<div class='empty-hint'>Sin plan para este día. Agregá alimentos o aplicá un preset.</div>";
     if(summEl) summEl.style.display = "none";
-    var macrosElHide = document.getElementById("plan-macros-bar");
-    if(macrosElHide) macrosElHide.style.display = "none";
-    return;
+    return;  // macros-bar stays visible (shows objectives with 0 plan values)
   }
 
   // Summary card
@@ -1672,48 +1914,6 @@ function renderMenuPropuesto(){
       "<div><div style='font-size:10px;color:var(--blue);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Registrado</div><div style='font-size:17px;font-weight:700;color:var(--blue);'>"+Math.round(actualCal)+" kcal</div></div>"+
       "</div>"+
       "<div style='font-size:11px;color:var(--text2);'>"+nConsumidos+" de "+totalItems+" alimentos marcados"+(restante>0?" · Faltan <strong style=\"color:var(--amber);\">"+restante+" kcal</strong> del plan":"")+"</div>";
-  }
-
-  // Macro vs target comparison bar
-  var macrosEl = document.getElementById("plan-macros-bar");
-  if(macrosEl && plan && plan.items.length){
-    var targets = getDailyTarget(fecha);
-    var tProt = 0, tGras = 0, tCarb = 0, tCal = 0;
-    plan.items.forEach(function(i){
-      tProt += parseFloat(i.prot)||0;
-      tGras += parseFloat(i.gras)||0;
-      tCarb += parseFloat(i.carb)||0;
-      tCal  += parseFloat(i.cal) ||0;
-    });
-    tProt=Math.round(tProt*10)/10; tGras=Math.round(tGras*10)/10; tCarb=Math.round(tCarb*10)/10; tCal=Math.round(tCal);
-
-    function _macroBar(label, val, target, unit, color){
-      var pct = target>0 ? Math.min(110, Math.round(val/target*100)) : 0;
-      var barColor = pct>105 ? "var(--red)" : pct>80 ? color : "var(--text3)";
-      return "<div style='margin-bottom:8px;'>"+
-        "<div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;'>"+
-          "<span style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;'>"+label+"</span>"+
-          "<span style='font-size:11px;'>"+
-            "<strong style='color:var(--text);'>"+val+unit+"</strong>"+
-            "<span style='color:var(--text3);'> / "+target+unit+"</span>"+
-            " <span style='font-size:10px;font-weight:700;color:"+(pct>105?"var(--red)":pct>=80?color:"var(--text3)")+"'>"+pct+"%</span>"+
-          "</span>"+
-        "</div>"+
-        "<div style='height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;'>"+
-          "<div style='height:100%;width:"+Math.min(100,pct)+"%;background:"+barColor+";border-radius:3px;transition:width .3s;'></div>"+
-        "</div>"+
-      "</div>";
-    }
-
-    macrosEl.style.display = "block";
-    macrosEl.innerHTML =
-      "<div style='font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;'>Macros del plan vs objetivo diario</div>"+
-      _macroBar("Calorías", tCal, targets.cal, " kcal", "var(--blue)")+
-      _macroBar("Proteína", tProt, targets.prot, "g", "var(--green)")+
-      _macroBar("Grasas",   tGras, targets.gras, "g", "var(--amber)")+
-      _macroBar("Carbos",   tCarb, targets.carb, "g", "var(--purple)");
-  } else if(macrosEl){
-    macrosEl.style.display = "none";
   }
 
   // Render by comida category
@@ -1782,7 +1982,8 @@ function renderMetas(){
     if(hasCal) cumBal += Math.round(con.cal - tgt);
     cumPoints.push({fecha:fecha, bal:cumBal, consumed:con.cal, target:tgt, hasCal:hasCal, isToday:isToday});
 
-    if(hasCal){
+    // Only count fully past days in the average (not today, not future)
+    if(hasCal && fecha < today){
       macroSums.cal += con.cal; macroSums.prot += con.prot;
       macroSums.gras += con.gras; macroSums.carb += con.carb;
       daysWithData++;
@@ -1832,9 +2033,9 @@ function renderMetas(){
       _adherenceBadge("Calorías", pctFn(avgCal,tgt2.cal), colorFn(pctFn(avgCal,tgt2.cal)))+
       _adherenceBadge("Proteína", pctFn(avgProt,tgt2.prot), colorFn(pctFn(avgProt,tgt2.prot)))+
       "</div>"+
-      "<div style='font-size:11px;color:var(--text2);text-align:center;margin-top:8px;'>Promedio "+daysWithData+" día(s) con registro esta semana</div>";
+      "<div style='font-size:11px;color:var(--text2);text-align:center;margin-top:8px;'>Promedio de "+daysWithData+" día(s) finalizados esta semana (excluye hoy)</div>";
   } else {
-    macrosEl.innerHTML = "<div class='empty-hint'>Sin registros esta semana</div>";
+    macrosEl.innerHTML = "<div class='empty-hint'>Sin días finalizados esta semana aún</div>";
   }
 }
 
@@ -2167,17 +2368,19 @@ function reloadInBodyData(){
     if(doc.exists){
       var d = doc.data();
       var inbodyArr = d.inbody || [];
-      if(inbodyArr.length){
-        INBODY_DATA_ALL = inbodyArr.slice().sort(function(a,b){ return a.fecha>b.fecha?1:-1; });
-        INBODY_DATA = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1];
-      }
+      // Always merge with baseline so tmb/musculo/pctGrasa are guaranteed valid
+      INBODY_DATA_ALL = _mergeInbodyArr(inbodyArr);
+      INBODY_DATA = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1];
       var sesArr = d.sesiones || [];
       if(sesArr.length) SESSIONS_DATA = sesArr;
       _recalcGymActividades();
+    } else {
+      // No Firestore data — already have baseline, nothing to do
+      INBODY_DATA = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1];
     }
     renderConfigInbody();
     renderAll();
-    alert("InBody recargado: "+INBODY_DATA_ALL.length+" registros · TMB activo: "+Math.round(getTMB())+" kcal");
+    alert("InBody: "+INBODY_DATA_ALL.length+" registros · TMB activo: "+Math.round(getTMB())+" kcal · Fecha ref: "+(INBODY_DATA ? INBODY_DATA.fecha : "—"));
   }).catch(function(e){ alert("Error al recargar: "+e); });
 }
 
@@ -3022,6 +3225,7 @@ function useActPreset(id){
   if(!p) return;
   var peso = getWeightForDate(_viewDate);
   var record = {id:Date.now()+"", fecha:_viewDate, tipo:p.tipo, notas:p.nombre};
+  if(p.diaKey) record.diaKey = p.diaKey;
   if(p.tipo==="trote" && p.km && p.ritmo){
     var timMin = p.km * p.ritmo;
     record.duracion = Math.round(timMin);
