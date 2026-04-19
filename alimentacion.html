@@ -820,10 +820,15 @@ var DB = {
   menusPropuestos: []    // [{id, fecha, items:[{id,nombre,cal,prot,gras,carb,dbId,cantidad,consumido,registroId}]}]
 };
 
-// InBody snapshots from nm-training — sorted by date ascending
-// We store all records so each day uses the most recent InBody at-or-before that date
-var INBODY_DATA     = null;  // latest record (for Config display)
-var INBODY_DATA_ALL = [];    // all records sorted ascending
+// InBody snapshots — sorted ascending by date.
+// Fallback: same records as in index.html (HIST_INBODY).
+// Updated automatically when nm-training/main syncs from Firestore.
+var INBODY_DATA     = null;
+var INBODY_DATA_ALL = [
+  {id:20001,fecha:"2025-12-03",peso:85.7,tmb:1893},
+  {id:20002,fecha:"2026-01-05",peso:83.4,tmb:1875},
+  {id:20003,fecha:"2026-02-02",peso:85.6,tmb:1866}
+];
 
 // ─────────── FIREBASE ───────────
 var _fbAlim  = null;
