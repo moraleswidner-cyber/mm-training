@@ -189,6 +189,28 @@ button:active{opacity:.7;transform:scale(.98);}
 .meta-bar-sm{height:4px;background:var(--bg4);border-radius:99px;overflow:hidden;}
 .meta-bar-fill{height:100%;border-radius:99px;transition:width .4s;}
 .meta-val{text-align:right;min-width:90px;font-size:11px;}
+/* ── PLAN SEMANAL ── */
+.ps-day-bar{display:flex;gap:3px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;}
+.ps-day-pill{flex-shrink:0;padding:6px 10px;border-radius:99px;border:1px solid var(--bord2);background:transparent;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;text-align:center;min-width:44px;}
+.ps-day-pill.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.ps-day-pill.has-data{border-color:var(--green);color:var(--green);}
+.ps-day-pill.active.has-data{background:var(--green);border-color:var(--green);color:#000;}
+.ps-comida-hdr{font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;margin:10px 0 5px;display:flex;justify-content:space-between;align-items:center;}
+.ps-item{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bord);font-size:12px;}
+.ps-item-name{flex:1;}
+.ps-item-cal{font-size:11px;color:var(--text2);margin:0 8px;}
+.ps-macro-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center;margin-bottom:10px;}
+.ps-macro-box{background:var(--bg4);border-radius:var(--rxs);padding:6px 4px;}
+.ps-macro-val{font-size:14px;font-weight:700;}
+.ps-macro-lbl{font-size:9px;color:var(--text2);}
+.ps-macro-bar{height:5px;background:var(--bg4);border-radius:3px;margin-top:3px;overflow:hidden;}
+.ps-macro-fill{height:100%;border-radius:3px;transition:width .4s;}
+.ps-week-row{display:grid;grid-template-columns:80px repeat(7,1fr);gap:2px;font-size:10px;margin-bottom:3px;}
+.ps-week-cell{padding:4px 2px;text-align:center;border-radius:var(--rxs);}
+.ps-week-hdr{font-weight:700;color:var(--text2);}
+.ps-shop-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bord);font-size:12px;}
+.ps-shop-qty{font-size:11px;color:var(--amber);font-weight:600;white-space:nowrap;margin-left:8px;}
+.ps-shop-cat{font-size:10px;color:var(--text2);}
 </style>
 </head>
 <body>
@@ -209,6 +231,7 @@ button:active{opacity:.7;transform:scale(.98);}
     <button class="tab-btn" onclick="showTab('metas',this)">Metas</button>
     <button class="tab-btn" onclick="showTab('alimentos',this)">Alimentos</button>
     <button class="tab-btn" onclick="showTab('menus',this)">Menús</button>
+    <button class="tab-btn" onclick="showTab('compras',this)">Compras</button>
     <button class="tab-btn" onclick="showTab('config',this)">Config</button>
   </div>
 
@@ -378,6 +401,50 @@ button:active{opacity:.7;transform:scale(.98);}
         <button class="btn-xs btn-blue" onclick="saveMenuPreset()">Guardar hoy</button>
       </div>
       <div id="list-menus"></div>
+    </div>
+
+    <!-- ===== TAB COMPRAS ===== -->
+    <div id="tab-compras" class="tab">
+
+      <!-- Week navigation -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <button class="btn-xs" onclick="psNavWeek(-1)">‹ Semana ant.</button>
+        <div style="text-align:center;">
+          <div style="font-size:12px;font-weight:700;" id="ps-week-label">—</div>
+          <div style="font-size:10px;color:var(--text2);" id="ps-week-sub">—</div>
+        </div>
+        <button class="btn-xs" onclick="psNavWeek(+1)">Semana sig. ›</button>
+      </div>
+
+      <!-- Day selector pills -->
+      <div class="ps-day-bar" id="ps-day-bar"></div>
+
+      <!-- Import from existing plan -->
+      <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
+        <select id="ps-import-sel" style="flex:1;font-size:12px;padding:7px 10px;">
+          <option value="">Importar desde plan diario existente...</option>
+        </select>
+        <button class="btn-xs btn-blue" onclick="psImportarDia()">Importar</button>
+      </div>
+
+      <!-- Day plan content -->
+      <div id="ps-day-content"></div>
+
+      <!-- Weekly macro summary -->
+      <div class="card" style="margin-top:12px;">
+        <div class="card-title" style="margin-bottom:10px;">Resumen nutricional semana</div>
+        <div id="ps-week-summary"></div>
+      </div>
+
+      <!-- Shopping list -->
+      <div class="card" style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">Lista de compras</div>
+          <button class="btn-xs btn-green" onclick="psExportarLista()">Exportar</button>
+        </div>
+        <div id="ps-shopping-list"></div>
+      </div>
+
     </div>
 
     <!-- ===== TAB CONFIG ===== -->
@@ -925,7 +992,8 @@ var DB = {
   actividades:     [],   // [{id, fecha, tipo, duracion, calExtra, notas, km, ritmo}]
   menuPresets:     [],   // [{id, nombre, items:[{nombre,cal,prot,gras,carb}]}]
   actPresets:      [],   // [{id, nombre, tipo, duracion, km, ritmo}]
-  menusPropuestos: []    // [{id, fecha, items:[{id,nombre,cal,prot,gras,carb,dbId,cantidad,consumido,registroId}]}]
+  menusPropuestos: [],   // [{id, fecha, items:[{id,nombre,cal,prot,gras,carb,dbId,cantidad,consumido,registroId}]}]
+  planSemanal:     {}    // {"2026-04-21": {items:[{id,nombre,cal,prot,gras,carb,cantidad,cantUnidades,unitNombre,comida}]}, ...}
 };
 
 // InBody snapshots — sorted ascending by date.
@@ -1047,7 +1115,7 @@ function loadDB(){
         if(DB.config.tmbManual === 1800 || DB.config.tmbManual === "1800"){
           DB.config.tmbManual = null;
           // Save the fix to Firestore
-          if(_useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos}).catch(function(){});
+          if(_useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos,planSemanal:DB.planSemanal||{}}).catch(function(){});
         }
         DB.alimentos       = d.alimentos       || [];
         DB.registros       = d.registros       || [];
@@ -1055,6 +1123,7 @@ function loadDB(){
         DB.menuPresets     = d.menuPresets     || [];
         DB.actPresets      = d.actPresets      || [];
         DB.menusPropuestos = d.menusPropuestos || [];
+        DB.planSemanal     = d.planSemanal     || {};
       }
       // Inject default foods if DB is empty OR version is outdated
       var storedV  = parseInt(DB.config.foodsVersion)||0;
@@ -1070,7 +1139,7 @@ function loadDB(){
         DB.config.presetsVersion = PRESETS_VERSION;
         needSave = true;
       }
-      if(needSave && _useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos}).catch(function(){});
+      if(needSave && _useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos,planSemanal:DB.planSemanal||{}}).catch(function(){});
       // If sessions already loaded, recalculate gym activities now
       if(SESSIONS_DATA.length > 4) _recalcGymActividades();
       renderAll();
@@ -1132,6 +1201,7 @@ function _loadLocal(){
       DB.menuPresets     = d.menuPresets     || [];
       DB.actPresets      = d.actPresets      || [];
       DB.menusPropuestos = d.menusPropuestos || [];
+      DB.planSemanal     = d.planSemanal     || {};
     }
   } catch(e){}
   var storedV  = parseInt(DB.config.foodsVersion)||0;
@@ -1156,7 +1226,8 @@ function saveDB(){
       actividades:     DB.actividades,
       menuPresets:     DB.menuPresets,
       actPresets:      DB.actPresets,
-      menusPropuestos: DB.menusPropuestos
+      menusPropuestos: DB.menusPropuestos,
+      planSemanal:     DB.planSemanal||{}
     }).catch(function(e){
       try{ localStorage.setItem("nm-alim-v1", JSON.stringify(DB)); }catch(e2){}
     });
@@ -3314,6 +3385,7 @@ function showTab(name, btn){
   if(name==="metas") renderMetas();
   if(name==="alimentos") renderFoodDB();
   if(name==="menus") renderMenus();
+  if(name==="compras") renderPlanSemanal();
   if(name==="config") renderConfig();
 }
 
@@ -3347,6 +3419,342 @@ document.querySelectorAll(".overlay").forEach(function(ov){
 
 // ─────────── INIT ───────────
 loadDB();
+
+// ─────────── PLAN SEMANAL DE COMPRAS ───────────
+var _psWeekStart = null;  // Monday of current week being viewed
+var _psDia = null;        // Currently selected day string "YYYY-MM-DD"
+
+function _psMondayOf(dateStr){
+  var d = new Date(dateStr+"T12:00:00");
+  var dow = (d.getDay()+6)%7;
+  d.setDate(d.getDate()-dow);
+  var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+dd;
+}
+function _psAddDays(dateStr, n){
+  var d = new Date(dateStr+"T12:00:00");
+  d.setDate(d.getDate()+n);
+  var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+dd;
+}
+function _psFmtShort(dateStr){
+  var d = new Date(dateStr+"T12:00:00");
+  var DIAS_S=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  return DIAS_S[d.getDay()]+" "+d.getDate();
+}
+function _psFmtLong(dateStr){
+  var d = new Date(dateStr+"T12:00:00");
+  var MESES_L=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  return d.getDate()+" "+MESES_L[d.getMonth()]+" "+d.getFullYear();
+}
+
+function renderPlanSemanal(){
+  if(!_psWeekStart) _psWeekStart = _psMondayOf(todayStr());
+  if(!_psDia) _psDia = _psWeekStart;
+
+  // Week label
+  var weekEnd = _psAddDays(_psWeekStart, 6);
+  var wlbl = document.getElementById("ps-week-label");
+  var wsub = document.getElementById("ps-week-sub");
+  if(wlbl) wlbl.textContent = "Semana "+_psFmtShort(_psWeekStart)+" — "+_psFmtShort(weekEnd);
+  if(wsub) wsub.textContent = _psFmtLong(_psWeekStart)+" al "+_psFmtLong(weekEnd);
+
+  // Day pills
+  var bar = document.getElementById("ps-day-bar");
+  if(bar){
+    var DIAS_L=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+    var html="";
+    for(var i=0;i<7;i++){
+      var d = _psAddDays(_psWeekStart, i);
+      var hasData = DB.planSemanal[d] && DB.planSemanal[d].items && DB.planSemanal[d].items.length;
+      var isActive = d===_psDia;
+      var cls="ps-day-pill"+(isActive?" active":"")+(hasData?" has-data":"");
+      html+='<button class="'+cls+'" onclick="psSelectDia(\''+d+'\')">'+DIAS_L[i]+'<br><span style="font-size:9px;">'+new Date(d+"T12:00:00").getDate()+'</span></button>';
+    }
+    bar.innerHTML=html;
+  }
+
+  // Import selector — show all days that have menusPropuestos
+  var sel = document.getElementById("ps-import-sel");
+  if(sel){
+    sel.innerHTML='<option value="">Importar desde plan diario existente...</option>';
+    var sortedPlans = DB.menusPropuestos.slice().sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
+    sortedPlans.forEach(function(mp){
+      if(mp.items && mp.items.length){
+        var d=new Date(mp.fecha+"T12:00:00");
+        var DIAS_S=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+        var MESES_L=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+        var lbl=DIAS_S[d.getDay()]+" "+d.getDate()+" "+MESES_L[d.getMonth()]+" · "+mp.items.length+" alimentos";
+        sel.innerHTML+='<option value="'+mp.fecha+'">'+lbl+'</option>';
+      }
+    });
+  }
+
+  psRenderDia();
+  psRenderWeekSummary();
+  psRenderShoppingList();
+}
+
+function psNavWeek(dir){
+  _psWeekStart = _psAddDays(_psWeekStart, dir*7);
+  _psDia = _psWeekStart;
+  renderPlanSemanal();
+}
+
+function psSelectDia(dateStr){
+  _psDia = dateStr;
+  renderPlanSemanal();
+}
+
+function psImportarDia(){
+  var sel = document.getElementById("ps-import-sel");
+  var srcFecha = sel ? sel.value : "";
+  if(!srcFecha){ alert("Seleccioná un día para importar."); return; }
+  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===srcFecha; });
+  if(!plan || !plan.items || !plan.items.length){ alert("Ese día no tiene plan."); return; }
+  if(!DB.planSemanal[_psDia]) DB.planSemanal[_psDia]={items:[]};
+  // Add items (avoid exact duplicates by name)
+  var existing = DB.planSemanal[_psDia].items.map(function(i){return i.nombre;});
+  var added=0;
+  plan.items.forEach(function(item){
+    var newItem = {
+      id: Date.now()+"_"+Math.random().toString(36).slice(2),
+      nombre: item.nombre, cal: item.cal||0, prot: item.prot||0,
+      gras: item.gras||0, carb: item.carb||0,
+      cantidad: item.cantidad||null, cantUnidades: item.cantUnidades||null,
+      unitNombre: item.unitNombre||null, comida: item.comida||null, dbId: item.dbId||null
+    };
+    DB.planSemanal[_psDia].items.push(newItem);
+    added++;
+  });
+  saveDB();
+  renderPlanSemanal();
+  sel.value="";
+}
+
+function psRenderDia(){
+  var cont = document.getElementById("ps-day-content");
+  if(!cont) return;
+  var dayData = DB.planSemanal[_psDia];
+  var items = dayData ? (dayData.items||[]) : [];
+  var tgt = getMacroTargets(_psDia);
+  var totCal=0,totProt=0,totGras=0,totCarb=0;
+  items.forEach(function(i){ totCal+=i.cal||0; totProt+=i.prot||0; totGras+=i.gras||0; totCarb+=i.carb||0; });
+  totCal=Math.round(totCal); totProt=Math.round(totProt*10)/10; totGras=Math.round(totGras*10)/10; totCarb=Math.round(totCarb*10)/10;
+
+  // Macro summary for this day
+  function macroBar(val,tgtV,color){
+    var pct=tgtV>0?Math.min(100,Math.round(val/tgtV*100)):0;
+    var col=pct>=90&&pct<=110?"var(--green)":pct>=70?"var(--amber)":"var(--red)";
+    return '<div class="ps-macro-bar"><div class="ps-macro-fill" style="width:'+pct+'%;background:'+col+';"></div></div>';
+  }
+  var DIAS_FULL=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+  var dObj=new Date(_psDia+"T12:00:00");
+  var MESES_L=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  var html='<div class="card">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+    +'<div><div style="font-size:13px;font-weight:700;">'+DIAS_FULL[dObj.getDay()]+" "+dObj.getDate()+" "+MESES_L[dObj.getMonth()]+'</div>'
+    +'<div style="font-size:10px;color:var(--text2);">Objetivo: '+tgt.cal+' kcal · P:'+tgt.prot+'g G:'+tgt.gras+'g C:'+tgt.carb+'g</div></div>'
+    +'<button class="btn-xs btn-blue" onclick="psOpenAddItem()">+ Agregar</button>'
+    +'</div>'
+    +'<div class="ps-macro-grid">'
+    +'<div class="ps-macro-box"><div class="ps-macro-val" style="color:var(--blue);">'+totCal+'</div><div class="ps-macro-lbl">kcal</div>'+macroBar(totCal,tgt.cal,"blue")+'</div>'
+    +'<div class="ps-macro-box"><div class="ps-macro-val" style="color:var(--green);">'+totProt+'g</div><div class="ps-macro-lbl">prot</div>'+macroBar(totProt,tgt.prot,"green")+'</div>'
+    +'<div class="ps-macro-box"><div class="ps-macro-val" style="color:var(--amber);">'+totGras+'g</div><div class="ps-macro-lbl">grasas</div>'+macroBar(totGras,tgt.gras,"amber")+'</div>'
+    +'<div class="ps-macro-box"><div class="ps-macro-val" style="color:var(--purple);">'+totCarb+'g</div><div class="ps-macro-lbl">carbos</div>'+macroBar(totCarb,tgt.carb,"purple")+'</div>'
+    +'</div>';
+
+  if(!items.length){
+    html+='<div style="font-size:12px;color:var(--text2);text-align:center;padding:16px 0;">Sin alimentos planificados. Importá un día o agregá manualmente.</div>';
+  } else {
+    // Group by comida
+    var grouped={};
+    items.forEach(function(item){
+      var k=item.comida||"otro";
+      if(!grouped[k]) grouped[k]=[];
+      grouped[k].push(item);
+    });
+    var comidaOrder=["desayuno","colacion1","almuerzo","colacion2","cena","otro"];
+    var comidaLabel={"desayuno":"Desayuno","colacion1":"Colación","almuerzo":"Almuerzo","colacion2":"Colación tarde","cena":"Cena","otro":"Otros"};
+    comidaOrder.forEach(function(ck){
+      if(!grouped[ck]||!grouped[ck].length) return;
+      var catCal=grouped[ck].reduce(function(s,i){return s+(i.cal||0);},0);
+      html+='<div class="ps-comida-hdr"><span>'+comidaLabel[ck]+' · '+Math.round(catCal)+' kcal</span></div>';
+      grouped[ck].forEach(function(item){
+        var cantLbl=item.cantUnidades&&item.unitNombre?item.cantUnidades+" "+item.unitNombre+(item.cantUnidades>1?"s":""):(item.cantidad?item.cantidad+"g":"");
+        html+='<div class="ps-item">'
+          +'<div class="ps-item-name">'+esc(item.nombre)+(cantLbl?' <span style="font-size:10px;color:var(--text2);">'+cantLbl+'</span>':"")+'</div>'
+          +'<div style="display:flex;align-items:center;gap:4px;">'
+          +'<span class="ps-item-cal">'+Math.round(item.cal||0)+' kcal</span>'
+          +'<button class="btn-xs btn-red" style="padding:2px 6px;font-size:10px;" onclick="psRemoveItem(\''+_psDia+'\',\''+item.id+'\')">✕</button>'
+          +'</div></div>';
+      });
+    });
+  }
+  html+='</div>';
+  cont.innerHTML=html;
+}
+
+function psRemoveItem(fecha, itemId){
+  if(!DB.planSemanal[fecha]) return;
+  DB.planSemanal[fecha].items = DB.planSemanal[fecha].items.filter(function(i){return i.id!==itemId;});
+  saveDB();
+  renderPlanSemanal();
+}
+
+function psOpenAddItem(){
+  // Reuse existing food search — open a simple modal to add food to plan semanal
+  var modal = document.getElementById("modal-plan-alimento");
+  if(!modal){ alert("Usa 'Importar desde plan diario' para agregar alimentos."); return; }
+  // Set context so save goes to planSemanal instead of menusPropuesto
+  window._psAddingToSemanal = _psDia;
+  openModalAddPlanItem("desayuno");
+}
+
+function psRenderWeekSummary(){
+  var el = document.getElementById("ps-week-summary");
+  if(!el) return;
+  var DIAS_L=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+  var days=[];
+  for(var i=0;i<7;i++) days.push(_psAddDays(_psWeekStart,i));
+
+  var html='<div class="ps-week-row">'
+    +'<div class="ps-week-cell ps-week-hdr"></div>'
+    +days.map(function(d,i){
+      var isToday=d===todayStr();
+      return '<div class="ps-week-cell ps-week-hdr" style="'+(isToday?"color:var(--blue);":"")+'">'+DIAS_L[i]+'<br>'+new Date(d+"T12:00:00").getDate()+'</div>';
+    }).join("")
+    +'</div>';
+
+  var metrics=[
+    {key:"cal",  lbl:"kcal",  color:"var(--blue)",   fmt:function(v){return Math.round(v);}},
+    {key:"prot", lbl:"Prot",  color:"var(--green)",  fmt:function(v){return Math.round(v)+"g";}},
+    {key:"gras", lbl:"Grasas",color:"var(--amber)",  fmt:function(v){return Math.round(v)+"g";}},
+    {key:"carb", lbl:"Carbos",color:"var(--purple)", fmt:function(v){return Math.round(v)+"g";}},
+  ];
+  var weekTotals={cal:0,prot:0,gras:0,carb:0};
+  metrics.forEach(function(m){
+    html+='<div class="ps-week-row">'
+      +'<div class="ps-week-cell" style="color:'+m.color+';font-weight:700;font-size:10px;">'+m.lbl+'</div>';
+    days.forEach(function(d){
+      var items=(DB.planSemanal[d]&&DB.planSemanal[d].items)||[];
+      var val=items.reduce(function(s,i){return s+(i[m.key]||0);},0);
+      var tgt=getMacroTargets(d)[m.key]||1;
+      var pct=Math.round(val/tgt*100);
+      var col=pct>=90&&pct<=110?"var(--green)":pct>=70?"var(--amber)":"var(--text2)";
+      if(m.key==="cal") weekTotals.cal+=val;
+      if(m.key==="prot") weekTotals.prot+=val;
+      if(m.key==="gras") weekTotals.gras+=val;
+      if(m.key==="carb") weekTotals.carb+=val;
+      html+='<div class="ps-week-cell" style="color:'+(items.length?col:"var(--text3)")+';font-size:10px;">'
+        +(items.length?m.fmt(val):"—")+'</div>';
+    });
+    html+='</div>';
+  });
+
+  // Weekly totals row
+  html+='<div style="border-top:1px solid var(--bord2);margin-top:6px;padding-top:6px;display:flex;gap:12px;flex-wrap:wrap;font-size:11px;">'
+    +'<span>Total semana:</span>'
+    +'<span style="color:var(--blue);font-weight:700;">'+Math.round(weekTotals.cal)+' kcal</span>'
+    +'<span style="color:var(--green);">P: '+Math.round(weekTotals.prot)+'g</span>'
+    +'<span style="color:var(--amber);">G: '+Math.round(weekTotals.gras)+'g</span>'
+    +'<span style="color:var(--purple);">C: '+Math.round(weekTotals.carb)+'g</span>'
+    +'</div>';
+
+  el.innerHTML=html;
+}
+
+function psRenderShoppingList(){
+  var el = document.getElementById("ps-shopping-list");
+  if(!el) return;
+  var days=[];
+  for(var i=0;i<7;i++) days.push(_psAddDays(_psWeekStart,i));
+
+  // Consolidate items by name
+  var shopping={};
+  days.forEach(function(d){
+    var items=(DB.planSemanal[d]&&DB.planSemanal[d].items)||[];
+    items.forEach(function(item){
+      var key=item.nombre.toLowerCase().trim();
+      if(!shopping[key]){
+        shopping[key]={nombre:item.nombre, gramos:0, unidades:0, unitNombre:item.unitNombre||"", dias:0};
+      }
+      shopping[key].dias++;
+      if(item.cantUnidades&&item.cantUnidades>0){
+        shopping[key].unidades+=parseFloat(item.cantUnidades)||0;
+        if(!shopping[key].unitNombre&&item.unitNombre) shopping[key].unitNombre=item.unitNombre;
+      } else if(item.cantidad&&item.cantidad>0){
+        shopping[key].gramos+=parseFloat(item.cantidad)||0;
+      }
+    });
+  });
+
+  var keys=Object.keys(shopping).sort();
+  if(!keys.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text2);text-align:center;padding:16px 0;">Planificá la semana para generar la lista.</div>';
+    return;
+  }
+
+  var html="";
+  keys.forEach(function(k){
+    var s=shopping[k];
+    var qtyStr="";
+    if(s.unidades>0) qtyStr=s.unidades+(s.unitNombre?" "+s.unitNombre+(s.unidades>1?"s":""):"");
+    if(s.gramos>0) qtyStr+=(qtyStr?" + ":"")+s.gramos+"g";
+    if(!qtyStr) qtyStr=s.dias+"x";
+    html+='<div class="ps-shop-item">'
+      +'<div>'
+      +'<div class="ps-item-name">'+esc(s.nombre)+'</div>'
+      +'<div class="ps-shop-cat">Aparece '+s.dias+' día'+(s.dias>1?"s":"")+'</div>'
+      +'</div>'
+      +'<div class="ps-shop-qty">'+qtyStr+'</div>'
+      +'</div>';
+  });
+  el.innerHTML=html;
+}
+
+function psExportarLista(){
+  var days=[];
+  for(var i=0;i<7;i++) days.push(_psAddDays(_psWeekStart,i));
+  var shopping={};
+  days.forEach(function(d){
+    var items=(DB.planSemanal[d]&&DB.planSemanal[d].items)||[];
+    items.forEach(function(item){
+      var key=item.nombre.toLowerCase().trim();
+      if(!shopping[key]) shopping[key]={nombre:item.nombre, gramos:0, unidades:0, unitNombre:item.unitNombre||"", dias:0};
+      shopping[key].dias++;
+      if(item.cantUnidades&&item.cantUnidades>0){ shopping[key].unidades+=parseFloat(item.cantUnidades)||0; if(!shopping[key].unitNombre&&item.unitNombre) shopping[key].unitNombre=item.unitNombre; }
+      else if(item.cantidad&&item.cantidad>0){ shopping[key].gramos+=parseFloat(item.cantidad)||0; }
+    });
+  });
+  var weekEnd=_psAddDays(_psWeekStart,6);
+  var MESES_L=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  function fmtDate(s){var d=new Date(s+"T12:00:00");return d.getDate()+" "+MESES_L[d.getMonth()]+"."+d.getFullYear();}
+  var txt="LISTA DE COMPRAS\n"+fmtDate(_psWeekStart)+" — "+fmtDate(weekEnd)+"\n\n";
+  Object.keys(shopping).sort().forEach(function(k){
+    var s=shopping[k];
+    var qtyStr="";
+    if(s.unidades>0) qtyStr=s.unidades+(s.unitNombre?" "+s.unitNombre+(s.unidades>1?"s":""):"");
+    if(s.gramos>0) qtyStr+=(qtyStr?" + ":"")+s.gramos+"g";
+    if(!qtyStr) qtyStr=s.dias+"x";
+    txt+="• "+s.nombre+" — "+qtyStr+"\n";
+  });
+  var b=new Blob([txt],{type:"text/plain;charset=utf-8"});
+  var u=URL.createObjectURL(b);
+  var a=document.createElement("a");
+  a.href=u;
+  var d=new Date(_psWeekStart+"T12:00:00");
+  a.download="compras_"+d.getFullYear()+"_sem"+isoWeekAlim(_psWeekStart)+".txt";
+  a.click();
+  URL.revokeObjectURL(u);
+}
+
+function isoWeekAlim(fecha){
+  var d=new Date(fecha+"T12:00:00");
+  var thu=new Date(d);thu.setDate(d.getDate()-((d.getDay()+6)%7)+3);
+  var jan4=new Date(thu.getFullYear(),0,4);
+  return 1+Math.round(((thu-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
+}
 </script>
 </body>
 </html>
