@@ -364,6 +364,7 @@ button:active{opacity:.7;transform:scale(.98);}
       <div class="card">
         <div class="card-title" style="margin-bottom:10px;">Datos InBody (auto)</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;" id="inbody-status"></div>
+        <button class="btn-xs btn-blue" style="margin-top:8px;" onclick="reloadInBodyData()">&#8635; Recargar desde Entrenamiento</button>
       </div>
 
       <div class="card">
@@ -973,6 +974,12 @@ function loadDB(){
       if(doc.exists){
         var d = doc.data();
         DB.config          = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null}, d.config||{});
+        // Guard: if tmbManual is set but equals the InBody fallback (1800), clear it — it was set by accident
+        if(DB.config.tmbManual === 1800 || DB.config.tmbManual === "1800"){
+          DB.config.tmbManual = null;
+          // Save the fix to Firestore
+          if(_useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos}).catch(function(){});
+        }
         DB.alimentos       = d.alimentos       || [];
         DB.registros       = d.registros       || [];
         DB.actividades     = d.actividades     || [];
@@ -1317,7 +1324,15 @@ function renderBreakdownCard(){
   var balance = consumed - total;
   var balColor = balance > 150 ? "var(--red)" : balance < -50 ? "var(--green)" : "var(--text2)";
   // Show where TMB comes from
-  var tmbSrc = DB.config.tmbManual ? " (manual)" : (INBODY_DATA_ALL.length ? " (InBody)" : " (fallback)");
+  var ibUsed = _inbodyForDate(_viewDate);
+  var tmbSrc;
+  if(DB.config.tmbManual){
+    tmbSrc = " (manual — sobreescribe InBody)";
+  } else if(ibUsed){
+    tmbSrc = " (InBody "+ibUsed.fecha+")";
+  } else {
+    tmbSrc = " (fallback — sin InBody)";
+  }
   el.innerHTML =
     "<div class='bkd-row'><span class='bkd-lbl'>TMB base"+tmbSrc+"</span><span class='bkd-val'>"+Math.round(tmb)+" kcal</span></div>"+
     "<div class='bkd-row'><span class='bkd-lbl'>× Factor actividad ("+factor+")</span><span class='bkd-val'>"+base+" kcal</span></div>"+
@@ -1824,6 +1839,9 @@ function renderConfig(){
     else if(INBODY_DATA_ALL.length){ lbl.style.color="var(--green)"; lbl.textContent="✓ InBody activo: TMB "+Math.round(getTMB())+" kcal (campo vacío = InBody)"; }
     else { lbl.style.color="var(--text2)"; lbl.textContent="Sin InBody cargado — abrí la app Entrenamiento para sincronizar."; }
   }
+  if(ti){
+    ti.style.borderColor = DB.config.tmbManual ? "var(--red)" : "";
+  }
 
   // Pre-fill Mover día: default from=today, to=yesterday
   var mf = document.getElementById("move-from");
@@ -1863,6 +1881,26 @@ function renderConfigInbody(){
   } else {
     el.innerHTML = "<span style='font-size:12px;color:var(--text2);'>Sin datos InBody. Usá los campos manuales ↓</span>";
   }
+}
+
+function reloadInBodyData(){
+  if(!_fbTrain) return;
+  _fbTrain.get().then(function(doc){
+    if(doc.exists){
+      var d = doc.data();
+      var inbodyArr = d.inbody || [];
+      if(inbodyArr.length){
+        INBODY_DATA_ALL = inbodyArr.slice().sort(function(a,b){ return a.fecha>b.fecha?1:-1; });
+        INBODY_DATA = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1];
+      }
+      var sesArr = d.sesiones || [];
+      if(sesArr.length) SESSIONS_DATA = sesArr;
+      _recalcGymActividades();
+    }
+    renderConfigInbody();
+    renderAll();
+    alert("InBody recargado: "+INBODY_DATA_ALL.length+" registros · TMB activo: "+Math.round(getTMB())+" kcal");
+  }).catch(function(e){ alert("Error al recargar: "+e); });
 }
 
 function renderActPresets(){
