@@ -162,6 +162,21 @@ button:active{opacity:.7;transform:scale(.98);}
 
 /* TMB badge */
 .tmb-badge{display:inline-block;background:var(--blue-d);color:var(--blue);border-radius:var(--rxs);padding:3px 8px;font-size:11px;font-weight:600;}
+
+/* Breakdown card */
+.bkd-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;color:var(--text2);}
+.bkd-row.bkd-total{border-top:1px solid var(--bord2);margin-top:6px;padding-top:8px;font-weight:700;font-size:13px;color:var(--text);}
+.bkd-lbl{flex:1;}
+.bkd-val{font-weight:600;text-align:right;}
+
+/* Plan items */
+.plan-item{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg2);border:1px solid var(--bord);border-radius:var(--rsm);margin-bottom:5px;transition:all .2s;}
+.plan-item.consumido{opacity:.55;border-color:var(--green);background:var(--green-d);}
+.plan-item-info{flex:1;min-width:0;}
+.plan-item-name{font-size:13px;font-weight:500;}
+.plan-item-cal{font-size:11px;color:var(--text2);}
+.plan-check{width:30px;height:30px;border-radius:50%;border:2px solid var(--bord2);background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:15px;transition:all .15s;}
+.plan-item.consumido .plan-check{border-color:var(--green);background:var(--green);color:#fff;}
 </style>
 </head>
 <body>
@@ -210,6 +225,12 @@ button:active{opacity:.7;transform:scale(.98);}
         <div class="macro-bar" style="height:8px;margin-top:10px;">
           <div class="macro-bar-fill bar-cal" id="bar-cal" style="width:0%"></div>
         </div>
+      </div>
+
+      <!-- Desglose calorías -->
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:8px;">Desglose calorías</div>
+        <div id="breakdown-body"></div>
       </div>
 
       <!-- Macros grid -->
@@ -279,8 +300,25 @@ button:active{opacity:.7;transform:scale(.98);}
 
     <!-- ===== TAB MENÚS ===== -->
     <div id="tab-menus" class="tab">
-      <div style="margin-bottom:12px;">
-        <button class="btn-blue btn-full" onclick="saveMenuPreset()">Guardar menú de hoy como preset</button>
+
+      <!-- Menú planificado del día -->
+      <div class="section-hdr" style="margin-top:0;">
+        <span class="section-title">Menú planificado</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-xs btn-blue" onclick="openModalAddPlanItem()">+ Alimento</button>
+          <button class="btn-xs btn-amber" onclick="openApplyPresetToPlan()">Desde preset</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;" id="menu-date-label2"></div>
+      <div id="plan-summary" style="display:none;background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;"></div>
+      <div id="list-menu-plan"></div>
+
+      <div style="height:1px;background:var(--bord);margin:18px 0 14px;"></div>
+
+      <!-- Presets de menús -->
+      <div class="section-hdr" style="margin-top:0;">
+        <span class="section-title">Presets de menús</span>
+        <button class="btn-xs btn-blue" onclick="saveMenuPreset()">Guardar hoy</button>
       </div>
       <div id="list-menus"></div>
     </div>
@@ -433,11 +471,26 @@ button:active{opacity:.7;transform:scale(.98);}
     </div>
     <div class="field">
       <label class="label">Tipo de actividad</label>
-      <select id="act-tipo" onchange="updateActPreview()">
+      <select id="act-tipo" onchange="onActTipoChange()">
         <option value="">— seleccionar —</option>
       </select>
     </div>
-    <div class="field">
+    <!-- Trote: km + ritmo -->
+    <div id="act-trote-sect" style="display:none;">
+      <div class="row2">
+        <div class="field">
+          <label class="label">Distancia (km)</label>
+          <input type="number" id="act-km" placeholder="ej. 5" min="0.5" step="0.5" oninput="updateActPreview()"/>
+        </div>
+        <div class="field">
+          <label class="label">Ritmo (min/km)</label>
+          <input type="number" id="act-ritmo" placeholder="ej. 7.0" min="3" max="15" step="0.1" oninput="updateActPreview()"/>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;" id="act-trote-info"></div>
+    </div>
+    <!-- Duración (no trote) -->
+    <div class="field" id="act-dur-sect">
       <label class="label">Duración (minutos)</label>
       <input type="number" id="act-dur" placeholder="ej. 45" min="1" max="300" oninput="updateActPreview()"/>
     </div>
@@ -538,6 +591,68 @@ button:active{opacity:.7;transform:scale(.98);}
       <button class="btn-amber" style="flex:1;" onclick="saveActPreset()">Guardar</button>
     </div>
     <input type="hidden" id="ap-edit-id"/>
+  </div>
+</div>
+
+<!-- ===== MODAL: Agregar alimento al plan del día ===== -->
+<div class="overlay" id="modal-plan-alimento">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title">Agregar al plan del día</span>
+      <button class="modal-close" onclick="closeModal('modal-plan-alimento')">✕</button>
+    </div>
+    <div class="field">
+      <label class="label">Buscar alimento</label>
+      <div class="food-search-wrap">
+        <input type="text" id="plan-search-input" placeholder="Ej: huevo, palta, pollo..." oninput="searchFoodForPlan()" autocomplete="off"/>
+        <div class="food-results" id="plan-food-results"></div>
+      </div>
+    </div>
+    <div id="plan-food-badge" style="display:none;background:var(--green-d);border:1px solid var(--green);border-radius:var(--rsm);padding:8px 12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="color:var(--green);font-weight:700;">✓</span>
+        <span id="plan-food-badge-nombre" style="font-size:13px;font-weight:600;flex:1;color:var(--green);"></span>
+        <button type="button" style="background:transparent;color:var(--text2);font-size:11px;padding:2px 8px;border:1px solid var(--bord2);border-radius:var(--rxs);" onclick="clearPlanFoodSelection()">cambiar</button>
+      </div>
+    </div>
+    <div id="plan-or-label" style="margin-bottom:10px;font-size:11px;color:var(--text2);">— o ingresá manualmente —</div>
+    <div class="field" id="plan-nombre-field">
+      <label class="label">Nombre</label>
+      <input type="text" id="plan-nombre" placeholder="Nombre del alimento"/>
+    </div>
+    <div class="field">
+      <label class="label">Cantidad (g / ml)</label>
+      <input type="number" id="plan-cant" placeholder="ej. 100" min="1" value="100" oninput="updatePlanPreview()"/>
+    </div>
+    <div class="field">
+      <label class="label">Calorías (kcal)</label>
+      <input type="number" id="plan-cal" placeholder="0" min="0"/>
+    </div>
+    <div class="row3">
+      <div class="field"><label class="label">Prot (g)</label><input type="number" id="plan-prot" placeholder="0" min="0" step="0.1"/></div>
+      <div class="field"><label class="label">Gras (g)</label><input type="number" id="plan-gras" placeholder="0" min="0" step="0.1"/></div>
+      <div class="field"><label class="label">Carb (g)</label><input type="number" id="plan-carb" placeholder="0" min="0" step="0.1"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-blue btn-full" onclick="savePlanItem()">Agregar al plan</button>
+    </div>
+    <input type="hidden" id="plan-db-id"/>
+    <input type="hidden" id="plan-db-cal100"/>
+    <input type="hidden" id="plan-db-prot100"/>
+    <input type="hidden" id="plan-db-gras100"/>
+    <input type="hidden" id="plan-db-carb100"/>
+  </div>
+</div>
+
+<!-- ===== MODAL: Aplicar preset al plan ===== -->
+<div class="overlay" id="modal-preset-to-plan">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title">Aplicar preset al plan</span>
+      <button class="modal-close" onclick="closeModal('modal-preset-to-plan')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">Seleccioná un preset para agregar sus alimentos al plan del día.</div>
+    <div id="list-presets-for-plan"></div>
   </div>
 </div>
 
@@ -650,16 +765,16 @@ var METS_PRESETS = [
 ];
 
 // ─────────── ACTIVITY PRESETS DEFAULT ───────────
-var PRESETS_VERSION = 1;
+var PRESETS_VERSION = 2;
 var ACT_PRESETS_DEFAULT = [
   // Deportes
   {id:"ap_padel1",  nombre:"Partido de Pádel 1h",          tipo:"padel",     duracion:60},
   {id:"ap_padel15", nombre:"Partido de Pádel 1.5h",        tipo:"padel",     duracion:90},
   {id:"ap_fbito",   nombre:"Futbolito 75 min (7v7)",       tipo:"futbolito", duracion:75},
   {id:"ap_fb11",    nombre:"Fútbol 11v11 (90 min)",        tipo:"futbol11",  duracion:90},
-  {id:"ap_t5",      nombre:"Trote 5 km (~35 min)",         tipo:"trote",     duracion:35},
-  {id:"ap_t75",     nombre:"Trote 7.5 km (~52 min)",       tipo:"trote",     duracion:52},
-  {id:"ap_t10",     nombre:"Trote 10 km (~70 min)",        tipo:"trote",     duracion:70},
+  {id:"ap_t5",      nombre:"Trote 5 km",                   tipo:"trote",     duracion:35,  km:5,   ritmo:7},
+  {id:"ap_t75",     nombre:"Trote 7.5 km",                 tipo:"trote",     duracion:53,  km:7.5, ritmo:7},
+  {id:"ap_t10",     nombre:"Trote 10 km",                  tipo:"trote",     duracion:70,  km:10,  ritmo:7},
   // Entrenamiento NM (4-day split)
   {id:"ap_d1",      nombre:"Día 1 — Torso (pecho/espalda/hombros/brazos)", tipo:"gym", duracion:70},
   {id:"ap_d2",      nombre:"Día 2 — Pierna (hip thrust/sentadilla/prensa)", tipo:"gym", duracion:75},
@@ -676,12 +791,13 @@ var SCENARIOS = {
 
 // ─────────── DB ───────────
 var DB = {
-  config:      {escenario:"mantencion", factorBase:1.2, tmbManual:null, pesoManual:null},
-  alimentos:   [],   // food database
-  registros:   [],   // [{id, fecha, hora, nombre, cal, prot, gras, carb, dbId, cantidad}]
-  actividades: [],   // [{id, fecha, tipo, duracion, calExtra, notas}]
-  menuPresets: [],   // [{id, nombre, items:[{nombre,cal,prot,gras,carb}]}]
-  actPresets:  []    // [{id, nombre, tipo, duracion}]
+  config:          {escenario:"mantencion", factorBase:1.2, tmbManual:null, pesoManual:null},
+  alimentos:       [],   // food database
+  registros:       [],   // [{id, fecha, hora, nombre, cal, prot, gras, carb, dbId, cantidad}]
+  actividades:     [],   // [{id, fecha, tipo, duracion, calExtra, notas, km, ritmo}]
+  menuPresets:     [],   // [{id, nombre, items:[{nombre,cal,prot,gras,carb}]}]
+  actPresets:      [],   // [{id, nombre, tipo, duracion, km, ritmo}]
+  menusPropuestos: []    // [{id, fecha, items:[{id,nombre,cal,prot,gras,carb,dbId,cantidad,consumido,registroId}]}]
 };
 
 // InBody snapshot from nm-training
@@ -714,12 +830,13 @@ function loadDB(){
     _fbAlim.onSnapshot(function(doc){
       if(doc.exists){
         var d = doc.data();
-        DB.config      = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null}, d.config||{});
-        DB.alimentos   = d.alimentos   || [];
-        DB.registros   = d.registros   || [];
-        DB.actividades = d.actividades || [];
-        DB.menuPresets = d.menuPresets || [];
-        DB.actPresets  = d.actPresets  || [];
+        DB.config          = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null}, d.config||{});
+        DB.alimentos       = d.alimentos       || [];
+        DB.registros       = d.registros       || [];
+        DB.actividades     = d.actividades     || [];
+        DB.menuPresets     = d.menuPresets     || [];
+        DB.actPresets      = d.actPresets      || [];
+        DB.menusPropuestos = d.menusPropuestos || [];
       }
       // Inject default foods if DB is empty OR version is outdated
       var storedV  = parseInt(DB.config.foodsVersion)||0;
@@ -735,7 +852,7 @@ function loadDB(){
         DB.config.presetsVersion = PRESETS_VERSION;
         needSave = true;
       }
-      if(needSave && _useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets}).catch(function(){});
+      if(needSave && _useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos}).catch(function(){});
       renderAll();
     }, function(err){
       console.warn("Firestore error:", err);
@@ -765,12 +882,13 @@ function _loadLocal(){
   try {
     var raw = localStorage.getItem("nm-alim-v1");
     if(raw){ var d = JSON.parse(raw);
-      DB.config      = d.config      || DB.config;
-      DB.alimentos   = d.alimentos   || [];
-      DB.registros   = d.registros   || [];
-      DB.actividades = d.actividades || [];
-      DB.menuPresets = d.menuPresets || [];
-      DB.actPresets  = d.actPresets  || [];
+      DB.config          = d.config          || DB.config;
+      DB.alimentos       = d.alimentos       || [];
+      DB.registros       = d.registros       || [];
+      DB.actividades     = d.actividades     || [];
+      DB.menuPresets     = d.menuPresets     || [];
+      DB.actPresets      = d.actPresets      || [];
+      DB.menusPropuestos = d.menusPropuestos || [];
     }
   } catch(e){}
   var storedV  = parseInt(DB.config.foodsVersion)||0;
@@ -789,12 +907,13 @@ function saveDB(){
   flash();
   if(_useFS && _fbAlim){
     _fbAlim.set({
-      config:      DB.config,
-      alimentos:   DB.alimentos,
-      registros:   DB.registros,
-      actividades: DB.actividades,
-      menuPresets: DB.menuPresets,
-      actPresets:  DB.actPresets
+      config:          DB.config,
+      alimentos:       DB.alimentos,
+      registros:       DB.registros,
+      actividades:     DB.actividades,
+      menuPresets:     DB.menuPresets,
+      actPresets:      DB.actPresets,
+      menusPropuestos: DB.menusPropuestos
     }).catch(function(e){
       try{ localStorage.setItem("nm-alim-v1", JSON.stringify(DB)); }catch(e2){}
     });
@@ -931,6 +1050,32 @@ function renderAll(){
   renderConfig();
 }
 
+// ─────────── BREAKDOWN CARD ───────────
+function renderBreakdownCard(){
+  var el = document.getElementById("breakdown-body");
+  if(!el) return;
+  var tmb    = getTMB();
+  var factor = parseFloat(DB.config.factorBase)||1.2;
+  var scen   = SCENARIOS[DB.config.escenario]||SCENARIOS.mantencion;
+  var actCal = getActCalForDate(_viewDate);
+  var base   = Math.round(tmb * factor);
+  var total  = Math.round(base + scen.calAdj + actCal);
+  var consumed = 0;
+  DB.registros.filter(function(r){ return r.fecha===_viewDate; }).forEach(function(r){ consumed += r.cal||0; });
+  consumed = Math.round(consumed);
+  var balance = consumed - total;
+  var balColor = balance > 150 ? "var(--red)" : balance < -50 ? "var(--green)" : "var(--text2)";
+  el.innerHTML =
+    "<div class='bkd-row'><span class='bkd-lbl'>TMB base</span><span class='bkd-val'>"+Math.round(tmb)+" kcal</span></div>"+
+    "<div class='bkd-row'><span class='bkd-lbl'>× Factor actividad ("+factor+")</span><span class='bkd-val'>"+base+" kcal</span></div>"+
+    (scen.calAdj!==0?"<div class='bkd-row'><span class='bkd-lbl'>Escenario "+scen.label+"</span><span class='bkd-val' style='color:"+(scen.calAdj>0?"var(--green)":"var(--red)")+"'>"+(scen.calAdj>0?"+":"")+scen.calAdj+" kcal</span></div>":"")+
+    (actCal>0?"<div class='bkd-row'><span class='bkd-lbl'>Actividades extra hoy</span><span class='bkd-val' style='color:var(--amber);'>+"+actCal+" kcal</span></div>":"")+
+    "<div class='bkd-row bkd-total'><span class='bkd-lbl'>Total objetivo</span><span class='bkd-val'>"+total+" kcal</span></div>"+
+    "<div style='height:6px;'></div>"+
+    "<div class='bkd-row'><span class='bkd-lbl'>Consumido</span><span class='bkd-val'>"+consumed+" kcal</span></div>"+
+    "<div class='bkd-row' style='font-weight:700;color:"+balColor+"'><span class='bkd-lbl'>Balance</span><span class='bkd-val'>"+(balance>=0?"+":"")+balance+" kcal</span></div>";
+}
+
 // ─────────── RENDER HOY ───────────
 function renderHoy(){
   updateDateLabel();
@@ -973,6 +1118,9 @@ function renderHoy(){
 
   document.getElementById("act-cal-lbl").textContent = actCal+" kcal";
 
+  // Breakdown card
+  renderBreakdownCard();
+
   // Weekly adjustment banner
   var adj = calcWeeklyAdjustment();
   var banner = document.getElementById("banner-ajuste");
@@ -994,8 +1142,14 @@ function renderHoy(){
     listAct.innerHTML = actsHoy.map(function(a){
       var met = METS_PRESETS.find(function(m){ return m.key===a.tipo; });
       var label = met ? met.label : a.tipo;
+      var detalle;
+      if(a.tipo==="trote" && a.km){
+        detalle = a.km+"km @ "+a.ritmo+" min/km · "+a.duracion+" min · "+a.calExtra+" kcal";
+      } else {
+        detalle = a.duracion+" min · "+a.calExtra+" kcal quemadas";
+      }
       return "<div class='entry-row actividad'>"+
-        "<div><div class='entry-name'>"+esc(label)+"</div><div class='entry-meta'>"+a.duracion+" min · "+a.calExtra+" kcal quemadas"+(a.notas?" · "+esc(a.notas):"")+"</div></div>"+
+        "<div><div class='entry-name'>"+esc(label)+"</div><div class='entry-meta'>"+detalle+(a.notas?" · "+esc(a.notas):"")+"</div></div>"+
         "<div class='entry-actions'>"+
         "<button class='btn-xs btn-amber' onclick='openModalActividad(\""+a.id+"\")'>✏️</button>"+
         "<button class='btn-xs btn-red' onclick='deleteActividad(\""+a.id+"\")'>✕</button>"+
@@ -1113,18 +1267,73 @@ function renderFoodDB(){
 
 // ─────────── RENDER MENUS ───────────
 function renderMenus(){
+  renderMenuPropuesto();
   var list = document.getElementById("list-menus");
   if(!DB.menuPresets.length){
-    list.innerHTML = "<div class='empty-hint'>No hay menús guardados</div>"; return;
+    list.innerHTML = "<div class='empty-hint'>No hay presets de menús guardados</div>"; return;
   }
   list.innerHTML = DB.menuPresets.map(function(m){
     var total = m.items.reduce(function(s,i){ return s+(i.cal||0); },0);
     return "<div class='menu-row'>"+
       "<div><div class='menu-row-name'>"+esc(m.nombre)+"</div><div class='menu-row-meta'>"+m.items.length+" alimentos · "+Math.round(total)+" kcal</div></div>"+
       "<div style='display:flex;gap:6px;'>"+
-      "<button class='btn-xs btn-blue' onclick='applyMenu(\""+m.id+"\")'>Aplicar</button>"+
+      "<button class='btn-xs btn-blue' onclick='applyMenu(\""+m.id+"\")'>Usar hoy</button>"+
+      "<button class='btn-xs btn-amber' onclick='applyMenuToPlan(\""+m.id+"\")'>Al plan</button>"+
       "<button class='btn-xs btn-red' onclick='deleteMenu(\""+m.id+"\")'>✕</button>"+
       "</div></div>";
+  }).join("");
+}
+
+// ─────────── RENDER MENÚ PROPUESTO ───────────
+function renderMenuPropuesto(){
+  var fecha = _viewDate;
+  var d = new Date(fecha+"T12:00:00");
+  var lbl = DIAS[d.getDay()]+" "+d.getDate()+" de "+MESES[d.getMonth()];
+  var el2 = document.getElementById("menu-date-label2");
+  if(el2) el2.textContent = "Plan del "+lbl;
+
+  var plan    = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  var listEl  = document.getElementById("list-menu-plan");
+  var summEl  = document.getElementById("plan-summary");
+  if(!listEl) return;
+
+  if(!plan || !plan.items.length){
+    listEl.innerHTML = "<div class='empty-hint'>Sin plan para este día. Agregá alimentos o aplicá un preset.</div>";
+    if(summEl) summEl.style.display = "none";
+    return;
+  }
+
+  // Summary
+  var totalPlan = 0, totalConsumido = 0;
+  plan.items.forEach(function(item){
+    totalPlan += item.cal||0;
+    if(item.consumido) totalConsumido += item.cal||0;
+  });
+  var actualCal = 0;
+  DB.registros.filter(function(r){ return r.fecha===fecha; }).forEach(function(r){ actualCal += r.cal||0; });
+  var nConsumidos = plan.items.filter(function(i){ return i.consumido; }).length;
+  var restante = Math.round(totalPlan - totalConsumido);
+
+  if(summEl){
+    summEl.style.display = "block";
+    summEl.innerHTML =
+      "<div style='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;'>"+
+      "<div><div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Planificado</div><div style='font-size:17px;font-weight:700;'>"+Math.round(totalPlan)+" kcal</div></div>"+
+      "<div><div style='font-size:10px;color:var(--green);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Marcado ✓</div><div style='font-size:17px;font-weight:700;color:var(--green);'>"+Math.round(totalConsumido)+" kcal</div></div>"+
+      "<div><div style='font-size:10px;color:var(--blue);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Registrado hoy</div><div style='font-size:17px;font-weight:700;color:var(--blue);'>"+Math.round(actualCal)+" kcal</div></div>"+
+      "</div>"+
+      "<div style='font-size:11px;color:var(--text2);'>"+nConsumidos+" de "+plan.items.length+" alimentos marcados"+(restante>0?" · Faltan <strong style=\"color:var(--amber);\">"+restante+" kcal</strong> del plan":"")+"</div>";
+  }
+
+  listEl.innerHTML = plan.items.map(function(item){
+    return "<div class='plan-item"+(item.consumido?" consumido":"")+"'>"+
+      "<div class='plan-check' onclick='togglePlanItem(\""+plan.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
+      "<div class='plan-item-info'>"+
+        "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
+        "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal"+(item.cantidad?" · "+item.cantidad+"g":"")+" · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g C:"+Math.round(item.carb||0)+"g</div>"+
+      "</div>"+
+      "<button class='btn-xs btn-red' onclick='deletePlanItem(\""+plan.id+"\",\""+item.id+"\")'>✕</button>"+
+      "</div>";
   }).join("");
 }
 
@@ -1335,7 +1544,8 @@ function updateFaPreview(){
   document.getElementById("fa-prot").value = Math.round(prot100*factor*10)/10;
   document.getElementById("fa-gras").value = Math.round(gras100*factor*10)/10;
   document.getElementById("fa-carb").value = Math.round(carb100*factor*10)/10;
-  document.getElementById("fa-preview").textContent = "→ "+Math.round(cal100*factor)+" kcal para "+cant+"g";
+  var prevEl = document.getElementById("fa-preview");
+  if(prevEl) prevEl.textContent = "→ "+Math.round(cal100*factor)+" kcal para "+cant+"g";
 }
 
 // Auto-update macros when quantity changes for DB-linked foods
@@ -1387,17 +1597,22 @@ function deleteRegistro(id){
 
 // ─────────── MODAL: ACTIVIDAD ───────────
 function openModalActividad(editId){
-  document.getElementById("act-edit-id").value   = "";
-  document.getElementById("act-tipo").value      = "";
-  document.getElementById("act-dur").value       = "";
-  document.getElementById("act-notas").value     = "";
+  document.getElementById("act-edit-id").value       = "";
+  document.getElementById("act-tipo").value          = "";
+  document.getElementById("act-dur").value           = "";
+  document.getElementById("act-notas").value         = "";
   document.getElementById("act-preview").textContent = "";
+  document.getElementById("act-km").value            = "";
+  document.getElementById("act-ritmo").value         = "";
+  document.getElementById("act-trote-info").textContent = "";
+  document.getElementById("act-trote-sect").style.display = "none";
+  document.getElementById("act-dur-sect").style.display   = "block";
 
   // Populate MET options
   var opts = METS_PRESETS.map(function(m){ return "<option value='"+m.key+"'>"+m.label+" (MET "+m.met+")</option>"; }).join("");
   document.getElementById("act-tipo").innerHTML = "<option value=''>— seleccionar —</option>"+opts;
 
-  // Also add custom presets as options
+  // Add custom presets as options
   if(DB.actPresets.length){
     var presOpts = DB.actPresets.map(function(p){ return "<option value='preset:"+p.id+"'>★ "+esc(p.nombre)+"</option>"; }).join("");
     document.getElementById("act-tipo").innerHTML += "<optgroup label='Mis presets'>"+presOpts+"</optgroup>";
@@ -1408,50 +1623,108 @@ function openModalActividad(editId){
     if(a){
       document.getElementById("act-edit-id").value = editId;
       document.getElementById("act-tipo").value    = a.tipo;
-      document.getElementById("act-dur").value     = a.duracion;
       document.getElementById("act-notas").value   = a.notas||"";
+      if(a.tipo==="trote" && a.km){
+        document.getElementById("act-km").value    = a.km;
+        document.getElementById("act-ritmo").value = a.ritmo||7;
+        document.getElementById("act-trote-sect").style.display = "block";
+        document.getElementById("act-dur-sect").style.display   = "none";
+      } else {
+        document.getElementById("act-dur").value = a.duracion;
+      }
       updateActPreview();
     }
   }
   openModal("modal-actividad");
 }
 
-function updateActPreview(){
+function onActTipoChange(){
   var tipoVal = document.getElementById("act-tipo").value;
-  var dur     = parseFloat(document.getElementById("act-dur").value)||0;
-  if(!tipoVal || !dur){ document.getElementById("act-preview").textContent=""; return; }
-  var met; var tipoKey = tipoVal;
+  var tipoKey = tipoVal;
+  var pKm = 0, pRitmo = 0, pDur = 0;
   if(tipoVal.startsWith("preset:")){
     var pId = tipoVal.replace("preset:","");
     var prs = DB.actPresets.find(function(p){ return p.id===pId; });
-    if(prs){ tipoKey=prs.tipo; }
+    if(prs){ tipoKey=prs.tipo; pKm=prs.km||0; pRitmo=prs.ritmo||0; pDur=prs.duracion||0; }
   }
-  var found = METS_PRESETS.find(function(m){ return m.key===tipoKey; });
-  met = found ? found.met : 4.5;
+  var isTrote = (tipoKey==="trote");
+  document.getElementById("act-trote-sect").style.display = isTrote ? "block" : "none";
+  document.getElementById("act-dur-sect").style.display   = isTrote ? "none"  : "block";
+  if(isTrote){
+    if(pKm)    document.getElementById("act-km").value    = pKm;
+    if(pRitmo) document.getElementById("act-ritmo").value = pRitmo;
+    else if(!document.getElementById("act-ritmo").value)  document.getElementById("act-ritmo").value = "7";
+  } else if(pDur){
+    document.getElementById("act-dur").value = pDur;
+  }
+  updateActPreview();
+}
+
+function updateActPreview(){
+  var tipoVal = document.getElementById("act-tipo").value;
+  if(!tipoVal){ document.getElementById("act-preview").textContent=""; return; }
+  var tipoKey = tipoVal;
+  if(tipoVal.startsWith("preset:")){
+    var pId = tipoVal.replace("preset:","");
+    var prs = DB.actPresets.find(function(p){ return p.id===pId; });
+    if(prs) tipoKey = prs.tipo;
+  }
   var peso = getWeight();
-  var kcal = Math.round((met-1)*peso*(dur/60));
+  var kcal;
+  if(tipoKey==="trote"){
+    var km    = parseFloat(document.getElementById("act-km").value)||0;
+    var ritmo = parseFloat(document.getElementById("act-ritmo").value)||0;
+    if(!km || !ritmo){ document.getElementById("act-preview").textContent=""; document.getElementById("act-trote-info").textContent=""; return; }
+    var timMin   = km * ritmo;
+    var calBruta = 1.04 * peso * km;
+    var calBMR   = getTMB() * (timMin/1440);
+    kcal = Math.round(calBruta - calBMR);
+    var speed = Math.round(60/ritmo*10)/10;
+    document.getElementById("act-trote-info").textContent = "Duración: "+Math.round(timMin)+" min · "+speed+" km/h";
+  } else {
+    var dur = parseFloat(document.getElementById("act-dur").value)||0;
+    if(!dur){ document.getElementById("act-preview").textContent=""; return; }
+    var found = METS_PRESETS.find(function(m){ return m.key===tipoKey; });
+    var met = found ? found.met : 4.5;
+    kcal = Math.round((met-1)*peso*(dur/60));
+  }
   document.getElementById("act-preview").textContent = "≈ "+kcal+" kcal quemadas";
 }
 
 function saveActividad(){
   var tipoVal = document.getElementById("act-tipo").value;
-  var dur     = parseFloat(document.getElementById("act-dur").value)||0;
-  if(!tipoVal || !dur){ alert("Completá tipo y duración"); return; }
+  if(!tipoVal){ alert("Seleccioná el tipo de actividad"); return; }
   var tipoKey = tipoVal;
   if(tipoVal.startsWith("preset:")){
     var pId = tipoVal.replace("preset:","");
     var prs = DB.actPresets.find(function(p){ return p.id===pId; });
-    if(prs){ tipoKey=prs.tipo; dur=dur||prs.duracion; }
+    if(prs) tipoKey = prs.tipo;
   }
-  var met   = (METS_PRESETS.find(function(m){ return m.key===tipoKey; })||{met:4.5}).met;
-  var kcal  = Math.round((met-1)*getWeight()*(dur/60));
-  var notas = document.getElementById("act-notas").value.trim();
-  var editId= document.getElementById("act-edit-id").value;
+  var peso = getWeight();
+  var dur, kcal, km = null, ritmo = null;
+  if(tipoKey==="trote"){
+    km    = parseFloat(document.getElementById("act-km").value)||0;
+    ritmo = parseFloat(document.getElementById("act-ritmo").value)||0;
+    if(!km || !ritmo){ alert("Ingresá distancia y ritmo para el trote"); return; }
+    var timMin   = km * ritmo;
+    dur  = Math.round(timMin);
+    kcal = Math.round(1.04*peso*km - getTMB()*(timMin/1440));
+  } else {
+    dur = parseFloat(document.getElementById("act-dur").value)||0;
+    if(!dur){ alert("Ingresá la duración"); return; }
+    var met = (METS_PRESETS.find(function(m){ return m.key===tipoKey; })||{met:4.5}).met;
+    kcal = Math.round((met-1)*peso*(dur/60));
+  }
+  var notas  = document.getElementById("act-notas").value.trim();
+  var editId = document.getElementById("act-edit-id").value;
+  var record = {tipo:tipoKey, duracion:dur, calExtra:kcal, notas:notas};
+  if(km)    record.km    = km;
+  if(ritmo) record.ritmo = ritmo;
   if(editId){
     var idx = DB.actividades.findIndex(function(a){ return a.id===editId; });
-    if(idx>=0) DB.actividades[idx] = Object.assign(DB.actividades[idx],{tipo:tipoKey,duracion:dur,calExtra:kcal,notas:notas});
+    if(idx>=0) DB.actividades[idx] = Object.assign(DB.actividades[idx], record);
   } else {
-    DB.actividades.push({id:Date.now()+"",fecha:_viewDate,tipo:tipoKey,duracion:dur,calExtra:kcal,notas:notas});
+    DB.actividades.push(Object.assign({id:Date.now()+"", fecha:_viewDate}, record));
   }
   saveDB(); closeModal("modal-actividad"); renderHoy();
 }
@@ -1561,6 +1834,166 @@ function deleteMenu(id){
   saveDB(); renderMenus();
 }
 
+// ─────────── MENÚ PROPUESTO ───────────
+function _getOrCreatePlan(fecha){
+  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  if(!plan){ plan={id:"mp"+Date.now(),fecha:fecha,items:[]}; DB.menusPropuestos.push(plan); }
+  return plan;
+}
+
+function togglePlanItem(planId, itemId){
+  var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
+  if(!plan) return;
+  var item = plan.items.find(function(i){ return i.id===itemId; });
+  if(!item) return;
+  if(!item.consumido){
+    var now = new Date();
+    var reg = {
+      id:    Date.now()+"_p",
+      fecha: plan.fecha,
+      hora:  pad2(now.getHours())+":"+pad2(now.getMinutes()),
+      nombre:item.nombre, cal:item.cal, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
+      cantidad:item.cantidad||null, dbId:item.dbId||null
+    };
+    DB.registros.push(reg);
+    item.consumido  = true;
+    item.registroId = reg.id;
+  } else {
+    if(item.registroId) DB.registros = DB.registros.filter(function(r){ return r.id!==item.registroId; });
+    item.consumido  = false;
+    item.registroId = null;
+  }
+  saveDB();
+  renderMenuPropuesto();
+  if(plan.fecha===_viewDate) renderHoy();
+}
+
+function deletePlanItem(planId, itemId){
+  var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
+  if(!plan) return;
+  var item = plan.items.find(function(i){ return i.id===itemId; });
+  if(item && item.consumido && item.registroId)
+    DB.registros = DB.registros.filter(function(r){ return r.id!==item.registroId; });
+  plan.items = plan.items.filter(function(i){ return i.id!==itemId; });
+  saveDB(); renderMenuPropuesto(); renderHoy();
+}
+
+// Modal: agregar alimento al plan
+function openModalAddPlanItem(){
+  document.getElementById("plan-search-input").value = "";
+  document.getElementById("plan-food-results").classList.remove("show");
+  document.getElementById("plan-food-badge").style.display = "none";
+  document.getElementById("plan-or-label").style.display   = "block";
+  document.getElementById("plan-nombre-field").style.display = "block";
+  ["plan-nombre","plan-cal","plan-prot","plan-gras","plan-carb"].forEach(function(id){ document.getElementById(id).value=""; });
+  ["plan-db-id","plan-db-cal100","plan-db-prot100","plan-db-gras100","plan-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("plan-cant").value = "100";
+  openModal("modal-plan-alimento");
+}
+
+function searchFoodForPlan(){
+  var q   = document.getElementById("plan-search-input").value.toLowerCase();
+  var res = document.getElementById("plan-food-results");
+  if(!q){ res.classList.remove("show"); return; }
+  var matches = DB.alimentos.filter(function(f){ return f.nombre.toLowerCase().includes(q); }).slice(0,8);
+  if(!matches.length){ res.classList.remove("show"); return; }
+  res.innerHTML = matches.map(function(f){
+    return "<div class='food-result-item' onclick='selectPlanFoodFromDB(\""+f.id+"\")'>"+
+      "<div class='food-result-name'>"+esc(f.nombre)+"</div>"+
+      "<div class='food-result-cal'>"+f.cal+" kcal/100"+f.unit+" · P:"+f.prot+"g G:"+f.gras+"g C:"+f.carb+"g</div>"+
+      (f.nota?"<div style='font-size:10px;color:var(--amber);'>"+esc(f.nota)+"</div>":"")+
+      "</div>";
+  }).join("");
+  res.classList.add("show");
+}
+
+function selectPlanFoodFromDB(id){
+  var f = DB.alimentos.find(function(f){ return f.id===id; });
+  if(!f) return;
+  document.getElementById("plan-search-input").value = "";
+  document.getElementById("plan-food-results").classList.remove("show");
+  document.getElementById("plan-db-id").value      = f.id;
+  document.getElementById("plan-db-cal100").value  = f.cal;
+  document.getElementById("plan-db-prot100").value = f.prot;
+  document.getElementById("plan-db-gras100").value = f.gras;
+  document.getElementById("plan-db-carb100").value = f.carb;
+  document.getElementById("plan-food-badge").style.display      = "block";
+  document.getElementById("plan-food-badge-nombre").textContent = f.nombre;
+  document.getElementById("plan-or-label").style.display        = "none";
+  document.getElementById("plan-nombre-field").style.display    = "none";
+  document.getElementById("plan-nombre").value = f.nombre;
+  document.getElementById("plan-cant").value   = f.pesoUnidad || 100;
+  updatePlanPreview();
+}
+
+function clearPlanFoodSelection(){
+  document.getElementById("plan-search-input").value = "";
+  ["plan-db-id","plan-db-cal100","plan-db-prot100","plan-db-gras100","plan-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("plan-food-badge").style.display      = "none";
+  document.getElementById("plan-or-label").style.display        = "block";
+  document.getElementById("plan-nombre-field").style.display    = "block";
+  document.getElementById("plan-cant").value = "100";
+  ["plan-nombre","plan-cal","plan-prot","plan-gras","plan-carb"].forEach(function(id){ document.getElementById(id).value=""; });
+}
+
+function updatePlanPreview(){
+  var cal100 = parseFloat(document.getElementById("plan-db-cal100").value)||0;
+  if(!cal100) return;
+  var cant   = parseFloat(document.getElementById("plan-cant").value)||100;
+  var f      = cant/100;
+  document.getElementById("plan-cal").value  = Math.round((parseFloat(document.getElementById("plan-db-cal100").value)||0)*f);
+  document.getElementById("plan-prot").value = Math.round((parseFloat(document.getElementById("plan-db-prot100").value)||0)*f*10)/10;
+  document.getElementById("plan-gras").value = Math.round((parseFloat(document.getElementById("plan-db-gras100").value)||0)*f*10)/10;
+  document.getElementById("plan-carb").value = Math.round((parseFloat(document.getElementById("plan-db-carb100").value)||0)*f*10)/10;
+}
+
+function savePlanItem(){
+  var nombre = document.getElementById("plan-nombre").value.trim();
+  var cal    = parseFloat(document.getElementById("plan-cal").value)||0;
+  var prot   = parseFloat(document.getElementById("plan-prot").value)||0;
+  var gras   = parseFloat(document.getElementById("plan-gras").value)||0;
+  var carb   = parseFloat(document.getElementById("plan-carb").value)||0;
+  var cant   = parseFloat(document.getElementById("plan-cant").value)||null;
+  if(!nombre){ alert("Ingresá el nombre del alimento"); return; }
+  var plan = _getOrCreatePlan(_viewDate);
+  plan.items.push({
+    id:"pi"+Date.now(), nombre:nombre, cal:cal, prot:prot, gras:gras, carb:carb,
+    cantidad:cant, dbId:document.getElementById("plan-db-id").value||null,
+    consumido:false, registroId:null
+  });
+  saveDB(); closeModal("modal-plan-alimento"); renderMenuPropuesto();
+}
+
+function openApplyPresetToPlan(){
+  if(!DB.menuPresets.length){ alert("No hay presets de menús guardados. Guardá primero un menú desde la tab Menús."); return; }
+  document.getElementById("list-presets-for-plan").innerHTML = DB.menuPresets.map(function(m){
+    var total = m.items.reduce(function(s,i){ return s+(i.cal||0); },0);
+    return "<div class='menu-row'>"+
+      "<div><div class='menu-row-name'>"+esc(m.nombre)+"</div><div class='menu-row-meta'>"+m.items.length+" alimentos · "+Math.round(total)+" kcal</div></div>"+
+      "<button class='btn-xs btn-blue' style='flex-shrink:0;' onclick='applyPresetToPlan(\""+m.id+"\")'>Aplicar</button>"+
+      "</div>";
+  }).join("");
+  openModal("modal-preset-to-plan");
+}
+
+function applyPresetToPlan(presetId){
+  var m = DB.menuPresets.find(function(m){ return m.id===presetId; });
+  if(!m) return;
+  var plan = _getOrCreatePlan(_viewDate);
+  m.items.forEach(function(item){
+    plan.items.push({
+      id:"pi"+Date.now()+"_"+Math.random().toString(36).slice(2,5),
+      nombre:item.nombre, cal:item.cal, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
+      cantidad:item.cantidad||null, dbId:item.dbId||null, consumido:false, registroId:null
+    });
+  });
+  saveDB(); closeModal("modal-preset-to-plan"); renderMenuPropuesto();
+}
+
+function applyMenuToPlan(presetId){
+  applyPresetToPlan(presetId);
+}
+
 // ─────────── ACT PRESETS ───────────
 function openModalNuevaActPreset(editId){
   document.getElementById("ap-edit-id").value = "";
@@ -1608,11 +2041,22 @@ function deleteActPreset(){
 }
 
 function useActPreset(id){
-  var p = DB.actPresets.find(function(p){ return p.id===id; });
+  var p    = DB.actPresets.find(function(p){ return p.id===id; });
   if(!p) return;
-  var met   = (METS_PRESETS.find(function(m){ return m.key===p.tipo; })||{met:4.5}).met;
-  var kcal  = Math.round((met-1)*getWeight()*(p.duracion/60));
-  DB.actividades.push({id:Date.now()+"",fecha:_viewDate,tipo:p.tipo,duracion:p.duracion,calExtra:kcal,notas:p.nombre});
+  var peso = getWeight();
+  var record = {id:Date.now()+"", fecha:_viewDate, tipo:p.tipo, notas:p.nombre};
+  if(p.tipo==="trote" && p.km && p.ritmo){
+    var timMin = p.km * p.ritmo;
+    record.duracion = Math.round(timMin);
+    record.km       = p.km;
+    record.ritmo    = p.ritmo;
+    record.calExtra = Math.round(1.04*peso*p.km - getTMB()*(timMin/1440));
+  } else {
+    var met = (METS_PRESETS.find(function(m){ return m.key===p.tipo; })||{met:4.5}).met;
+    record.duracion = p.duracion;
+    record.calExtra = Math.round((met-1)*peso*(p.duracion/60));
+  }
+  DB.actividades.push(record);
   saveDB(); renderHoy();
 }
 
@@ -1661,6 +2105,15 @@ document.addEventListener("click", function(e){
     var el = document.getElementById("food-results");
     if(el) el.classList.remove("show");
   }
+  if(!e.target.closest("#plan-food-results") && !e.target.closest("#plan-search-input")){
+    var el2 = document.getElementById("plan-food-results");
+    if(el2) el2.classList.remove("show");
+  }
+});
+
+// Auto-update plan macros when quantity changes
+document.getElementById("plan-cant").addEventListener("input", function(){
+  if(document.getElementById("plan-db-cal100").value) updatePlanPreview();
 });
 
 // Close modals on overlay click
