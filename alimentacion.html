@@ -177,6 +177,15 @@ button:active{opacity:.7;transform:scale(.98);}
 .plan-item-cal{font-size:11px;color:var(--text2);}
 .plan-check{width:30px;height:30px;border-radius:50%;border:2px solid var(--bord2);background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:15px;transition:all .15s;}
 .plan-item.consumido .plan-check{border-color:var(--green);background:var(--green);color:#fff;}
+
+/* Metas tab */
+.meta-day-row{display:flex;align-items:center;gap:8px;padding:7px 0;}
+.meta-day-row+.meta-day-row{border-top:1px solid var(--bord);}
+.meta-bar-wrap{flex:1;display:flex;flex-direction:column;gap:3px;}
+.meta-bar{height:6px;background:var(--bg4);border-radius:99px;overflow:hidden;}
+.meta-bar-sm{height:4px;background:var(--bg4);border-radius:99px;overflow:hidden;}
+.meta-bar-fill{height:100%;border-radius:99px;transition:width .4s;}
+.meta-val{text-align:right;min-width:90px;font-size:11px;}
 </style>
 </head>
 <body>
@@ -194,6 +203,7 @@ button:active{opacity:.7;transform:scale(.98);}
   <div id="nav">
     <button class="tab-btn active" onclick="showTab('hoy',this)">Hoy</button>
     <button class="tab-btn" onclick="showTab('semana',this)">Semana</button>
+    <button class="tab-btn" onclick="showTab('metas',this)">Metas</button>
     <button class="tab-btn" onclick="showTab('alimentos',this)">Alimentos</button>
     <button class="tab-btn" onclick="showTab('menus',this)">Menús</button>
     <button class="tab-btn" onclick="showTab('config',this)">Config</button>
@@ -286,6 +296,27 @@ button:active{opacity:.7;transform:scale(.98);}
         <div id="semana-macros"></div>
       </div>
     </div>
+
+    <!-- ===== TAB METAS ===== -->
+    <div id="tab-metas" class="tab">
+      <div id="metas-header" style="margin-bottom:10px;"></div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px;">Cumplimiento diario</div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em;">
+          <span>Día</span><span style="flex:1;text-align:center;padding:0 8px;">Calorías · Proteína</span><span>Consumido / Obj.</span>
+        </div>
+        <div id="metas-daily"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:6px;">Balance acumulado (kcal)</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Suma de (consumido − objetivo) día a día. Verde = déficit ✓ · Rojo = exceso ✗</div>
+        <div id="metas-chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px;">Macros promedio vs objetivo</div>
+        <div id="metas-macros"></div>
+      </div>
+    </div><!-- /tab-metas -->
 
     <!-- ===== TAB ALIMENTOS ===== -->
     <div id="tab-alimentos" class="tab">
@@ -640,7 +671,23 @@ button:active{opacity:.7;transform:scale(.98);}
       <label class="label">Nombre</label>
       <input type="text" id="plan-nombre" placeholder="Nombre del alimento"/>
     </div>
-    <div class="field">
+    <!-- Toggle g vs unidades -->
+    <div id="plan-mode-toggle" style="display:none;margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;">¿Cómo medís la cantidad?</div>
+      <div style="display:flex;gap:6px;">
+        <button type="button" id="plan-btn-mode-g" class="btn-sm" style="flex:1;" onclick="setPlanCantMode('g')">por g / ml</button>
+        <button type="button" id="plan-btn-mode-u" class="btn-sm" style="flex:1;" onclick="setPlanCantMode('u')">por unidades</button>
+      </div>
+    </div>
+    <!-- Cantidad por unidades -->
+    <div id="plan-sect-u" style="display:none;margin-bottom:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:600;" id="plan-u-label">Cantidad (unidades)</div>
+      <input type="number" id="plan-cant-units" placeholder="1" min="1" step="1" value="1"
+        style="font-size:32px;font-weight:700;text-align:center;height:64px;width:100%;background:var(--bg3);border:2px solid var(--green);border-radius:var(--rsm);color:var(--green);"
+        oninput="updatePlanFromUnits()"/>
+      <div style="font-size:13px;color:var(--green);font-weight:600;margin-top:8px;" id="plan-u-hint"></div>
+    </div>
+    <div class="field" id="plan-sect-g">
       <label class="label">Cantidad (g / ml)</label>
       <input type="number" id="plan-cant" placeholder="ej. 100" min="1" value="100" oninput="updatePlanPreview()"/>
     </div>
@@ -661,6 +708,8 @@ button:active{opacity:.7;transform:scale(.98);}
     <input type="hidden" id="plan-db-prot100"/>
     <input type="hidden" id="plan-db-gras100"/>
     <input type="hidden" id="plan-db-carb100"/>
+    <input type="hidden" id="plan-db-peso-unidad"/>
+    <input type="hidden" id="plan-db-unit-nombre"/>
   </div>
 </div>
 
@@ -785,7 +834,7 @@ var METS_PRESETS = [
 ];
 
 // ─────────── ACTIVITY PRESETS DEFAULT ───────────
-var PRESETS_VERSION = 2;
+var PRESETS_VERSION = 3;
 var ACT_PRESETS_DEFAULT = [
   // Deportes
   {id:"ap_padel1",  nombre:"Partido de Pádel 1h",          tipo:"padel",     duracion:60},
@@ -796,10 +845,10 @@ var ACT_PRESETS_DEFAULT = [
   {id:"ap_t75",     nombre:"Trote 7.5 km",                 tipo:"trote",     duracion:53,  km:7.5, ritmo:7},
   {id:"ap_t10",     nombre:"Trote 10 km",                  tipo:"trote",     duracion:70,  km:10,  ritmo:7},
   // Entrenamiento NM (4-day split)
-  {id:"ap_d1",      nombre:"Día 1 — Torso (pecho/espalda/hombros/brazos)", tipo:"gym", duracion:70},
-  {id:"ap_d2",      nombre:"Día 2 — Pierna (hip thrust/sentadilla/prensa)", tipo:"gym", duracion:75},
-  {id:"ap_d4",      nombre:"Día 4 — Torso (remo/press mil./jalón/peck deck)", tipo:"gym", duracion:70},
-  {id:"ap_d5",      nombre:"Día 5 — Pierna (rumano/prensa unil./curl/ext.)", tipo:"gym", duracion:80}
+  {id:"ap_d1", nombre:"Día 1 — Torso (pecho/espalda/hombros/brazos)",     tipo:"gym", duracion:70, diaKey:"d1"},
+  {id:"ap_d2", nombre:"Día 2 — Pierna (hip thrust/sentadilla/prensa)",    tipo:"gym", duracion:75, diaKey:"d2"},
+  {id:"ap_d4", nombre:"Día 4 — Torso (remo/press mil./jalón/peck deck)", tipo:"gym", duracion:70, diaKey:"d4"},
+  {id:"ap_d5", nombre:"Día 5 — Pierna (rumano/prensa unil./curl/ext.)",  tipo:"gym", duracion:80, diaKey:"d5"}
 ];
 
 // ─────────── SCENARIOS ───────────
@@ -828,6 +877,49 @@ var INBODY_DATA_ALL = [
   {id:20001,fecha:"2025-12-03",peso:85.7,tmb:1893},
   {id:20002,fecha:"2026-01-05",peso:83.4,tmb:1875},
   {id:20003,fecha:"2026-02-02",peso:85.6,tmb:1866}
+];
+
+// Sessions from nm-training — loaded from Firestore, fallback to HIST
+var SESSIONS_DATA = [
+  {id:10001,fecha:"2026-04-05",dia:"d1",ejercicios:[
+    {n:"Press Pecho Manc.",   sr:"4x8", pr:"15 kg"},
+    {n:"Jalón Pecho Unilat.",sr:"3x8", pr:"115 kg"},
+    {n:"Elev. Lateral Manc.",sr:"3x10",pr:"7,5 kg"},
+    {n:"Press Incl. 30°",    sr:"3x10",pr:"15 kg"},
+    {n:"Remo en Máquina",    sr:"3x8", pr:"65 kg"},
+    {n:"Elev. Lat. Polea",   sr:"3x8", pr:"10 kg"},
+    {n:"Curl Bíceps Incl.",  sr:"4x8", pr:"10 kg"},
+    {n:"Ext. Tríceps",       sr:"3x10",pr:"80 kg"}
+  ]},
+  {id:10002,fecha:"2026-04-05",dia:"d2",ejercicios:[
+    {n:"Sentadilla Barra",   sr:"3x8", pr:"42,7 kg"},
+    {n:"Hip Thrust",         sr:"4x10",pr:"0 kg"},
+    {n:"Prensa",             sr:"3x10",pr:"100 kg"},
+    {n:"Ext. Cuád. Unilat.",sr:"3x8", pr:"27,5 kg"},
+    {n:"Curl Isquios Unilat.",sr:"3x10",pr:"25 kg"},
+    {n:"Gemelo en MPW",      sr:"4x12",pr:"80 kg"},
+    {n:"Rueda Abdominal",    sr:"4x12",pr:"+30 kg"}
+  ]},
+  {id:10003,fecha:"2026-04-05",dia:"d4",ejercicios:[
+    {n:"Remo Máq. Unilat.",  sr:"3x8", pr:"50 kg"},
+    {n:"Press Mil. Manc.",   sr:"3x8", pr:"10 kg"},
+    {n:"Press Pecho Máquina",sr:"4x10",pr:"30 kg"},
+    {n:"Jalón al Pecho",     sr:"3x10",pr:"115 kg"},
+    {n:"Peck Deck",          sr:"3x12",pr:"35 kg"},
+    {n:"Elev. Lat. Polea",   sr:"3x10",pr:"7,5 kg"},
+    {n:"Curl Barra Polea",   sr:"3x10",pr:"75 kg"},
+    {n:"Ext. Tríceps Barra", sr:"4x8", pr:"80 kg"}
+  ]},
+  {id:10004,fecha:"2026-04-05",dia:"d5",ejercicios:[
+    {n:"PM Rumano Barra",    sr:"3x10",pr:"42,7 kg"},
+    {n:"Prensa Unilateral",  sr:"3x8", pr:"50 kg"},
+    {n:"Curl de Isquios",    sr:"3x10",pr:"47,5 kg"},
+    {n:"Ext. de Cuádriceps", sr:"3x8", pr:"55 kg"},
+    {n:"Abductores",         sr:"3x10",pr:"110 kg"},
+    {n:"Aductores",          sr:"3x10",pr:"110 kg"},
+    {n:"Plancha Abdominal",  sr:"3x12",pr:"30 kg"},
+    {n:"Gemelo en MPW",      sr:"3x12",pr:"87,5 kg"}
+  ]}
 ];
 
 // ─────────── FIREBASE ───────────
@@ -896,6 +988,9 @@ function loadDB(){
           INBODY_DATA_ALL = inbodyArr.slice().sort(function(a,b){ return a.fecha>b.fecha?1:-1; });
           INBODY_DATA     = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1]; // most recent
         }
+        // Also load sessions for gym calorie calculation
+        var sesArr = d.sesiones || [];
+        if(sesArr.length) SESSIONS_DATA = sesArr;
       }
       renderConfigInbody();
       renderAll(); // re-render with InBody data
@@ -1008,6 +1103,38 @@ function getMET(key){
   return found ? found.met : 4.5;
 }
 
+// ─────────── GYM CALORIES FROM SESSION VOLUME ───────────
+function _parseKg(str){
+  if(!str) return 0;
+  var s = String(str).replace(/\s*kg\s*/gi,"").trim();
+  if(s.startsWith("+")) s = s.slice(1);
+  s = s.replace(",",".");
+  if(!s || s==="0" || /body|sin|—|-/i.test(s)) return 0;
+  return parseFloat(s)||0;
+}
+function _parseSR(str){
+  var m = String(str||"").match(/(\d+)[x×](\d+)/i);
+  return m ? {sets:parseInt(m[1]), reps:parseInt(m[2])} : {sets:0,reps:0};
+}
+function calcGymCalFromSession(diaKey, pesoKg, durMin){
+  var sessions = SESSIONS_DATA.filter(function(s){ return s.dia===diaKey; });
+  if(!sessions.length) return null;
+  sessions.sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
+  var sess = sessions[0];
+  var totalVol = 0;
+  (sess.ejercicios||[]).forEach(function(ej){
+    var kg = _parseKg(ej.pr||ej.pp);
+    var sr = _parseSR(ej.sr||ej.sp);
+    if(kg>0 && sr.sets>0 && sr.reps>0) totalVol += kg*sr.sets*sr.reps;
+  });
+  // Hybrid formula: time + volume, scaled by body weight
+  // net_kcal = durMin × (2.0 + volume/5000) × (peso/80)
+  var isLower = (diaKey==="d2"||diaKey==="d5");
+  var volFactor = isLower ? 4500 : 5500; // lower body exercises = higher kcal per kg-rep
+  var netKcal = Math.round(durMin * (2.0 + totalVol/volFactor) * (pesoKg/80));
+  return {kcal:netKcal, volume:Math.round(totalVol), fecha:sess.fecha, nEx:(sess.ejercicios||[]).length};
+}
+
 function getDailyTarget(fecha){
   var tmb    = getTMBForDate(fecha);
   var factor = parseFloat(DB.config.factorBase) || 1.2;
@@ -1100,6 +1227,7 @@ function renderAll(){
   renderSemana();
   renderFoodDB();
   renderMenus();
+  renderMetas();
   renderConfig();
 }
 
@@ -1200,6 +1328,8 @@ function renderHoy(){
       var detalle;
       if(a.tipo==="trote" && a.km){
         detalle = a.km+"km @ "+a.ritmo+" min/km · "+a.duracion+" min · "+a.calExtra+" kcal";
+      } else if(a.tipo==="gym" && a.sessionInfo){
+        detalle = a.duracion+" min · "+a.calExtra+" kcal ("+a.sessionInfo+")";
       } else {
         detalle = a.duracion+" min · "+a.calExtra+" kcal quemadas";
       }
@@ -1384,11 +1514,178 @@ function renderMenuPropuesto(){
       "<div class='plan-check' onclick='togglePlanItem(\""+plan.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
       "<div class='plan-item-info'>"+
         "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
-        "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal"+(item.cantidad?" · "+item.cantidad+"g":"")+" · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g C:"+Math.round(item.carb||0)+"g</div>"+
+        "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal"+(item.cantUnidades&&item.unitNombre?" · "+item.cantUnidades+" "+item.unitNombre+(item.cantUnidades>1?"s":""):item.cantidad?" · "+item.cantidad+"g":"")+" · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g C:"+Math.round(item.carb||0)+"g</div>"+
       "</div>"+
       "<button class='btn-xs btn-red' onclick='deletePlanItem(\""+plan.id+"\",\""+item.id+"\")'>✕</button>"+
       "</div>";
   }).join("");
+}
+
+// ─────────── RENDER METAS ───────────
+function renderMetas(){
+  var today = todayStr();
+  var days  = getWeekRange(today);
+  var d0 = new Date(days[0]+"T12:00:00"), d6 = new Date(days[6]+"T12:00:00");
+  var hdr = document.getElementById("metas-header");
+  if(hdr) hdr.innerHTML = "<div style='font-size:13px;font-weight:700;'>Semana "+d0.getDate()+" "+MESES[d0.getMonth()]+" — "+d6.getDate()+" "+MESES[d6.getMonth()]+"</div>";
+
+  var macroSums = {cal:0,prot:0,gras:0,carb:0};
+  var daysWithData = 0;
+  var cumBal = 0;
+  var cumPoints = [];
+
+  var dayHtml = "";
+  days.forEach(function(fecha, i){
+    var d    = new Date(fecha+"T12:00:00");
+    var regs = DB.registros.filter(function(r){ return r.fecha===fecha; });
+    var con  = {cal:0,prot:0,gras:0,carb:0};
+    regs.forEach(function(r){ con.cal+=r.cal||0; con.prot+=r.prot||0; con.gras+=r.gras||0; con.carb+=r.carb||0; });
+    var tgt  = getDailyTarget(fecha);
+    var macT = getMacroTargets(fecha);
+    var isToday = (fecha===today);
+    var hasCal  = con.cal > 10;
+
+    // Cumulative balance
+    if(hasCal) cumBal += Math.round(con.cal - tgt);
+    cumPoints.push({fecha:fecha, bal:cumBal, consumed:con.cal, target:tgt, hasCal:hasCal, isToday:isToday});
+
+    if(hasCal){
+      macroSums.cal += con.cal; macroSums.prot += con.prot;
+      macroSums.gras += con.gras; macroSums.carb += con.carb;
+      daysWithData++;
+    }
+
+    var calPct  = tgt > 0 ? Math.min(105, con.cal/tgt*100) : 0;
+    var protPct = macT.prot > 0 ? Math.min(105, con.prot/macT.prot*100) : 0;
+    var calColor = calPct > 105 ? "var(--red)" : calPct >= 90 ? "var(--green)" : hasCal ? "var(--amber)" : "var(--bg4)";
+    var protColor = protPct >= 90 ? "var(--green)" : protPct > 0 ? "var(--amber)" : "var(--bg4)";
+
+    dayHtml += "<div class='meta-day-row'>"+
+      "<div style='min-width:30px;font-size:11px;font-weight:700;color:"+(isToday?"var(--blue)":"var(--text2)")+"'>"+DIAS[d.getDay()]+"</div>"+
+      "<div class='meta-bar-wrap'>"+
+        "<div class='meta-bar'><div class='meta-bar-fill' style='width:"+calPct+"%;background:"+calColor+";'></div></div>"+
+        "<div class='meta-bar-sm'><div class='meta-bar-fill' style='width:"+protPct+"%;background:"+protColor+";'></div></div>"+
+      "</div>"+
+      "<div class='meta-val'>"+
+        (hasCal ? "<span style='color:"+calColor+";font-weight:700;'>"+Math.round(con.cal)+"</span><span style='color:var(--text2);'> / "+tgt+"</span>" : "<span style='color:var(--text3);'>—</span>")+
+      "</div>"+
+      "</div>";
+  });
+
+  var dailyEl = document.getElementById("metas-daily");
+  if(dailyEl) dailyEl.innerHTML = dayHtml;
+
+  var chartEl = document.getElementById("metas-chart");
+  if(chartEl) chartEl.innerHTML = _renderCumChart(cumPoints);
+
+  var macrosEl = document.getElementById("metas-macros");
+  if(!macrosEl) return;
+  if(daysWithData > 0){
+    var tgt2 = getMacroTargets(today);
+    var avgCal  = Math.round(macroSums.cal/daysWithData);
+    var avgProt = Math.round(macroSums.prot/daysWithData);
+    var avgGras = Math.round(macroSums.gras/daysWithData);
+    var avgCarb = Math.round(macroSums.carb/daysWithData);
+    var pctFn   = function(v,t){ return t>0 ? Math.round(v/t*100) : 0; };
+    var colorFn = function(p){ return p>=95&&p<=110?"var(--green)":p>=80?"var(--amber)":"var(--red)"; };
+    macrosEl.innerHTML =
+      "<div class='row4' style='text-align:center;margin-bottom:12px;'>"+
+      _macroCol(avgCal, "kcal", tgt2.cal, "var(--blue)")+
+      _macroCol(avgProt+"g","Prot",tgt2.prot+"g","var(--green)")+
+      _macroCol(avgGras+"g","Grasas",tgt2.gras+"g","var(--amber)")+
+      _macroCol(avgCarb+"g","Carbos",tgt2.carb+"g","var(--purple)")+
+      "</div>"+
+      "<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;'>"+
+      _adherenceBadge("Calorías", pctFn(avgCal,tgt2.cal), colorFn(pctFn(avgCal,tgt2.cal)))+
+      _adherenceBadge("Proteína", pctFn(avgProt,tgt2.prot), colorFn(pctFn(avgProt,tgt2.prot)))+
+      "</div>"+
+      "<div style='font-size:11px;color:var(--text2);text-align:center;margin-top:8px;'>Promedio "+daysWithData+" día(s) con registro esta semana</div>";
+  } else {
+    macrosEl.innerHTML = "<div class='empty-hint'>Sin registros esta semana</div>";
+  }
+}
+
+function _macroCol(val, label, obj, color){
+  return "<div><div style='font-size:17px;font-weight:700;color:"+color+";'>"+val+"</div><div style='font-size:10px;color:var(--text2);'>"+label+"</div><div style='font-size:10px;color:var(--text2);'>obj. "+obj+"</div></div>";
+}
+
+function _adherenceBadge(label, pct, color){
+  return "<div style='background:var(--bg3);border-radius:var(--rsm);padding:8px;text-align:center;'>"+
+    "<div style='font-size:18px;font-weight:700;color:"+color+";'>"+pct+"%</div>"+
+    "<div style='font-size:11px;color:var(--text2);'>"+label+"</div></div>";
+}
+
+function _renderCumChart(points){
+  var hasData = points.some(function(p){ return p.hasCal; });
+  if(!hasData) return "<div class='empty-hint'>Sin datos para mostrar</div>";
+
+  var W=320, H=130, PX=30, PY=14;
+  var plotW = W-2*PX, plotH = H-PY-20;
+
+  var vals = [0];
+  points.forEach(function(p){ if(p.hasCal) vals.push(p.bal); });
+  var minV = Math.min.apply(null,vals), maxV = Math.max.apply(null,vals);
+  var range = Math.max(maxV-minV, 300);
+  var pad = range*0.2;
+  minV -= pad; maxV += pad; range = maxV-minV;
+
+  var xStep = plotW/6;
+  var yOf = function(v){ return PY + plotH - ((v-minV)/range*plotH); };
+  var y0 = yOf(0);
+
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;display:block;">';
+
+  // Zero line
+  svg += '<line x1="'+PX+'" y1="'+y0+'" x2="'+(W-PX)+'" y2="'+y0+'" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,3"/>';
+  svg += '<text x="'+(PX-4)+'" y="'+(y0+4)+'" text-anchor="end" fill="rgba(255,255,255,0.3)" font-size="8">0</text>';
+
+  // Build data points (only days with data, or today)
+  var pathPts = [];
+  points.forEach(function(p,i){
+    if(p.hasCal || p.isToday){
+      pathPts.push({x:PX+i*xStep, y:yOf(p.bal), bal:p.bal, i:i, isToday:p.isToday});
+    }
+  });
+
+  if(pathPts.length > 0){
+    var lastBal = pathPts[pathPts.length-1].bal;
+    var lineColor = lastBal > 0 ? "#f76f6f" : "#3ecf8e";
+    var fillColor = lastBal > 0 ? "#f76f6f" : "#3ecf8e";
+
+    if(pathPts.length > 1){
+      var polyPts = pathPts.map(function(pt){ return pt.x+","+pt.y; }).join(" ");
+      // Area
+      var area = "M "+pathPts[0].x+","+y0;
+      pathPts.forEach(function(pt){ area += " L "+pt.x+","+pt.y; });
+      area += " L "+pathPts[pathPts.length-1].x+","+y0+" Z";
+      svg += '<path d="'+area+'" fill="'+fillColor+'" fill-opacity="0.15"/>';
+      // Line
+      svg += '<polyline points="'+polyPts+'" fill="none" stroke="'+lineColor+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+    }
+
+    // Dots + last label
+    pathPts.forEach(function(pt, j){
+      var dotColor = pt.bal > 0 ? "#f76f6f" : "#3ecf8e";
+      svg += '<circle cx="'+pt.x+'" cy="'+pt.y+'" r="3.5" fill="'+dotColor+'" stroke="#17171b" stroke-width="1.5"/>';
+      if(j === pathPts.length-1){
+        var lbl = (pt.bal>=0?"+":"")+pt.bal+" kcal";
+        var anchor = pt.x > W/2 ? "end" : "start";
+        var tx = pt.x + (anchor==="end" ? -6 : 6);
+        svg += '<text x="'+tx+'" y="'+(pt.y-8)+'" text-anchor="'+anchor+'" fill="'+dotColor+'" font-size="9" font-weight="bold">'+lbl+'</text>';
+      }
+    });
+  }
+
+  // Day labels
+  points.forEach(function(p,i){
+    var d = new Date(p.fecha+"T12:00:00");
+    var x = PX+i*xStep;
+    var color = p.isToday ? "#4f8ef7" : "rgba(255,255,255,0.3)";
+    svg += '<text x="'+x+'" y="'+(H-3)+'" text-anchor="middle" fill="'+color+'" font-size="9">'+(p.isToday?"Hoy":DIAS[d.getDay()])+'</text>';
+  });
+
+  svg += '</svg>';
+  return svg;
 }
 
 // ─────────── RENDER CONFIG ───────────
@@ -1965,7 +2262,9 @@ function openModalAddPlanItem(){
   document.getElementById("plan-nombre-field").style.display = "block";
   ["plan-nombre","plan-cal","plan-prot","plan-gras","plan-carb"].forEach(function(id){ document.getElementById(id).value=""; });
   ["plan-db-id","plan-db-cal100","plan-db-prot100","plan-db-gras100","plan-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
+  ["plan-db-peso-unidad","plan-db-unit-nombre"].forEach(function(id){ document.getElementById(id).value=""; });
   document.getElementById("plan-cant").value = "100";
+  _resetPlanCantMode();
   openModal("modal-plan-alimento");
 }
 
@@ -2000,8 +2299,21 @@ function selectPlanFoodFromDB(id){
   document.getElementById("plan-or-label").style.display        = "none";
   document.getElementById("plan-nombre-field").style.display    = "none";
   document.getElementById("plan-nombre").value = f.nombre;
-  document.getElementById("plan-cant").value   = f.pesoUnidad || 100;
-  updatePlanPreview();
+  if(f.pesoUnidad){
+    document.getElementById("plan-db-peso-unidad").value = f.pesoUnidad;
+    document.getElementById("plan-db-unit-nombre").value  = f.unitNombre||"unidad";
+    document.getElementById("plan-u-label").textContent   = "¿Cuántos "+(f.unitNombre||"unidades")+"?";
+    document.getElementById("plan-mode-toggle").style.display = "block";
+    document.getElementById("plan-cant-units").value = "1";
+    setPlanCantMode("u");
+  } else {
+    document.getElementById("plan-mode-toggle").style.display = "none";
+    document.getElementById("plan-sect-g").style.display = "block";
+    document.getElementById("plan-sect-u").style.display = "none";
+    _planCantMode = "g";
+    document.getElementById("plan-cant").value = "100";
+    updatePlanPreview();
+  }
 }
 
 function clearPlanFoodSelection(){
@@ -2012,6 +2324,7 @@ function clearPlanFoodSelection(){
   document.getElementById("plan-nombre-field").style.display    = "block";
   document.getElementById("plan-cant").value = "100";
   ["plan-nombre","plan-cal","plan-prot","plan-gras","plan-carb"].forEach(function(id){ document.getElementById(id).value=""; });
+  _resetPlanCantMode();
 }
 
 function updatePlanPreview(){
@@ -2025,6 +2338,47 @@ function updatePlanPreview(){
   document.getElementById("plan-carb").value = Math.round((parseFloat(document.getElementById("plan-db-carb100").value)||0)*f*10)/10;
 }
 
+var _planCantMode = "g";
+
+function _resetPlanCantMode(){
+  _planCantMode = "g";
+  document.getElementById("plan-mode-toggle").style.display = "none";
+  document.getElementById("plan-sect-g").style.display = "block";
+  document.getElementById("plan-sect-u").style.display = "none";
+  document.getElementById("plan-db-peso-unidad").value = "";
+  document.getElementById("plan-db-unit-nombre").value = "";
+  document.getElementById("plan-cant-units").value = "1";
+  document.getElementById("plan-u-hint").textContent = "";
+}
+
+function setPlanCantMode(mode){
+  _planCantMode = mode;
+  document.getElementById("plan-sect-g").style.display = mode==="g" ? "block" : "none";
+  document.getElementById("plan-sect-u").style.display = mode==="u" ? "block" : "none";
+  document.getElementById("plan-btn-mode-g").style.cssText = mode==="g"
+    ? "flex:1;background:var(--blue);color:#fff;"
+    : "flex:1;background:var(--bg4);color:var(--text2);";
+  document.getElementById("plan-btn-mode-u").style.cssText = mode==="u"
+    ? "flex:1;background:var(--green);color:#fff;"
+    : "flex:1;background:var(--bg4);color:var(--text2);";
+  if(mode==="u"){
+    updatePlanFromUnits();
+    setTimeout(function(){ document.getElementById("plan-cant-units").focus(); document.getElementById("plan-cant-units").select(); },100);
+  }
+}
+
+function updatePlanFromUnits(){
+  var n     = parseFloat(document.getElementById("plan-cant-units").value)||1;
+  var pesoU = parseFloat(document.getElementById("plan-db-peso-unidad").value)||0;
+  var uNom  = document.getElementById("plan-db-unit-nombre").value;
+  if(!pesoU) return;
+  var totalG = Math.round(n * pesoU);
+  document.getElementById("plan-cant").value = totalG;
+  var label = n===1 ? (uNom||"unidad") : (uNom ? uNom+"s" : "unidades");
+  document.getElementById("plan-u-hint").textContent = n+" "+label+" = "+totalG+"g";
+  updatePlanPreview();
+}
+
 function savePlanItem(){
   var nombre = document.getElementById("plan-nombre").value.trim();
   var cal    = parseFloat(document.getElementById("plan-cal").value)||0;
@@ -2033,10 +2387,16 @@ function savePlanItem(){
   var carb   = parseFloat(document.getElementById("plan-carb").value)||0;
   var cant   = parseFloat(document.getElementById("plan-cant").value)||null;
   if(!nombre){ alert("Ingresá el nombre del alimento"); return; }
+  var cantUnidades = null, planUnitNombre = null;
+  if(_planCantMode === "u"){
+    cantUnidades   = parseFloat(document.getElementById("plan-cant-units").value)||null;
+    planUnitNombre = document.getElementById("plan-db-unit-nombre").value||null;
+  }
   var plan = _getOrCreatePlan(_viewDate);
   plan.items.push({
     id:"pi"+Date.now(), nombre:nombre, cal:cal, prot:prot, gras:gras, carb:carb,
-    cantidad:cant, dbId:document.getElementById("plan-db-id").value||null,
+    cantidad:cant, cantUnidades:cantUnidades, unitNombre:planUnitNombre,
+    dbId:document.getElementById("plan-db-id").value||null,
     consumido:false, registroId:null
   });
   saveDB(); closeModal("modal-plan-alimento"); renderMenuPropuesto();
@@ -2121,7 +2481,7 @@ function deleteActPreset(){
 function useActPreset(id){
   var p    = DB.actPresets.find(function(p){ return p.id===id; });
   if(!p) return;
-  var peso = getWeight();
+  var peso = getWeightForDate(_viewDate);
   var record = {id:Date.now()+"", fecha:_viewDate, tipo:p.tipo, notas:p.nombre};
   if(p.tipo==="trote" && p.km && p.ritmo){
     var timMin = p.km * p.ritmo;
@@ -2129,6 +2489,11 @@ function useActPreset(id){
     record.km       = p.km;
     record.ritmo    = p.ritmo;
     record.calExtra = Math.round(1.04*peso*p.km - getTMBForDate(_viewDate)*(timMin/1440));
+  } else if(p.tipo==="gym" && p.diaKey){
+    var sessRes = calcGymCalFromSession(p.diaKey, peso, p.duracion);
+    record.duracion = p.duracion;
+    record.calExtra = sessRes ? sessRes.kcal : Math.round((getMET("gym")-1)*peso*(p.duracion/60));
+    if(sessRes) record.sessionInfo = sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
   } else {
     var met = (METS_PRESETS.find(function(m){ return m.key===p.tipo; })||{met:4.5}).met;
     record.duracion = p.duracion;
@@ -2203,6 +2568,7 @@ function showTab(name, btn){
   document.getElementById("tab-"+name).classList.add("active");
   btn.classList.add("active");
   if(name==="semana") renderSemana();
+  if(name==="metas") renderMetas();
   if(name==="alimentos") renderFoodDB();
   if(name==="menus") renderMenus();
   if(name==="config") renderConfig();
@@ -2226,6 +2592,9 @@ document.addEventListener("click", function(e){
 // Auto-update plan macros when quantity changes
 document.getElementById("plan-cant").addEventListener("input", function(){
   if(document.getElementById("plan-db-cal100").value) updatePlanPreview();
+});
+document.getElementById("plan-cant-units").addEventListener("input", function(){
+  if(document.getElementById("plan-db-peso-unidad").value) updatePlanFromUnits();
 });
 
 // Close modals on overlay click
