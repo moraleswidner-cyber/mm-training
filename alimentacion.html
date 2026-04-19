@@ -2001,7 +2001,7 @@ function renderPerfil(){
   var el = document.getElementById("perfil-body");
   if(!el) return;
   var ib = INBODY_DATA_ALL.length ? INBODY_DATA_ALL[INBODY_DATA_ALL.length-1] : null;
-  if(!ib){ el.innerHTML="<div style='font-size:12px;color:var(--text2);'>Sin datos InBody disponibles.</div>"; return; }
+  if(!ib){ el.innerHTML="<div style='font-size:12px;color:var(--text2);'>Sin datos InBody disponibles. Abrí la app Entrenamiento para sincronizar.</div>"; return; }
 
   var peso     = parseFloat(DB.config.pesoManual)||ib.peso;
   var tmb      = getTMB();
@@ -2009,96 +2009,133 @@ function renderPerfil(){
   var tdee     = Math.round(tmb * factor);
   var pctGrasa = ib.pctGrasa||0;
   var musculo  = ib.musculo||0;
-  var pctMus   = peso>0 ? Math.round(musculo/peso*100) : 0;
 
-  // Morphology assessment
+  // Morphology
   var morfo, morfoColor, morfoDesc;
-  if(pctGrasa < 15 && pctMus > 44){
+  if(pctGrasa < 15 && musculo/peso > 0.44){
     morfo="Mesomorfo"; morfoColor="var(--green)";
     morfoDesc="Alta masa muscular, bajo % grasa. Excelente composición.";
-  } else if(pctGrasa >= 15 && pctGrasa < 22 && pctMus >= 42){
+  } else if(pctGrasa < 22 && musculo/peso >= 0.42){
     morfo="Endo-mesomorfo"; morfoColor="var(--blue)";
-    morfoDesc="Buena masa muscular con tendencia a acumular grasa. Responde bien al entrenamiento de fuerza.";
+    morfoDesc="Buena masa muscular con tendencia moderada a acumular grasa. Responde bien al entrenamiento de fuerza.";
   } else if(pctGrasa >= 22){
     morfo="Endomorfo"; morfoColor="var(--amber)";
-    morfoDesc="Mayor tendencia a acumular grasa. El déficit calórico moderado y el entrenamiento de fuerza son clave.";
+    morfoDesc="Mayor tendencia a acumular grasa. Déficit moderado + fuerza son clave.";
   } else {
     morfo="Ectomorfo-meso"; morfoColor="var(--purple)";
     morfoDesc="Estructura delgada con buena respuesta al entrenamiento.";
   }
 
-  // Recommended factor
-  var recFactor = 1.2; // Correct base for logging-based approach
-  var recTDEE   = Math.round(tmb * recFactor);
+  // Current scenario values (what the app is using RIGHT NOW)
+  var curDef  = tdee + (SCENARIOS.deficit.calAdj||-450);
+  var curMant = tdee;
+  var curVol  = tdee + (SCENARIOS.volumen.calAdj||300);
+  var curPDef  = SCENARIOS.deficit.protFactor||2.4;
+  var curPMant = SCENARIOS.mantencion.protFactor||2.0;
+  var curPVol  = SCENARIOS.volumen.protFactor||2.2;
 
-  // Recommended scenarios
-  var recDef  = recTDEE - 450;
-  var recMant = recTDEE;
-  var recVol  = recTDEE + 300;
+  // Recommended values from InBody
+  var recDef  = tdee - 450;
+  var recMant = tdee;
+  var recVol  = tdee + 300;
 
-  // Protein targets (g) per scenario
-  var pDef  = Math.round(peso * 2.4);
-  var pMant = Math.round(peso * 2.0);
-  var pVol  = Math.round(peso * 2.2);
-
-  // Fat targets (g)
-  var fDef  = Math.round(recDef  * 0.25 / 9);
-  var fMant = Math.round(recMant * 0.25 / 9);
-  var fVol  = Math.round(recVol  * 0.25 / 9);
-
-  // Carb targets (g)
-  var cDef  = Math.round((recDef  - pDef*4  - fDef*9)  / 4);
-  var cMant = Math.round((recMant - pMant*4 - fMant*9) / 4);
-  var cVol  = Math.round((recVol  - pVol*4  - fVol*9)  / 4);
-
-  var isFacOk = Math.abs(factor - recFactor) < 0.1;
+  // Factor warning
+  var isFacOk = Math.abs(factor - 1.2) < 0.1;
 
   el.innerHTML =
-    // Morphology badge
-    "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px;'>"+
-      "<div style='background:var(--bg4);border:1px solid "+morfoColor+";border-radius:var(--rsm);padding:6px 12px;'>"+
-        "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;'>Morfología</div>"+
-        "<div style='font-size:15px;font-weight:700;color:"+morfoColor+"'>"+morfo+"</div>"+
+    // Morphology + KPIs
+    "<div style='display:flex;align-items:center;gap:10px;margin-bottom:10px;'>"+
+      "<div style='background:var(--bg4);border:2px solid "+morfoColor+";border-radius:var(--rsm);padding:6px 12px;flex-shrink:0;'>"+
+        "<div style='font-size:9px;color:var(--text2);text-transform:uppercase;font-weight:700;'>Morfología</div>"+
+        "<div style='font-size:14px;font-weight:700;color:"+morfoColor+"'>"+morfo+"</div>"+
       "</div>"+
-      "<div style='flex:1;font-size:11px;color:var(--text2);'>"+morfoDesc+"</div>"+
+      "<div style='font-size:11px;color:var(--text2);line-height:1.4;'>"+morfoDesc+"</div>"+
     "</div>"+
-    // InBody summary
-    "<div style='display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:12px;'>"+
-      _kpiBox("Peso",  peso+"kg",  "")+
+    "<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px;'>"+
+      _kpiBox("Peso", peso+"kg", "")+
       _kpiBox("% Grasa", pctGrasa+"%", pctGrasa>22?"var(--red)":pctGrasa>18?"var(--amber)":"var(--green)")+
       _kpiBox("Músculo", musculo+"kg", "var(--green)")+
-      _kpiBox("TMB",   tmb+" kcal", "")+
+      _kpiBox("TMB InBody", tmb+" kcal", "var(--blue)")+
     "</div>"+
+
     // Factor warning
     (!isFacOk ?
       "<div style='background:var(--amber-d);border:1px solid var(--amber);border-radius:var(--rsm);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--amber);'>"+
         "⚠ Factor actividad actual: <strong>"+factor+"</strong>. Como registrás tus actividades manualmente, el factor correcto es <strong>1.2</strong> (base sedentaria). Si usaras 1.55 y además registraras actividades, estarías contando el gasto dos veces."+
         "<br><button class='btn-xs btn-amber' style='margin-top:6px;' onclick='applyRecommendedFactor(1.2)'>Aplicar factor 1.2</button>"+
       "</div>" : "")+
-    // TDEE info
-    "<div style='background:var(--bg4);border-radius:var(--rsm);padding:8px 12px;margin-bottom:12px;'>"+
-      "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;margin-bottom:4px;'>Base diaria sin actividades (TMB × 1.2)</div>"+
-      "<div style='font-size:17px;font-weight:700;color:var(--blue);'>"+recTDEE+" kcal</div>"+
-      "<div style='font-size:10px;color:var(--text2);margin-top:2px;'>+ calorias de actividades registradas cada día</div>"+
+
+    // Base explanation
+    "<div style='background:var(--bg4);border-radius:var(--rsm);padding:8px 12px;margin-bottom:14px;font-size:11px;'>"+
+      "<div style='font-weight:700;color:var(--text);margin-bottom:2px;'>Base diaria (sin actividades): <span style='color:var(--blue);font-size:14px;'>"+tdee+" kcal</span></div>"+
+      "<div style='color:var(--text2);'>TMB "+tmb+" × factor "+factor+" = "+tdee+" kcal · En días con entrenamiento, la app suma las kcal de cada actividad registrada.</div>"+
     "</div>"+
-    // Scenario table
-    "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;margin-bottom:6px;'>Objetivos por escenario</div>"+
-    "<table style='width:100%;border-collapse:collapse;font-size:12px;'>"+
-      "<thead><tr>"+
-        "<th style='text-align:left;padding:4px 6px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--bord);'>Escenario</th>"+
-        "<th style='text-align:right;padding:4px 6px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--bord);'>kcal</th>"+
-        "<th style='text-align:right;padding:4px 6px;color:var(--green);font-weight:600;border-bottom:1px solid var(--bord);'>Prot</th>"+
-        "<th style='text-align:right;padding:4px 6px;color:var(--amber);font-weight:600;border-bottom:1px solid var(--bord);'>Gras</th>"+
-        "<th style='text-align:right;padding:4px 6px;color:var(--purple);font-weight:600;border-bottom:1px solid var(--bord);'>Carb</th>"+
-      "</tr></thead>"+
-      "<tbody>"+
-        _scenRow("Déficit (−450)", recDef,  pDef,  fDef,  cDef,  "var(--amber)")+
-        _scenRow("Mantención",     recMant, pMant, fMant, cMant, "var(--blue)")+
-        _scenRow("Volumen (+300)",  recVol,  pVol,  fVol,  cVol,  "var(--green)")+
-      "</tbody>"+
-    "</table>"+
-    "<div style='font-size:10px;color:var(--text2);margin-top:6px;'>* Objetivos para días sin actividad. En días de entrenamiento se suman las kcal de actividades registradas.</div>"+
-    "<button class='btn-xs btn-blue btn-full' style='margin-top:10px;' onclick='applyRecommendedParams("+recFactor+","+recDef+","+recMant+","+recVol+","+pDef+","+pMant+","+pVol+")'>Aplicar parámetros recomendados</button>";
+
+    // Scenario editors
+    "<div style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;'>Objetivos de cada escenario (días sin actividad)</div>"+
+    _scenEditor("deficit",   "Déficit",    "var(--amber)",  curDef,  curPDef,  recDef,  peso)+
+    _scenEditor("mantencion","Mantención", "var(--blue)",   curMant, curPMant, recMant, peso)+
+    _scenEditor("volumen",   "Volumen",    "var(--green)",  curVol,  curPVol,  recVol,  peso)+
+
+    "<button class='btn-blue btn-full' style='margin-top:12px;' onclick='saveScenarioEdits()'>Guardar objetivos</button>"+
+    "<div style='font-size:10px;color:var(--text2);margin-top:6px;text-align:center;'>Los cambios se guardan en la nube y se aplican de inmediato.</div>";
+}
+
+function _scenEditor(key, label, color, curCal, curProt, recCal, peso){
+  var recProt = key==="deficit" ? 2.4 : key==="volumen" ? 2.2 : 2.0;
+  return "<div style='background:var(--bg3);border:1px solid var(--bord2);border-left:3px solid "+color+";border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;'>"+
+    "<div style='font-weight:700;color:"+color+";font-size:13px;margin-bottom:8px;'>"+label+"</div>"+
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:8px;'>"+
+      "<div>"+
+        "<div style='font-size:10px;color:var(--text2);font-weight:600;margin-bottom:3px;'>OBJETIVO KCAL / DÍA</div>"+
+        "<input type='number' id='scen-cal-"+key+"' value='"+curCal+"' min='1000' max='5000' step='50'"+
+          " style='width:100%;text-align:center;font-size:16px;font-weight:700;padding:6px;'/>"+
+        "<div style='font-size:10px;color:var(--text2);margin-top:2px;'>Recomendado: "+recCal+" kcal"+
+          (Math.abs(curCal-recCal)>20?" <button type='button' onclick='document.getElementById(\"scen-cal-"+key+"\").value="+recCal+"' style='font-size:10px;padding:1px 5px;margin-left:4px;'>←usar</button>":"")+"</div>"+
+      "</div>"+
+      "<div>"+
+        "<div style='font-size:10px;color:var(--text2);font-weight:600;margin-bottom:3px;'>PROTEÍNA (g/kg peso)</div>"+
+        "<input type='number' id='scen-prot-"+key+"' value='"+curProt+"' min='1.0' max='3.5' step='0.1'"+
+          " style='width:100%;text-align:center;font-size:16px;font-weight:700;padding:6px;'/>"+
+        "<div style='font-size:10px;color:var(--text2);margin-top:2px;'>= "+Math.round(curProt*peso)+"g · Rec: "+recProt+"g/kg</div>"+
+      "</div>"+
+    "</div>"+
+  "</div>";
+}
+
+function saveScenarioEdits(){
+  var tdee = Math.round(getTMB() * (parseFloat(DB.config.factorBase)||1.2));
+
+  var calDef  = parseFloat(document.getElementById("scen-cal-deficit").value)||0;
+  var calMant = parseFloat(document.getElementById("scen-cal-mantencion").value)||0;
+  var calVol  = parseFloat(document.getElementById("scen-cal-volumen").value)||0;
+  var pDef    = parseFloat(document.getElementById("scen-prot-deficit").value)||2.4;
+  var pMant   = parseFloat(document.getElementById("scen-prot-mantencion").value)||2.0;
+  var pVol    = parseFloat(document.getElementById("scen-prot-volumen").value)||2.2;
+
+  if(!calDef||!calMant||!calVol){ alert("Completá todos los campos"); return; }
+  if(calDef >= calMant){ alert("El objetivo de Déficit debe ser menor que Mantención"); return; }
+  if(calVol <= calMant){ alert("El objetivo de Volumen debe ser mayor que Mantención"); return; }
+
+  // Save to DB.config
+  DB.config.scenCalDef  = calDef  - tdee;
+  DB.config.scenCalVol  = calVol  - tdee;
+  DB.config.scenProtDef  = pDef;
+  DB.config.scenProtMant = pMant;
+  DB.config.scenProtVol  = pVol;
+
+  // Apply to SCENARIOS immediately
+  SCENARIOS.deficit.calAdj        = DB.config.scenCalDef;
+  SCENARIOS.volumen.calAdj        = DB.config.scenCalVol;
+  SCENARIOS.deficit.protFactor    = pDef;
+  SCENARIOS.mantencion.protFactor = pMant;
+  SCENARIOS.volumen.protFactor    = pVol;
+
+  saveDB();
+  renderAll();
+  // Flash confirmation instead of alert
+  var btn = document.querySelector("#perfil-body .btn-blue");
+  if(btn){ var orig=btn.textContent; btn.textContent="✓ Guardado"; btn.style.background="var(--green)"; setTimeout(function(){ btn.textContent=orig; btn.style.background=""; },2000); }
 }
 
 function _kpiBox(label, val, color){
@@ -2123,31 +2160,6 @@ function applyRecommendedFactor(factor){
   renderPerfil();
 }
 
-function applyRecommendedParams(factor, calDef, calMant, calVol, pDef, pMant, pVol){
-  var peso = parseFloat(DB.config.pesoManual)||(INBODY_DATA_ALL.length ? INBODY_DATA_ALL[INBODY_DATA_ALL.length-1].peso : 85);
-  var tdee = Math.round(getTMB() * factor);
-  // Update factor
-  document.getElementById("cfg-factor").value = factor;
-  DB.config.factorBase = factor;
-  // Update scenario calAdj (relative to TDEE at new factor)
-  DB.config.scenCalDef  = calDef  - tdee;
-  DB.config.scenCalVol  = calVol  - tdee;
-  DB.config.scenCalMant = 0;
-  // Update protein factors
-  DB.config.scenProtDef  = peso > 0 ? Math.round((pDef  / peso) * 10) / 10 : 2.4;
-  DB.config.scenProtMant = peso > 0 ? Math.round((pMant / peso) * 10) / 10 : 2.0;
-  DB.config.scenProtVol  = peso > 0 ? Math.round((pVol  / peso) * 10) / 10 : 2.2;
-  // Apply to SCENARIOS immediately
-  SCENARIOS.deficit.calAdj        = DB.config.scenCalDef;
-  SCENARIOS.volumen.calAdj        = DB.config.scenCalVol;
-  SCENARIOS.deficit.protFactor    = DB.config.scenProtDef;
-  SCENARIOS.mantencion.protFactor = DB.config.scenProtMant;
-  SCENARIOS.volumen.protFactor    = DB.config.scenProtVol;
-  saveDB();
-  renderPerfil();
-  renderAll();
-  alert("✓ Parámetros guardados. Factor: "+factor+" · Base sin actividades: "+tdee+" kcal · Déficit: "+calDef+" kcal · Volumen: "+calVol+" kcal");
-}
 
 function reloadInBodyData(){
   if(!_fbTrain) return;
