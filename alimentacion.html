@@ -342,6 +342,7 @@ button:active{opacity:.7;transform:scale(.98);}
       </div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px;" id="menu-date-label2"></div>
       <div id="plan-summary" style="display:none;background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;"></div>
+      <div id="plan-macros-bar" style="display:none;background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;"></div>
       <div id="list-menu-plan"></div>
 
       <div style="height:1px;background:var(--bord);margin:18px 0 14px;"></div>
@@ -1588,6 +1589,8 @@ function renderMenuPropuesto(){
   if(!plan || !plan.items.length){
     listEl.innerHTML = "<div class='empty-hint'>Sin plan para este día. Agregá alimentos o aplicá un preset.</div>";
     if(summEl) summEl.style.display = "none";
+    var macrosElHide = document.getElementById("plan-macros-bar");
+    if(macrosElHide) macrosElHide.style.display = "none";
     return;
   }
 
@@ -1602,6 +1605,39 @@ function renderMenuPropuesto(){
       "<div><div style='font-size:10px;color:var(--blue);text-transform:uppercase;font-weight:700;letter-spacing:.07em;'>Registrado</div><div style='font-size:17px;font-weight:700;color:var(--blue);'>"+Math.round(actualCal)+" kcal</div></div>"+
       "</div>"+
       "<div style='font-size:11px;color:var(--text2);'>"+nConsumidos+" de "+totalItems+" alimentos marcados"+(restante>0?" · Faltan <strong style=\"color:var(--amber);\">"+restante+" kcal</strong> del plan":"")+"</div>";
+  }
+
+  // Macro vs target comparison bar
+  var macrosEl = document.getElementById("plan-macros-bar");
+  if(macrosEl && plan && plan.items.length){
+    var targets = getDailyTarget(fecha);
+    var tProt = 0, tGras = 0, tCarb = 0, tCal = 0;
+    plan.items.forEach(function(i){ tProt+=i.prot||0; tGras+=i.gras||0; tCarb+=i.carb||0; tCal+=i.cal||0; });
+    tProt=Math.round(tProt); tGras=Math.round(tGras); tCarb=Math.round(tCarb); tCal=Math.round(tCal);
+
+    function _macroBar(label, val, target, unit, color){
+      var pct = target>0 ? Math.min(110, Math.round(val/target*100)) : 0;
+      var barColor = pct>105 ? "var(--red)" : pct>80 ? color : "var(--text3)";
+      return "<div style='margin-bottom:8px;'>"+
+        "<div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;'>"+
+          "<span style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;'>"+label+"</span>"+
+          "<span style='font-size:11px;color:var(--text2);'>"+val+unit+" <span style='color:var(--text3);'>/ "+target+unit+"</span> <span style='font-size:10px;font-weight:700;color:"+(pct>105?"var(--red)":pct>=80?color:"var(--text3)")+"'>"+pct+"%</span></span>"+
+        "</div>"+
+        "<div style='height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;'>"+
+          "<div style='height:100%;width:"+Math.min(100,pct)+"%;background:"+barColor+";border-radius:3px;transition:width .3s;'></div>"+
+        "</div>"+
+      "</div>";
+    }
+
+    macrosEl.style.display = "block";
+    macrosEl.innerHTML =
+      "<div style='font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;'>Macros del plan vs objetivo diario</div>"+
+      _macroBar("Calorías", tCal, targets.cal, " kcal", "var(--blue)")+
+      _macroBar("Proteína", tProt, targets.prot, "g", "var(--green)")+
+      _macroBar("Grasas",   tGras, targets.gras, "g", "var(--amber)")+
+      _macroBar("Carbos",   tCarb, targets.carb, "g", "var(--purple)");
+  } else if(macrosEl){
+    macrosEl.style.display = "none";
   }
 
   // Render by comida category
