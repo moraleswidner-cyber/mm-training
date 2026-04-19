@@ -338,8 +338,12 @@ button:active{opacity:.7;transform:scale(.98);}
       <div class="card">
         <div class="card-title" style="margin-bottom:10px;">Datos manuales (anula InBody)</div>
         <div class="field">
-          <label class="label">TMB manual (kcal)</label>
-          <input type="number" id="cfg-tmb" placeholder="ej. 1850" min="1000" max="4000" oninput="saveConfig()"/>
+          <label class="label">TMB manual (kcal) — <span style="color:var(--amber);font-weight:400;">si tiene valor anula el InBody</span></label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="number" id="cfg-tmb" placeholder="dejar vacío = usar InBody" min="1000" max="4000" oninput="saveConfig()" style="flex:1;"/>
+            <button type="button" class="btn-xs btn-red" onclick="clearTmbManual()" title="Borrar TMB manual y usar InBody">✕ Limpiar</button>
+          </div>
+          <div id="tmb-source-lbl" style="font-size:11px;margin-top:4px;"></div>
         </div>
         <div class="field">
           <label class="label">Peso manual (kg)</label>
@@ -1098,7 +1102,7 @@ function renderAll(){
 function renderBreakdownCard(){
   var el = document.getElementById("breakdown-body");
   if(!el) return;
-  var tmb    = getTMB();
+  var tmb    = getTMBForDate(_viewDate);   // uses InBody current on this date
   var factor = parseFloat(DB.config.factorBase)||1.2;
   var scen   = SCENARIOS[DB.config.escenario]||SCENARIOS.mantencion;
   var actCal = getActCalForDate(_viewDate);
@@ -1109,8 +1113,10 @@ function renderBreakdownCard(){
   consumed = Math.round(consumed);
   var balance = consumed - total;
   var balColor = balance > 150 ? "var(--red)" : balance < -50 ? "var(--green)" : "var(--text2)";
+  // Show where TMB comes from
+  var tmbSrc = DB.config.tmbManual ? " (manual)" : (INBODY_DATA_ALL.length ? " (InBody)" : " (fallback)");
   el.innerHTML =
-    "<div class='bkd-row'><span class='bkd-lbl'>TMB base</span><span class='bkd-val'>"+Math.round(tmb)+" kcal</span></div>"+
+    "<div class='bkd-row'><span class='bkd-lbl'>TMB base"+tmbSrc+"</span><span class='bkd-val'>"+Math.round(tmb)+" kcal</span></div>"+
     "<div class='bkd-row'><span class='bkd-lbl'>× Factor actividad ("+factor+")</span><span class='bkd-val'>"+base+" kcal</span></div>"+
     (scen.calAdj!==0?"<div class='bkd-row'><span class='bkd-lbl'>Escenario "+scen.label+"</span><span class='bkd-val' style='color:"+(scen.calAdj>0?"var(--green)":"var(--red)")+"'>"+(scen.calAdj>0?"+":"")+scen.calAdj+" kcal</span></div>":"")+
     (actCal>0?"<div class='bkd-row'><span class='bkd-lbl'>Actividades extra hoy</span><span class='bkd-val' style='color:var(--amber);'>+"+actCal+" kcal</span></div>":"")+
@@ -1401,6 +1407,15 @@ function renderConfig(){
   if(pi && !pi.matches(":focus")) pi.value = cfg.pesoManual||"";
   var fi = document.getElementById("cfg-factor");
   if(fi) fi.value = cfg.factorBase||1.2;
+
+  // TMB source label
+  var lbl = document.getElementById("tmb-source-lbl");
+  if(lbl){
+    var tmbM = DB.config.tmbManual;
+    if(tmbM){ lbl.style.color="var(--amber)"; lbl.textContent="⚠ Usando TMB manual: "+tmbM+" kcal — pulsá ✕ Limpiar para usar InBody"; }
+    else if(INBODY_DATA_ALL.length){ lbl.style.color="var(--green)"; lbl.textContent="✓ InBody activo: TMB "+Math.round(getTMB())+" kcal (campo vacío = InBody)"; }
+    else { lbl.style.color="var(--text2)"; lbl.textContent="Sin InBody cargado — abrí la app Entrenamiento para sincronizar."; }
+  }
 
   // Pre-fill Mover día: default from=today, to=yesterday
   var mf = document.getElementById("move-from");
@@ -1735,7 +1750,7 @@ function updateActPreview(){
     if(!km || !ritmo){ document.getElementById("act-preview").textContent=""; document.getElementById("act-trote-info").textContent=""; return; }
     var timMin   = km * ritmo;
     var calBruta = 1.04 * peso * km;
-    var calBMR   = getTMB() * (timMin/1440);
+    var calBMR   = getTMBForDate(_viewDate) * (timMin/1440);
     kcal = Math.round(calBruta - calBMR);
     var speed = Math.round(60/ritmo*10)/10;
     document.getElementById("act-trote-info").textContent = "Duración: "+Math.round(timMin)+" min · "+speed+" km/h";
@@ -2108,7 +2123,7 @@ function useActPreset(id){
     record.duracion = Math.round(timMin);
     record.km       = p.km;
     record.ritmo    = p.ritmo;
-    record.calExtra = Math.round(1.04*peso*p.km - getTMB()*(timMin/1440));
+    record.calExtra = Math.round(1.04*peso*p.km - getTMBForDate(_viewDate)*(timMin/1440));
   } else {
     var met = (METS_PRESETS.find(function(m){ return m.key===p.tipo; })||{met:4.5}).met;
     record.duracion = p.duracion;
@@ -2153,6 +2168,12 @@ function selectScenario(key){
   saveDB(); renderConfig(); renderHoy(); renderSemana();
 }
 
+function clearTmbManual(){
+  document.getElementById("cfg-tmb").value = "";
+  DB.config.tmbManual = null;
+  saveDB(); renderHoy(); renderSemana(); renderConfig();
+}
+
 function saveConfig(){
   var tmb  = parseFloat(document.getElementById("cfg-tmb").value)||null;
   var peso = parseFloat(document.getElementById("cfg-peso").value)||null;
@@ -2161,6 +2182,13 @@ function saveConfig(){
   DB.config.pesoManual = peso;
   DB.config.factorBase = parseFloat(fac)||1.2;
   saveDB(); renderHoy(); renderSemana();
+  // Update TMB source label
+  var lbl = document.getElementById("tmb-source-lbl");
+  if(lbl){
+    if(tmb){ lbl.style.color="var(--amber)"; lbl.textContent="⚠ Usando TMB manual: "+tmb+" kcal (InBody ignorado)"; }
+    else if(INBODY_DATA_ALL.length){ lbl.style.color="var(--green)"; lbl.textContent="✓ Usando InBody: "+Math.round(getTMB())+" kcal (campo libre = InBody activo)"; }
+    else { lbl.style.color="var(--text2)"; lbl.textContent="Sin InBody cargado. Abrí la app de Entrenamiento para sincronizar."; }
+  }
 }
 
 // ─────────── TABS ───────────
