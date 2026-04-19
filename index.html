@@ -134,6 +134,13 @@ button:active{opacity:.7;transform:scale(.98);}
 .sem-filter{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
 .sf-pill{padding:4px 10px;border-radius:99px;border:1px solid var(--bord2);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;}
 .sf-pill.active{background:var(--amber);color:#000;border-color:var(--amber);}
+.period-pill{flex-shrink:0;padding:6px 12px;border-radius:99px;border:1px solid var(--bord2);background:transparent;color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.period-pill.active{background:var(--amber);color:#000;border-color:var(--amber);}
+.period-pill.is-current{border-color:var(--blue);}
+.period-pill.active.is-current{background:var(--blue);color:#fff;border-color:var(--blue);}
+.sem-week-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bord);}
+.sem-week-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;}
+.sem-active-row{background:rgba(79,142,247,0.08);border-radius:var(--rxs);padding:5px 8px;border-bottom:none;}
 .week-group-hdr{background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:8px 12px;margin-bottom:6px;margin-top:14px;display:flex;justify-content:space-between;align-items:center;}
 .week-group-hdr:first-child{margin-top:0;}
 .week-group-title{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.07em;}
@@ -270,20 +277,33 @@ button:active{opacity:.7;transform:scale(.98);}
 
     <!-- PROGRESION -->
     <div id="tab-progresion" class="tab">
-      <div class="card" style="margin-bottom:10px;">
-        <div class="card-title" style="margin-bottom:8px;">Ciclo de progresión</div>
-        <div class="row2">
-          <div class="field" style="margin:0;">
-            <span class="label">Inicio del ciclo (Lunes S1)</span>
-            <input type="date" id="prog-inicio" onchange="saveProgresion()"/>
-          </div>
-          <div class="field" style="margin:0;">
-            <span class="label">Semana actual</span>
-            <div id="prog-sem-actual" style="font-size:13px;font-weight:700;color:var(--blue);padding-top:6px;">—</div>
+
+      <!-- Period selector bar -->
+      <div id="prog-period-bar" style="margin-bottom:10px;"></div>
+
+      <!-- Active period card -->
+      <div class="card" style="margin-bottom:10px;" id="prog-period-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;" id="prog-period-title">—</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-xs btn-green" onclick="progNuevoPeriodo()">+ Nuevo período</button>
+            <button class="btn-xs btn-red" onclick="progEliminarPeriodo()">✕</button>
           </div>
         </div>
-        <div id="prog-cal-info" style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.8;"></div>
+        <div class="row2" style="margin-bottom:8px;">
+          <div class="field" style="margin:0;">
+            <span class="label">Inicio S1 (lunes)</span>
+            <input type="date" id="prog-inicio" onchange="progGuardarInicio()"/>
+          </div>
+          <div class="field" style="margin:0;">
+            <span class="label">Semana activa</span>
+            <div id="prog-sem-actual" style="font-size:15px;font-weight:700;color:var(--blue);padding-top:6px;">—</div>
+          </div>
+        </div>
+        <div id="prog-cal-info" style="font-size:11px;color:var(--text2);line-height:2;"></div>
       </div>
+
+      <!-- Training day tabs -->
       <div class="day-tab-bar">
         <button class="day-tab-btn active" onclick="showProgDia('d1',this)">Torso A</button>
         <button class="day-tab-btn" onclick="showProgDia('d2',this)">Pierna A</button>
@@ -539,7 +559,7 @@ var MUSC_ORDER=["pecho","espalda","hombro","cuadriceps","isquios","gluteo","bice
 var MUSC_COLORS={"pecho":"#4f8ef7","espalda":"#3ecf8e","hombro":"#a78bfa","cuadriceps":"#f5a623","isquios":"#f76f6f","gluteo":"#f0b429","biceps":"#3ecf8e","triceps":"#4f8ef7","gemelo":"#9090a8","core":"#a78bfa","aductores":"#f5a623"};
 
 // ═══════════════════ DB ═══════════════════
-var DB = {sesiones:[], inbody:[], progresion:{cicloInicio:"", plan:{}}, prs:{}};
+var DB = {sesiones:[], inbody:[], progresion:{periodos:[]}, prs:{}};
 var exCount = 0;
 var exportJSON = "";
 var chEn=null, chEx=null, chSer=null, chCumpl=null, ch1rm=null, chIb1=null, chIb2=null, chIb3=null, chIb4=null, chIb5=null;
@@ -767,9 +787,10 @@ function onDiaChange(){
   var pi=document.getElementById("plan-info");
   pi.style.display="none";
   if(!dia) return;
-  // Use dynamic progresion plan if available, fallback to hardcoded PLAN
+  // Use dynamic progresion plan for active period, fallback to hardcoded PLAN
   _initProgresionFromPlan();
-  var dynPlan=DB.progresion&&DB.progresion.plan&&DB.progresion.plan[dia];
+  var _activePeriod=_periodoParaFecha(today());
+  var dynPlan=_activePeriod&&_activePeriod.plan&&_activePeriod.plan[dia];
   var basePlan=PLAN[dia];
   var planNombre=basePlan?basePlan.nombre:dia;
   pi.style.display="block";
@@ -1178,158 +1199,279 @@ function delSession(id){
 }
 
 // ═══════════════════ PROGRESIÓN ═══════════════════
-var _progDia="d1";
+var _progDia = "d1";
+var _progPidx = 0;
 
-function _initProgresionFromPlan(){
-  // If DB.progresion.plan is empty, seed from hardcoded PLAN
-  if(!DB.progresion) DB.progresion={cicloInicio:"",plan:{}};
-  var dias=["d1","d2","d4","d5"];
-  dias.forEach(function(dia){
-    if(!DB.progresion.plan[dia]){
-      DB.progresion.plan[dia]={exs:PLAN[dia].exs.map(function(ex){
-        return {
-          n:ex.n,
-          s1:{ser:ex.s1?ex.s1.ser:"",p:ex.s1?ex.s1.p:""},
-          s2:{ser:ex.s2?ex.s2.ser:"",p:ex.s2?ex.s2.p:""},
-          s3:{ser:ex.s3?ex.s3.ser:"",p:ex.s3?ex.s3.p:""},
-          s4:{ser:ex.s4?ex.s4.ser:"",p:ex.s4?ex.s4.p:""},
-          s5:{ser:ex.s5?ex.s5.ser:"",p:ex.s5?ex.s5.p:""},
-        };
-      })};
-    }
+function _progAddDays(dateStr, n) {
+  var d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+}
+function _progWeekEnd(monStr) { return _progAddDays(monStr, 6); }
+
+function _progSemActiva(cicloInicio) {
+  if (!cicloInicio) return null;
+  var t = today();
+  for (var i = 0; i < 5; i++) {
+    var mon = _progAddDays(cicloInicio, i * 7);
+    var sun = _progWeekEnd(mon);
+    if (t >= mon && t <= sun) return "S" + (i + 1);
+  }
+  return null;
+}
+
+function _progIsCurrent(p) {
+  if (!p || !p.cicloInicio) return false;
+  var t = today();
+  var end = _progAddDays(p.cicloInicio, 34);
+  return t >= p.cicloInicio && t <= end;
+}
+
+function _migrarProgresion() {
+  var pg = DB.progresion;
+  if (!pg) { DB.progresion = {periodos:[]}; return; }
+  if (!pg.periodos) {
+    DB.progresion = {periodos: [{
+      id: 1,
+      nombre: "Período 1",
+      cicloInicio: pg.cicloInicio || "",
+      plan: pg.plan || {}
+    }]};
+  }
+  if (!Array.isArray(DB.progresion.periodos)) DB.progresion.periodos = [];
+  if (DB.progresion.periodos.length === 0) {
+    DB.progresion.periodos.push({id:1, nombre:"Período 1", cicloInicio:"", plan:{}});
+  }
+}
+
+function _initProgresionFromPlan() {
+  _migrarProgresion();
+  DB.progresion.periodos.forEach(function(p) {
+    if (!p.plan) p.plan = {};
+    ["d1","d2","d4","d5"].forEach(function(dia) {
+      if (!p.plan[dia]) {
+        p.plan[dia] = {exs: PLAN[dia].exs.map(function(ex) {
+          return {
+            n: ex.n,
+            s1: {ser: ex.s1?ex.s1.ser:"", p: ex.s1?ex.s1.p:""},
+            s2: {ser: ex.s2?ex.s2.ser:"", p: ex.s2?ex.s2.p:""},
+            s3: {ser: ex.s3?ex.s3.ser:"", p: ex.s3?ex.s3.p:""},
+            s4: {ser: ex.s4?ex.s4.ser:"", p: ex.s4?ex.s4.p:""},
+            s5: {ser: ex.s5?ex.s5.ser:"", p: ex.s5?ex.s5.p:""},
+          };
+        })};
+      }
+    });
   });
 }
 
-function _semCalLabels(){
-  var inicio=DB.progresion&&DB.progresion.cicloInicio;
-  if(!inicio) return ["S1","S2","S3","S4","S5"];
-  return ["S1","S2","S3","S4","S5"].map(function(s,i){
-    var d=new Date(inicio+"T12:00:00");
-    d.setDate(d.getDate()+i*7);
-    var mon=d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
-    var sun=new Date(d);sun.setDate(d.getDate()+6);
-    var lbl=d.getDate()+" "+MESES[d.getMonth()];
-    return s+"<br><span class='sem-cal-lbl'>"+lbl+"</span>";
+function _periodoParaFecha(fecha) {
+  _migrarProgresion();
+  var ps = DB.progresion.periodos;
+  for (var i = 0; i < ps.length; i++) {
+    var p = ps[i];
+    if (!p.cicloInicio) continue;
+    var end = _progAddDays(p.cicloInicio, 34);
+    if (fecha >= p.cicloInicio && fecha <= end) return p;
+  }
+  return ps[ps.length - 1] || null;
+}
+
+function _semCalLabels() {
+  _migrarProgresion();
+  var p = DB.progresion.periodos[_progPidx];
+  var inicio = p ? p.cicloInicio : "";
+  if (!inicio) return ["S1","S2","S3","S4","S5"];
+  return ["S1","S2","S3","S4","S5"].map(function(s, i) {
+    var d = new Date(inicio + "T12:00:00");
+    d.setDate(d.getDate() + i * 7);
+    var lbl = d.getDate() + " " + MESES[d.getMonth()];
+    return s + "<br><span class='sem-cal-lbl'>" + lbl + "</span>";
   });
 }
 
-function renderProgresion(){
+function renderProgresion() {
   _initProgresionFromPlan();
-  var inicio=DB.progresion.cicloInicio||"";
-  var el=document.getElementById("prog-inicio");
-  if(el) el.value=inicio;
+  var ps = DB.progresion.periodos;
 
-  // Show calendar info for each week
-  var calInfo="";
-  var semActual="—";
-  if(inicio){
-    var todayDate=today();
-    var labels=["S1","S2","S3","S4","S5"];
-    calInfo=labels.map(function(s,i){
-      var d=new Date(inicio+"T12:00:00");
-      d.setDate(d.getDate()+i*7);
-      var mon=d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
-      var sun=new Date(d);sun.setDate(d.getDate()+6);
-      var sunStr=sun.getFullYear()+"-"+pad2(sun.getMonth()+1)+"-"+pad2(sun.getDate());
-      var isCurrent=todayDate>=mon&&todayDate<=sunStr;
-      if(isCurrent) semActual=s;
-      return '<span style="'+(isCurrent?"color:var(--blue);font-weight:700;":"color:var(--text2);")+'">'
-        +s+': '+weekRangeLabel(mon)+'</span>';
+  // Period pill bar
+  var barHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+  ps.forEach(function(p, i) {
+    var cls = "period-pill" + (i === _progPidx ? " active" : "") + (_progIsCurrent(p) ? " is-current" : "");
+    barHtml += '<button class="' + cls + '" onclick="progSelPeriodo(' + i + ')">' + p.nombre + '</button>';
+  });
+  barHtml += '</div>';
+  document.getElementById("prog-period-bar").innerHTML = barHtml;
+
+  // Active period card
+  var p = ps[_progPidx];
+  if (!p) return;
+  document.getElementById("prog-period-title").textContent = p.nombre;
+  document.getElementById("prog-inicio").value = p.cicloInicio || "";
+  var semActual = _progSemActiva(p.cicloInicio) || "—";
+  document.getElementById("prog-sem-actual").textContent = semActual;
+
+  var calInfo = "";
+  if (p.cicloInicio) {
+    var todayDate = today();
+    calInfo = ["S1","S2","S3","S4","S5"].map(function(s, i) {
+      var mon = _progAddDays(p.cicloInicio, i * 7);
+      var sun = _progWeekEnd(mon);
+      var isCurrent = todayDate >= mon && todayDate <= sun;
+      return '<span style="' + (isCurrent ? "color:var(--blue);font-weight:700;" : "color:var(--text2);") + '">'
+        + s + ': ' + weekRangeLabel(mon) + '</span>';
     }).join("  ·  ");
   }
-  var semActualEl=document.getElementById("prog-sem-actual");
-  if(semActualEl) semActualEl.textContent=semActual;
-  var calInfoEl=document.getElementById("prog-cal-info");
-  if(calInfoEl) calInfoEl.innerHTML=calInfo;
+  document.getElementById("prog-cal-info").innerHTML = calInfo;
 
   showProgDia(_progDia, null);
 }
 
-function _renderProgRecs(){
-  var diasKeys=["d1","d2","d4","d5"];
-  var html='<div class="card" style="margin-top:10px;">'
-    +'<div class="card-title" style="margin-bottom:10px;">🎯 Recomendaciones de carga</div>';
-  var anyRec=false;
-  diasKeys.forEach(function(dia){
-    _initProgresionFromPlan();
-    var planDia=DB.progresion.plan[dia];
-    if(!planDia) return;
-    planDia.exs.forEach(function(ex){
-      var rec=progRecommendation(dia,ex.n);
-      if(!rec) return;
-      anyRec=true;
-      var cls=rec.action==="up"?"prog-rec-up":rec.action==="down"?"prog-rec-down":"prog-rec-hold";
-      var tend=tendencia(dia,ex.n);
-      var dotCls=tend==="up"?"tend-up":tend==="down"?"tend-down":"tend-flat";
-      html+='<div class="prog-rec '+cls+'">'
-        +'<span class="tend-dot '+dotCls+'" style="width:7px;height:7px;flex-shrink:0;"></span>'
-        +'<b>'+ex.n+'</b>'
-        +'<span style="margin-left:auto;font-size:10px;opacity:.7;">'+PLAN[dia].nombre+'</span>'
-        +'</div>'
-        +'<div style="font-size:10px;color:var(--text2);padding:2px 8px 8px;">'+rec.msg+'</div>';
-    });
-  });
-  if(!anyRec) html+='<div style="font-size:11px;color:var(--text2);">Registra más sesiones para ver recomendaciones de carga.</div>';
-  html+='</div>';
-  var recs=document.getElementById("prog-recs");
-  if(recs) recs.innerHTML=html;
+function progSelPeriodo(idx) {
+  _saveCurrentPeriodEdits();
+  _progPidx = idx;
+  renderProgresion();
 }
 
-function showProgDia(dia, btn){
-  _progDia=dia;
-  document.querySelectorAll(".day-tab-btn").forEach(function(b){b.classList.remove("active");});
-  if(btn) btn.classList.add("active");
+function progGuardarInicio() {
+  _initProgresionFromPlan();
+  var p = DB.progresion.periodos[_progPidx];
+  if (!p) return;
+  var el = document.getElementById("prog-inicio");
+  if (el) p.cicloInicio = el.value || "";
+  saveDB();
+  renderProgresion();
+}
+
+function progNuevoPeriodo() {
+  _initProgresionFromPlan();
+  var ps = DB.progresion.periodos;
+  var newId = ps.length ? (Math.max.apply(null, ps.map(function(p){return p.id||0;})) + 1) : 1;
+  var newP = {id: newId, nombre: "Período " + newId, cicloInicio: "", plan: {}};
+  if (ps.length > 0) {
+    var last = ps[ps.length - 1];
+    if (confirm("¿Copiar ejercicios del " + last.nombre + " al nuevo período?")) {
+      var planCopy = {};
+      ["d1","d2","d4","d5"].forEach(function(dia) {
+        if (last.plan && last.plan[dia]) {
+          planCopy[dia] = {exs: last.plan[dia].exs.map(function(ex) {
+            var ec = {n: ex.n};
+            ["s1","s2","s3","s4","s5"].forEach(function(sk) {
+              ec[sk] = ex[sk] ? {ser: ex[sk].ser, p: ex[sk].p} : {ser:"",p:""};
+            });
+            return ec;
+          })};
+        }
+      });
+      newP.plan = planCopy;
+    }
+  }
+  ps.push(newP);
+  _progPidx = ps.length - 1;
+  saveDB();
+  renderProgresion();
+}
+
+function progEliminarPeriodo() {
+  _initProgresionFromPlan();
+  var ps = DB.progresion.periodos;
+  if (ps.length <= 1) { alert("Debes tener al menos un período."); return; }
+  var p = ps[_progPidx];
+  if (!confirm("¿Eliminar " + p.nombre + "? Esta acción no se puede deshacer.")) return;
+  ps.splice(_progPidx, 1);
+  if (_progPidx >= ps.length) _progPidx = ps.length - 1;
+  saveDB();
+  renderProgresion();
+}
+
+function _renderProgRecs() {
+  _initProgresionFromPlan();
+  var p = DB.progresion.periodos[_progPidx];
+  var diasKeys = ["d1","d2","d4","d5"];
+  var html = '<div class="card" style="margin-top:10px;">'
+    + '<div class="card-title" style="margin-bottom:10px;">🎯 Recomendaciones de carga</div>';
+  var anyRec = false;
+  diasKeys.forEach(function(dia) {
+    var planDia = p && p.plan && p.plan[dia];
+    if (!planDia) return;
+    planDia.exs.forEach(function(ex) {
+      var rec = progRecommendation(dia, ex.n);
+      if (!rec) return;
+      anyRec = true;
+      var cls = rec.action==="up"?"prog-rec-up":rec.action==="down"?"prog-rec-down":"prog-rec-hold";
+      var tend = tendencia(dia, ex.n);
+      var dotCls = tend==="up"?"tend-up":tend==="down"?"tend-down":"tend-flat";
+      html += '<div class="prog-rec ' + cls + '">'
+        + '<span class="tend-dot ' + dotCls + '" style="width:7px;height:7px;flex-shrink:0;"></span>'
+        + '<b>' + ex.n + '</b>'
+        + '<span style="margin-left:auto;font-size:10px;opacity:.7;">' + PLAN[dia].nombre + '</span>'
+        + '</div>'
+        + '<div style="font-size:10px;color:var(--text2);padding:2px 8px 8px;">' + rec.msg + '</div>';
+    });
+  });
+  if (!anyRec) html += '<div style="font-size:11px;color:var(--text2);">Registra más sesiones para ver recomendaciones de carga.</div>';
+  html += '</div>';
+  var recs = document.getElementById("prog-recs");
+  if (recs) recs.innerHTML = html;
+}
+
+function showProgDia(dia, btn) {
+  _progDia = dia;
+  document.querySelectorAll(".day-tab-btn").forEach(function(b) { b.classList.remove("active"); });
+  if (btn) btn.classList.add("active");
   else {
-    document.querySelectorAll(".day-tab-btn").forEach(function(b,i){
-      var dias=["d1","d2","d4","d5"];if(dias[i]===dia)b.classList.add("active");
+    document.querySelectorAll(".day-tab-btn").forEach(function(b, i) {
+      var dias = ["d1","d2","d4","d5"]; if (dias[i] === dia) b.classList.add("active");
     });
   }
   _initProgresionFromPlan();
-  var planDia=DB.progresion.plan[dia];
-  if(!planDia){document.getElementById("prog-dia-content").innerHTML='<div class="empty">Sin ejercicios para este día.</div>';return;}
-  var semLabels=_semCalLabels();
-  var html='<div class="card" style="overflow-x:auto;">'
-    +'<div class="card-title" style="margin-bottom:8px;">'+PLAN[dia].nombre+' — Editar progresión</div>'
-    +'<table class="prog-table">'
-    +'<tr><th>Ejercicio</th>'
-    +["S1","S2","S3","S4","S5"].map(function(s,i){return '<th class="sem-col-hdr">'+semLabels[i]+'</th>';}).join("")
-    +'</tr>';
-  planDia.exs.forEach(function(ex,ei){
-    html+='<tr><td style="min-width:90px;font-size:11px;">'+ex.n+'</td>';
-    ["s1","s2","s3","s4","s5"].forEach(function(sk){
-      var val=ex[sk]||{ser:"",p:""};
-      html+='<td><div class="prog-cell">'
-        +'<span class="prog-inp-lbl">Series</span>'
-        +'<input class="prog-inp" type="text" id="pi-'+dia+'-'+ei+'-'+sk+'-ser" value="'+esc2(val.ser)+'" placeholder="3x10"/>'
-        +'<span class="prog-inp-lbl" style="margin-top:3px;">Peso</span>'
-        +'<input class="prog-inp" type="text" id="pi-'+dia+'-'+ei+'-'+sk+'-p" value="'+esc2(val.p)+'" placeholder="50 kg"/>'
-        +'</div></td>';
+  var p = DB.progresion.periodos[_progPidx];
+  var planDia = p && p.plan[dia];
+  if (!planDia) { document.getElementById("prog-dia-content").innerHTML = '<div class="empty">Sin ejercicios para este día.</div>'; return; }
+  var semLabels = _semCalLabels();
+  var html = '<div class="card" style="overflow-x:auto;">'
+    + '<div class="card-title" style="margin-bottom:8px;">' + PLAN[dia].nombre + ' — Editar progresión</div>'
+    + '<table class="prog-table"><tr><th>Ejercicio</th>'
+    + ["S1","S2","S3","S4","S5"].map(function(s, i) { return '<th class="sem-col-hdr">' + semLabels[i] + '</th>'; }).join("")
+    + '</tr>';
+  planDia.exs.forEach(function(ex, ei) {
+    html += '<tr><td style="min-width:90px;font-size:11px;">' + ex.n + '</td>';
+    ["s1","s2","s3","s4","s5"].forEach(function(sk) {
+      var val = ex[sk] || {ser:"",p:""};
+      html += '<td><div class="prog-cell">'
+        + '<span class="prog-inp-lbl">Series</span>'
+        + '<input class="prog-inp" type="text" id="pi-' + dia + '-' + ei + '-' + sk + '-ser" value="' + esc2(val.ser) + '" placeholder="3x10"/>'
+        + '<span class="prog-inp-lbl" style="margin-top:3px;">Peso</span>'
+        + '<input class="prog-inp" type="text" id="pi-' + dia + '-' + ei + '-' + sk + '-p" value="' + esc2(val.p) + '" placeholder="50 kg"/>'
+        + '</div></td>';
     });
-    html+='</tr>';
+    html += '</tr>';
   });
-  html+='</table></div>';
-  document.getElementById("prog-dia-content").innerHTML=html;
-  setTimeout(_renderProgRecs,0);
+  html += '</table></div>';
+  document.getElementById("prog-dia-content").innerHTML = html;
+  setTimeout(_renderProgRecs, 0);
 }
 
-function esc2(s){return s?String(s).replace(/"/g,"&quot;").replace(/</g,"&lt;"):""; }
+function esc2(s) { return s ? String(s).replace(/"/g,"&quot;").replace(/</g,"&lt;") : ""; }
 
-function saveProgresion(){
-  _initProgresionFromPlan();
-  var inicio=document.getElementById("prog-inicio");
-  if(inicio) DB.progresion.cicloInicio=inicio.value||"";
-  var dias=["d1","d2","d4","d5"];
-  dias.forEach(function(dia){
-    var planDia=DB.progresion.plan[dia];
-    if(!planDia) return;
-    planDia.exs.forEach(function(ex,ei){
-      ["s1","s2","s3","s4","s5"].forEach(function(sk){
-        var serEl=document.getElementById("pi-"+dia+"-"+ei+"-"+sk+"-ser");
-        var pEl=document.getElementById("pi-"+dia+"-"+ei+"-"+sk+"-p");
-        if(serEl) ex[sk]={ser:serEl.value,p:pEl?pEl.value:""};
-      });
+function _saveCurrentPeriodEdits() {
+  _migrarProgresion();
+  var p = DB.progresion.periodos[_progPidx];
+  if (!p) return;
+  var planDia = p.plan[_progDia];
+  if (!planDia) return;
+  planDia.exs.forEach(function(ex, ei) {
+    ["s1","s2","s3","s4","s5"].forEach(function(sk) {
+      var serEl = document.getElementById("pi-" + _progDia + "-" + ei + "-" + sk + "-ser");
+      var pEl = document.getElementById("pi-" + _progDia + "-" + ei + "-" + sk + "-p");
+      if (serEl) ex[sk] = {ser: serEl.value, p: pEl ? pEl.value : ""};
     });
   });
+}
+
+function saveProgresion() {
+  _initProgresionFromPlan();
+  _saveCurrentPeriodEdits();
   saveDB();
   renderProgresion();
 }
