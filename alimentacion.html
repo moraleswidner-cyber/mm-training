@@ -844,8 +844,9 @@ var METS_PRESETS = [
   {key:"cardio_m",  label:"Cardio moderado",           met:6.5},
   {key:"cardio_i",  label:"Cardio intenso (HIIT)",    met:10.0},
   {key:"padel",     label:"Pádel",                     met:7.3},
+  {key:"futbol7",   label:"Futbolito (7v7)",           met:9.5},
+  {key:"futbol11",  label:"Fútbol (11v11)",            met:8.0},
   {key:"futbolito", label:"Futbolito (7v7)",           met:8.0},
-  {key:"futbol11",  label:"Fútbol (11v11)",            met:8.5},
   {key:"trote",     label:"Trote / Jogging",           met:8.0},
   {key:"deporte",   label:"Deporte grupal (otro)",    met:7.0},
   {key:"pilates",   label:"Pilates / Yoga",            met:3.0},
@@ -855,7 +856,7 @@ var METS_PRESETS = [
 ];
 
 // ─────────── ACTIVITY PRESETS DEFAULT ───────────
-var PRESETS_VERSION = 3;
+var PRESETS_VERSION = 4;
 var ACT_PRESETS_DEFAULT = [
   // Deportes
   {id:"ap_padel1",  nombre:"Partido de Pádel 1h",          tipo:"padel",     duracion:60},
@@ -869,7 +870,9 @@ var ACT_PRESETS_DEFAULT = [
   {id:"ap_d1", nombre:"Día 1 — Torso (pecho/espalda/hombros/brazos)",     tipo:"gym", duracion:70, diaKey:"d1"},
   {id:"ap_d2", nombre:"Día 2 — Pierna (hip thrust/sentadilla/prensa)",    tipo:"gym", duracion:75, diaKey:"d2"},
   {id:"ap_d4", nombre:"Día 4 — Torso (remo/press mil./jalón/peck deck)", tipo:"gym", duracion:70, diaKey:"d4"},
-  {id:"ap_d5", nombre:"Día 5 — Pierna (rumano/prensa unil./curl/ext.)",  tipo:"gym", duracion:80, diaKey:"d5"}
+  {id:"ap_d5", nombre:"Día 5 — Pierna (rumano/prensa unil./curl/ext.)",  tipo:"gym", duracion:80, diaKey:"d5"},
+  {id:"ap_fut7",  nombre:"Futbolito 7v7 (80 min)",  tipo:"futbol7",  duracion:80},
+  {id:"ap_fut11", nombre:"Fútbol 11v11 (80 min)",   tipo:"futbol11", duracion:80}
 ];
 
 // ─────────── COMIDAS ───────────
@@ -1991,7 +1994,7 @@ function renderPerfil(){
   }
 
   // Recommended factor
-  var recFactor = 1.55; // 4 training days/week = moderately active
+  var recFactor = 1.2; // Correct base for logging-based approach
   var recTDEE   = Math.round(tmb * recFactor);
 
   // Recommended scenarios
@@ -2035,13 +2038,14 @@ function renderPerfil(){
     // Factor warning
     (!isFacOk ?
       "<div style='background:var(--amber-d);border:1px solid var(--amber);border-radius:var(--rsm);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--amber);'>"+
-        "⚠ Factor actividad actual: <strong>"+factor+"</strong>. Para 4 días de entrenamiento/semana se recomienda <strong>"+recFactor+"</strong>."+
-        "<br><button class='btn-xs btn-amber' style='margin-top:6px;' onclick='applyRecommendedFactor("+recFactor+")'>Aplicar factor "+recFactor+"</button>"+
+        "⚠ Factor actividad actual: <strong>"+factor+"</strong>. Como registrás tus actividades manualmente, el factor correcto es <strong>1.2</strong> (base sedentaria). Si usaras 1.55 y además registraras actividades, estarías contando el gasto dos veces."+
+        "<br><button class='btn-xs btn-amber' style='margin-top:6px;' onclick='applyRecommendedFactor(1.2)'>Aplicar factor 1.2</button>"+
       "</div>" : "")+
     // TDEE info
     "<div style='background:var(--bg4);border-radius:var(--rsm);padding:8px 12px;margin-bottom:12px;'>"+
-      "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;margin-bottom:4px;'>TDEE recomendado (TMB × "+recFactor+")</div>"+
+      "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;margin-bottom:4px;'>Base diaria sin actividades (TMB × 1.2)</div>"+
       "<div style='font-size:17px;font-weight:700;color:var(--blue);'>"+recTDEE+" kcal</div>"+
+      "<div style='font-size:10px;color:var(--text2);margin-top:2px;'>+ calorias de actividades registradas cada día</div>"+
     "</div>"+
     // Scenario table
     "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;margin-bottom:6px;'>Objetivos por escenario</div>"+
@@ -2059,6 +2063,7 @@ function renderPerfil(){
         _scenRow("Volumen (+300)",  recVol,  pVol,  fVol,  cVol,  "var(--green)")+
       "</tbody>"+
     "</table>"+
+    "<div style='font-size:10px;color:var(--text2);margin-top:6px;'>* Objetivos para días sin actividad. En días de entrenamiento se suman las kcal de actividades registradas.</div>"+
     "<button class='btn-xs btn-blue btn-full' style='margin-top:10px;' onclick='applyRecommendedParams("+recFactor+","+recDef+","+recMant+","+recVol+","+pDef+","+pMant+","+pVol+")'>Aplicar parámetros recomendados</button>";
 }
 
