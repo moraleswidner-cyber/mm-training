@@ -732,6 +732,7 @@ button:active{opacity:.7;transform:scale(.98);}
       <span class="modal-title">Nombre del menú</span>
       <button class="modal-close" onclick="closeModal('modal-menu-nombre')">✕</button>
     </div>
+    <div id="menu-nombre-hint" style="font-size:11px;color:var(--text2);margin-bottom:10px;"></div>
     <div class="field">
       <label class="label">Nombre</label>
       <input type="text" id="menu-nombre-input" placeholder="ej. Día de volumen standard"/>
@@ -2167,21 +2168,35 @@ function deleteAlimentoDB(){
 }
 
 // ─────────── MENÚS ───────────
+var _presetSaveSource = "registros"; // "registros" | "plan"
 function saveMenuPreset(){
   var regsHoy = DB.registros.filter(function(r){ return r.fecha===_viewDate; });
-  if(!regsHoy.length){ alert("No hay alimentos registrados hoy para guardar como menú"); return; }
+  var plan    = DB.menusPropuestos.find(function(m){ return m.fecha===_viewDate; });
+  var planItems = plan ? plan.items : [];
+  if(!regsHoy.length && !planItems.length){
+    alert("No hay alimentos registrados ni menú planificado para este día"); return;
+  }
+  _presetSaveSource = regsHoy.length ? "registros" : "plan";
+  var hint = document.getElementById("menu-nombre-hint");
+  if(hint) hint.textContent = _presetSaveSource==="plan"
+    ? "Se guardará desde el menú planificado ("+planItems.length+" items)"
+    : "Se guardará desde los alimentos registrados ("+regsHoy.length+" items)";
   openModal("modal-menu-nombre");
 }
 
 function confirmSaveMenu(){
   var nombre = document.getElementById("menu-nombre-input").value.trim();
   if(!nombre){ alert("Ingresá un nombre para el menú"); return; }
-  var regsHoy = DB.registros.filter(function(r){ return r.fecha===_viewDate; });
-  DB.menuPresets.push({
-    id:    "m"+Date.now(),
-    nombre:nombre,
-    items: regsHoy.map(function(r){ return {nombre:r.nombre,cal:r.cal,prot:r.prot,gras:r.gras,carb:r.carb,dbId:r.dbId,cantidad:r.cantidad}; })
-  });
+  var items;
+  if(_presetSaveSource==="plan"){
+    var plan = DB.menusPropuestos.find(function(m){ return m.fecha===_viewDate; });
+    items = (plan ? plan.items : []).map(function(i){ return {nombre:i.nombre,cal:i.cal,prot:i.prot||0,gras:i.gras||0,carb:i.carb||0,dbId:i.dbId||null,cantidad:i.cantidad||null}; });
+  } else {
+    var regsHoy = DB.registros.filter(function(r){ return r.fecha===_viewDate; });
+    items = regsHoy.map(function(r){ return {nombre:r.nombre,cal:r.cal,prot:r.prot,gras:r.gras,carb:r.carb,dbId:r.dbId,cantidad:r.cantidad}; });
+  }
+  if(!items.length){ alert("Sin alimentos para guardar"); return; }
+  DB.menuPresets.push({ id:"m"+Date.now(), nombre:nombre, items:items });
   saveDB(); closeModal("modal-menu-nombre"); renderMenus();
   document.getElementById("menu-nombre-input").value="";
 }
