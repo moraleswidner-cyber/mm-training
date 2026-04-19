@@ -894,7 +894,7 @@ var SCENARIOS = {
 
 // ─────────── DB ───────────
 var DB = {
-  config:          {escenario:"mantencion", factorBase:1.2, tmbManual:null, pesoManual:null},
+  config:          {escenario:"mantencion", factorBase:1.2, tmbManual:null, pesoManual:null, scenCalDef:-450, scenCalVol:300, scenProtDef:2.4, scenProtMant:2.0, scenProtVol:2.2},
   alimentos:       [],   // food database
   registros:       [],   // [{id, fecha, hora, nombre, cal, prot, gras, carb, dbId, cantidad}]
   actividades:     [],   // [{id, fecha, tipo, duracion, calExtra, notas, km, ritmo}]
@@ -983,7 +983,12 @@ function loadDB(){
     _fbAlim.onSnapshot(function(doc){
       if(doc.exists){
         var d = doc.data();
-        DB.config          = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null}, d.config||{});
+        DB.config          = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null,scenCalDef:-450,scenCalVol:300,scenProtDef:2.4,scenProtMant:2.0,scenProtVol:2.2}, d.config||{});
+        SCENARIOS.deficit.calAdj        = typeof DB.config.scenCalDef==="number"  ? DB.config.scenCalDef  : -450;
+        SCENARIOS.volumen.calAdj        = typeof DB.config.scenCalVol==="number"  ? DB.config.scenCalVol  : 300;
+        SCENARIOS.deficit.protFactor    = typeof DB.config.scenProtDef==="number" ? DB.config.scenProtDef : 2.4;
+        SCENARIOS.mantencion.protFactor = typeof DB.config.scenProtMant==="number"? DB.config.scenProtMant: 2.0;
+        SCENARIOS.volumen.protFactor    = typeof DB.config.scenProtVol==="number" ? DB.config.scenProtVol : 2.2;
         // Guard: if tmbManual is set but equals the InBody fallback (1800), clear it — it was set by accident
         if(DB.config.tmbManual === 1800 || DB.config.tmbManual === "1800"){
           DB.config.tmbManual = null;
@@ -1218,12 +1223,13 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
   });
 
   var isLower = (diaKey==="d2"||diaKey==="d5");
-  var volFactor = isLower ? 4500 : 5500;
-
-  // Use preset/provided duration; if missing, estimate from total sets
+  // Pure volume-based formula — no duration dependency
+  // Lower body (large muscle groups): 0.020 kcal per kg·rep + 100 kcal base overhead
+  // Upper body: 0.018 kcal per kg·rep + 100 kcal base overhead
+  var kvr = isLower ? 0.020 : 0.018;
+  var netKcal = Math.round((100 + totalVol * kvr) * (pesoKg / 80));
+  // Estimate duration for informational display only (not used in kcal calc)
   var usedDur = (durMin && durMin >= 20) ? durMin : Math.max(40, Math.round(totalSets * (isLower ? 3.5 : 2.8)));
-
-  var netKcal = Math.round(usedDur * (2.0 + totalVol/volFactor) * (pesoKg/80));
   return {
     kcal: netKcal,
     volume: Math.round(totalVol),
@@ -1673,8 +1679,13 @@ function renderMenuPropuesto(){
   if(macrosEl && plan && plan.items.length){
     var targets = getDailyTarget(fecha);
     var tProt = 0, tGras = 0, tCarb = 0, tCal = 0;
-    plan.items.forEach(function(i){ tProt+=i.prot||0; tGras+=i.gras||0; tCarb+=i.carb||0; tCal+=i.cal||0; });
-    tProt=Math.round(tProt); tGras=Math.round(tGras); tCarb=Math.round(tCarb); tCal=Math.round(tCal);
+    plan.items.forEach(function(i){
+      tProt += parseFloat(i.prot)||0;
+      tGras += parseFloat(i.gras)||0;
+      tCarb += parseFloat(i.carb)||0;
+      tCal  += parseFloat(i.cal) ||0;
+    });
+    tProt=Math.round(tProt*10)/10; tGras=Math.round(tGras*10)/10; tCarb=Math.round(tCarb*10)/10; tCal=Math.round(tCal);
 
     function _macroBar(label, val, target, unit, color){
       var pct = target>0 ? Math.min(110, Math.round(val/target*100)) : 0;
@@ -1682,7 +1693,11 @@ function renderMenuPropuesto(){
       return "<div style='margin-bottom:8px;'>"+
         "<div style='display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;'>"+
           "<span style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;'>"+label+"</span>"+
-          "<span style='font-size:11px;color:var(--text2);'>"+val+unit+" <span style='color:var(--text3);'>/ "+target+unit+"</span> <span style='font-size:10px;font-weight:700;color:"+(pct>105?"var(--red)":pct>=80?color:"var(--text3)")+"'>"+pct+"%</span></span>"+
+          "<span style='font-size:11px;'>"+
+            "<strong style='color:var(--text);'>"+val+unit+"</strong>"+
+            "<span style='color:var(--text3);'> / "+target+unit+"</span>"+
+            " <span style='font-size:10px;font-weight:700;color:"+(pct>105?"var(--red)":pct>=80?color:"var(--text3)")+"'>"+pct+"%</span>"+
+          "</span>"+
         "</div>"+
         "<div style='height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;'>"+
           "<div style='height:100%;width:"+Math.min(100,pct)+"%;background:"+barColor+";border-radius:3px;transition:width .3s;'></div>"+
@@ -2109,19 +2124,29 @@ function applyRecommendedFactor(factor){
 }
 
 function applyRecommendedParams(factor, calDef, calMant, calVol, pDef, pMant, pVol){
-  // Update activity factor
-  document.getElementById("cfg-factor").value = factor;
-  // Update scenario calAdj relative to TDEE at new factor
+  var peso = parseFloat(DB.config.pesoManual)||(INBODY_DATA_ALL.length ? INBODY_DATA_ALL[INBODY_DATA_ALL.length-1].peso : 85);
   var tdee = Math.round(getTMB() * factor);
-  SCENARIOS.deficit.calAdj    = calDef  - tdee;
-  SCENARIOS.mantencion.calAdj = 0;
-  SCENARIOS.volumen.calAdj    = calVol  - tdee;
-  SCENARIOS.deficit.protFactor    = parseFloat((pDef  / (parseFloat(DB.config.pesoManual)||INBODY_DATA_ALL[INBODY_DATA_ALL.length-1].peso)).toFixed(1));
-  SCENARIOS.mantencion.protFactor = parseFloat((pMant / (parseFloat(DB.config.pesoManual)||INBODY_DATA_ALL[INBODY_DATA_ALL.length-1].peso)).toFixed(1));
-  SCENARIOS.volumen.protFactor    = parseFloat((pVol  / (parseFloat(DB.config.pesoManual)||INBODY_DATA_ALL[INBODY_DATA_ALL.length-1].peso)).toFixed(1));
-  saveConfig();
+  // Update factor
+  document.getElementById("cfg-factor").value = factor;
+  DB.config.factorBase = factor;
+  // Update scenario calAdj (relative to TDEE at new factor)
+  DB.config.scenCalDef  = calDef  - tdee;
+  DB.config.scenCalVol  = calVol  - tdee;
+  DB.config.scenCalMant = 0;
+  // Update protein factors
+  DB.config.scenProtDef  = peso > 0 ? Math.round((pDef  / peso) * 10) / 10 : 2.4;
+  DB.config.scenProtMant = peso > 0 ? Math.round((pMant / peso) * 10) / 10 : 2.0;
+  DB.config.scenProtVol  = peso > 0 ? Math.round((pVol  / peso) * 10) / 10 : 2.2;
+  // Apply to SCENARIOS immediately
+  SCENARIOS.deficit.calAdj        = DB.config.scenCalDef;
+  SCENARIOS.volumen.calAdj        = DB.config.scenCalVol;
+  SCENARIOS.deficit.protFactor    = DB.config.scenProtDef;
+  SCENARIOS.mantencion.protFactor = DB.config.scenProtMant;
+  SCENARIOS.volumen.protFactor    = DB.config.scenProtVol;
+  saveDB();
   renderPerfil();
-  alert("✓ Parámetros aplicados. Factor: "+factor+" · Déficit: "+calDef+" kcal · Mantención: "+calMant+" kcal · Volumen: "+calVol+" kcal");
+  renderAll();
+  alert("✓ Parámetros guardados. Factor: "+factor+" · Base sin actividades: "+tdee+" kcal · Déficit: "+calDef+" kcal · Volumen: "+calVol+" kcal");
 }
 
 function reloadInBodyData(){
@@ -2922,8 +2947,9 @@ function applyPresetToPlan(presetId){
   m.items.forEach(function(item){
     plan.items.push({
       id:"pi"+Date.now()+"_"+Math.random().toString(36).slice(2,5),
-      nombre:item.nombre, cal:item.cal, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
-      cantidad:item.cantidad||null, dbId:item.dbId||null, consumido:false, registroId:null, comida:item.comida||null
+      nombre:item.nombre, cal:item.cal||0, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
+      cantidad:item.cantidad||null, cantUnidades:item.cantUnidades||null, unitNombre:item.unitNombre||null,
+      dbId:item.dbId||null, consumido:false, registroId:null, comida:item.comida||null
     });
   });
   saveDB(); closeModal("modal-preset-to-plan"); renderMenuPropuesto();
