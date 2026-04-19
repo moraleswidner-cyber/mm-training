@@ -551,6 +551,7 @@ button:active{opacity:.7;transform:scale(.98);}
     <div class="field" id="act-dur-sect">
       <label class="label">Duración (minutos)</label>
       <input type="number" id="act-dur" placeholder="ej. 45" min="1" max="300" oninput="updateActPreview()"/>
+      <div id="act-dur-gym-note" style="display:none;font-size:11px;color:var(--text2);margin-top:4px;"></div>
     </div>
     <div style="font-size:12px;color:var(--amber);font-weight:600;margin-bottom:8px;" id="act-preview"></div>
     <div class="field">
@@ -1164,8 +1165,21 @@ function _parseKg(str){
   return parseFloat(s)||0;
 }
 function _parseSR(str){
-  var m = String(str||"").match(/(\d+)[x×](\d+)/i);
-  return m ? {sets:parseInt(m[1]), reps:parseInt(m[2])} : {sets:0,reps:0};
+  var s = String(str||"").trim();
+  if(!s || /omiti|—/i.test(s) || s==="-") return {sets:0, reps:0};
+  // Handle compound series like "2x12+1x10" or "1x11+1x10+1x9"
+  var parts = s.split("+");
+  var totalSets = 0, totalReps = 0;
+  parts.forEach(function(p){
+    var m = p.trim().match(/(\d+)\s*[x×]\s*(\d+)/i);
+    if(m){
+      var ps = parseInt(m[1]), pr = parseInt(m[2]);
+      totalSets += ps;
+      totalReps += ps * pr;
+    }
+  });
+  if(totalSets > 0) return {sets:totalSets, reps:Math.round(totalReps/totalSets)};
+  return {sets:0, reps:0};
 }
 function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
   var sessions = SESSIONS_DATA.filter(function(s){ return s.dia===diaKey; });
@@ -1184,34 +1198,39 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
     isProg = true;
   }
 
-  var totalVol = 0;
+  var totalVol = 0, totalSets = 0;
   (sess.ejercicios||[]).forEach(function(ej){
     var kg, sr;
     if(!isProg){
-      // Real results: use pr/sr (skip if omitted/—)
       kg = _parseKg(ej.pr);
       sr = _parseSR(ej.sr);
-      // Fallback to program if real results missing for this exercise
-      if(!kg || !sr.sets){ kg = _parseKg(ej.pp); sr = _parseSR(ej.sp); isProg = true; }
+      if(!kg || !sr.sets){ kg = _parseKg(ej.pp); sr = _parseSR(ej.sp); }
     } else {
-      // Program data at 80%
       kg = _parseKg(ej.pp);
       sr = _parseSR(ej.sp);
     }
-    if(kg>0 && sr.sets>0 && sr.reps>0) totalVol += kg*sr.sets*sr.reps;
+    if(kg>0 && sr.sets>0 && sr.reps>0){
+      var vol = kg * sr.sets * sr.reps;
+      if(isProg) vol = Math.round(vol * 0.80);
+      totalVol += vol;
+      totalSets += sr.sets;
+    }
   });
-
-  if(isProg) totalVol = Math.round(totalVol * 0.80); // 80% of programmed volume
 
   var isLower = (diaKey==="d2"||diaKey==="d5");
   var volFactor = isLower ? 4500 : 5500;
-  var netKcal = Math.round(durMin * (2.0 + totalVol/volFactor) * (pesoKg/80));
+
+  // Use preset/provided duration; if missing, estimate from total sets
+  var usedDur = (durMin && durMin >= 20) ? durMin : Math.max(40, Math.round(totalSets * (isLower ? 3.5 : 2.8)));
+
+  var netKcal = Math.round(usedDur * (2.0 + totalVol/volFactor) * (pesoKg/80));
   return {
     kcal: netKcal,
     volume: Math.round(totalVol),
     fecha: sess.fecha,
     nEx: (sess.ejercicios||[]).length,
-    source: isProg ? "program80" : "real"
+    source: isProg ? "program80" : "real",
+    durMin: usedDur
   };
 }
 
@@ -1244,7 +1263,7 @@ function _recalcGymActividades(){
     if(sessRes){
       a.diaKey     = dk;
       a.calExtra   = sessRes.kcal;
-      a.sessionInfo= (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
+      a.sessionInfo= (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
       updated = true;
     }
   });
@@ -2409,6 +2428,12 @@ function onActTipoChange(){
   } else if(pDur){
     document.getElementById("act-dur").value = pDur;
   }
+  var gymNote = document.getElementById("act-dur-gym-note");
+  if(tipoKey==="gym" && pDur){
+    if(gymNote){ gymNote.style.display="block"; gymNote.textContent="Duración tomada del preset ("+pDur+" min). Podés ajustarla si el entrenamiento fue más corto/largo."; }
+  } else {
+    if(gymNote) gymNote.style.display="none";
+  }
   updateActPreview();
 }
 
@@ -2439,9 +2464,8 @@ function updateActPreview(){
     if(tipoKey==="gym" && diaKey){
       var sessRes = calcGymCalFromSession(diaKey, peso, dur, _viewDate);
       if(sessRes){
-        var srcLblPrev = sessRes.source==="real" ? "✓ real" : "~80% prog";
         document.getElementById("act-preview").textContent =
-          "≈ "+sessRes.kcal+" kcal · vol. "+sessRes.volume+" kg·rep · "+sessRes.nEx+" ej. ("+sessRes.fecha+") ["+srcLblPrev+"]";
+          "≈ "+sessRes.kcal+" kcal · "+sessRes.source+" · vol. "+sessRes.volume+" kg·rep · "+sessRes.nEx+" ej. ("+sessRes.fecha+") · "+sessRes.durMin+" min";
         return;
       }
     }
@@ -2472,12 +2496,13 @@ function saveActividad(){
     kcal = Math.round(1.04*peso*km - getTMBForDate(_viewDate)*(timMin/1440));
   } else if(tipoKey==="gym" && diaKey){
     dur = parseFloat(document.getElementById("act-dur").value)||0;
-    if(!dur){ alert("Ingresá la duración"); return; }
     var sessRes = calcGymCalFromSession(diaKey, peso, dur, _viewDate);
     if(sessRes){
       kcal = sessRes.kcal;
-      sessionInfo = (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
+      dur = sessRes.durMin;
+      sessionInfo = (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
     } else {
+      if(!dur){ alert("Ingresá la duración"); return; }
       var metG = (METS_PRESETS.find(function(m){ return m.key===tipoKey; })||{met:4.5}).met;
       kcal = Math.round((metG-1)*peso*(dur/60));
     }
@@ -2967,9 +2992,9 @@ function useActPreset(id){
     record.calExtra = Math.round(1.04*peso*p.km - getTMBForDate(_viewDate)*(timMin/1440));
   } else if(p.tipo==="gym" && p.diaKey){
     var sessRes = calcGymCalFromSession(p.diaKey, peso, p.duracion, _viewDate);
-    record.duracion = p.duracion;
-    record.calExtra = sessRes ? sessRes.kcal : Math.round((getMET("gym")-1)*peso*(p.duracion/60));
-    if(sessRes) record.sessionInfo = (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
+    record.duracion = sessRes ? sessRes.durMin : (p.duracion||60);
+    record.calExtra = sessRes ? sessRes.kcal : Math.round((getMET("gym")-1)*peso*(record.duracion/60));
+    if(sessRes) record.sessionInfo = (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
   } else {
     var met = (METS_PRESETS.find(function(m){ return m.key===p.tipo; })||{met:4.5}).met;
     record.duracion = p.duracion;
