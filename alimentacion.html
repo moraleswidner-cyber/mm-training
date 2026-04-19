@@ -1080,6 +1080,7 @@ var SESSIONS_DATA = [
 
 // ─────────── FIREBASE ───────────
 var _fbAlim  = null;
+var _savedAt = 0; // timestamp of last local save — suppresses snapshot overwrite for 1s
 var _fbTrain = null;
 var _useFS   = false;
 var _viewDate = todayStr();
@@ -1103,8 +1104,12 @@ try {
 function loadDB(){
   if(_useFS && _fbAlim){
     _fbAlim.onSnapshot(function(doc){
+      // If we just saved locally (<1 s ago), skip overwriting in-memory DB so the
+      // UI doesn't flicker back to the server state before our write is confirmed.
+      var freshSave = (Date.now() - _savedAt) < 1000;
       if(doc.exists){
         var d = doc.data();
+        if(!freshSave){
         DB.config          = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null,scenCalDef:-450,scenCalVol:300,scenProtDef:2.4,scenProtMant:2.0,scenProtVol:2.2}, d.config||{});
         SCENARIOS.deficit.calAdj        = typeof DB.config.scenCalDef==="number"  ? DB.config.scenCalDef  : -450;
         SCENARIOS.volumen.calAdj        = typeof DB.config.scenCalVol==="number"  ? DB.config.scenCalVol  : 300;
@@ -1124,6 +1129,7 @@ function loadDB(){
         DB.actPresets      = d.actPresets      || [];
         DB.menusPropuestos = d.menusPropuestos || [];
         DB.planSemanal     = d.planSemanal     || {};
+        } // end if(!freshSave)
       }
       // Inject default foods if DB is empty OR version is outdated
       var storedV  = parseInt(DB.config.foodsVersion)||0;
@@ -1218,6 +1224,7 @@ function _loadLocal(){
 
 function saveDB(){
   flash();
+  _savedAt = Date.now(); // mark local save — suppresses onSnapshot overwrite for 1s
   if(_useFS && _fbAlim){
     _fbAlim.set({
       config:          DB.config,
