@@ -2090,11 +2090,11 @@ function onActTipoChange(){
 function updateActPreview(){
   var tipoVal = document.getElementById("act-tipo").value;
   if(!tipoVal){ document.getElementById("act-preview").textContent=""; return; }
-  var tipoKey = tipoVal;
+  var tipoKey = tipoVal, diaKey = null;
   if(tipoVal.startsWith("preset:")){
     var pId = tipoVal.replace("preset:","");
     var prs = DB.actPresets.find(function(p){ return p.id===pId; });
-    if(prs) tipoKey = prs.tipo;
+    if(prs){ tipoKey = prs.tipo; diaKey = prs.diaKey||null; }
   }
   var peso = getWeight();
   var kcal;
@@ -2111,6 +2111,14 @@ function updateActPreview(){
   } else {
     var dur = parseFloat(document.getElementById("act-dur").value)||0;
     if(!dur){ document.getElementById("act-preview").textContent=""; return; }
+    if(tipoKey==="gym" && diaKey){
+      var sessRes = calcGymCalFromSession(diaKey, peso, dur);
+      if(sessRes){
+        document.getElementById("act-preview").textContent =
+          "≈ "+sessRes.kcal+" kcal · vol. "+sessRes.volume+" kg·rep · "+sessRes.nEx+" ej. ("+sessRes.fecha+")";
+        return;
+      }
+    }
     var found = METS_PRESETS.find(function(m){ return m.key===tipoKey; });
     var met = found ? found.met : 4.5;
     kcal = Math.round((met-1)*peso*(dur/60));
@@ -2121,21 +2129,32 @@ function updateActPreview(){
 function saveActividad(){
   var tipoVal = document.getElementById("act-tipo").value;
   if(!tipoVal){ alert("Seleccioná el tipo de actividad"); return; }
-  var tipoKey = tipoVal;
+  var tipoKey = tipoVal, diaKey = null;
   if(tipoVal.startsWith("preset:")){
     var pId = tipoVal.replace("preset:","");
     var prs = DB.actPresets.find(function(p){ return p.id===pId; });
-    if(prs) tipoKey = prs.tipo;
+    if(prs){ tipoKey = prs.tipo; diaKey = prs.diaKey||null; }
   }
   var peso = getWeight();
-  var dur, kcal, km = null, ritmo = null;
+  var dur, kcal, km = null, ritmo = null, sessionInfo = null;
   if(tipoKey==="trote"){
     km    = parseFloat(document.getElementById("act-km").value)||0;
     ritmo = parseFloat(document.getElementById("act-ritmo").value)||0;
     if(!km || !ritmo){ alert("Ingresá distancia y ritmo para el trote"); return; }
     var timMin   = km * ritmo;
     dur  = Math.round(timMin);
-    kcal = Math.round(1.04*peso*km - getTMB()*(timMin/1440));
+    kcal = Math.round(1.04*peso*km - getTMBForDate(_viewDate)*(timMin/1440));
+  } else if(tipoKey==="gym" && diaKey){
+    dur = parseFloat(document.getElementById("act-dur").value)||0;
+    if(!dur){ alert("Ingresá la duración"); return; }
+    var sessRes = calcGymCalFromSession(diaKey, peso, dur);
+    if(sessRes){
+      kcal = sessRes.kcal;
+      sessionInfo = sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
+    } else {
+      var metG = (METS_PRESETS.find(function(m){ return m.key===tipoKey; })||{met:4.5}).met;
+      kcal = Math.round((metG-1)*peso*(dur/60));
+    }
   } else {
     dur = parseFloat(document.getElementById("act-dur").value)||0;
     if(!dur){ alert("Ingresá la duración"); return; }
@@ -2145,8 +2164,10 @@ function saveActividad(){
   var notas  = document.getElementById("act-notas").value.trim();
   var editId = document.getElementById("act-edit-id").value;
   var record = {tipo:tipoKey, duracion:dur, calExtra:kcal, notas:notas};
-  if(km)    record.km    = km;
-  if(ritmo) record.ritmo = ritmo;
+  if(km)         record.km          = km;
+  if(ritmo)      record.ritmo       = ritmo;
+  if(diaKey)     record.diaKey      = diaKey;
+  if(sessionInfo)record.sessionInfo = sessionInfo;
   if(editId){
     var idx = DB.actividades.findIndex(function(a){ return a.id===editId; });
     if(idx>=0) DB.actividades[idx] = Object.assign(DB.actividades[idx], record);
