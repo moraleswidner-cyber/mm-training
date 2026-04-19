@@ -1852,10 +1852,12 @@ function renderFoodDB(){
 // ─────────── PLAN MACROS BAR (static HTML elements) ───────────
 function _renderPlanMacrosBar(fecha){
   var tgt   = getMacroTargets(fecha);
-  var tCal  = Math.round(tgt.cal  || 0);
-  var tProt = Math.round((tgt.prot || 0) * 10) / 10;
-  var tGras = Math.round((tgt.gras || 0) * 10) / 10;
-  var tCarb = Math.round((tgt.carb || 0) * 10) / 10;
+  // Use macro-derived calorie target so everything is consistent:
+  // tProt*4 + tGras*9 + tCarb*4 always equals the displayed tCal
+  var tProt = Math.round(tgt.prot || 0);
+  var tGras = Math.round(tgt.gras || 0);
+  var tCarb = Math.round(tgt.carb || 0);
+  var tCal  = tProt * 4 + tGras * 9 + tCarb * 4;
 
   // Update objective labels
   var elCal  = document.getElementById("pmb-tcal");
@@ -1869,19 +1871,19 @@ function _renderPlanMacrosBar(fecha){
 
   // Sum plan macros
   var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
-  var mCal = 0, mProt = 0, mGras = 0, mCarb = 0;
+  var mProt = 0, mGras = 0, mCarb = 0;
   if(plan && plan.items && plan.items.length){
     plan.items.forEach(function(i){
-      mCal  += parseFloat(i.cal)  || 0;
       mProt += parseFloat(i.prot) || 0;
       mGras += parseFloat(i.gras) || 0;
       mCarb += parseFloat(i.carb) || 0;
     });
   }
-  mCal  = Math.round(mCal);
-  mProt = Math.round(mProt * 10) / 10;
-  mGras = Math.round(mGras * 10) / 10;
-  mCarb = Math.round(mCarb * 10) / 10;
+  mProt = Math.round(mProt);
+  mGras = Math.round(mGras);
+  mCarb = Math.round(mCarb);
+  // Calorie total derived from macros — consistent with individual macro %
+  var mCal = mProt * 4 + mGras * 9 + mCarb * 4;
 
   var barsEl = document.getElementById("pmb-bars");
   if(!barsEl) return;
@@ -1892,9 +1894,10 @@ function _renderPlanMacrosBar(fecha){
   }
 
   var _bar = function(label, planVal, objVal, unit, color){
-    var pct = objVal > 0 ? Math.min(110, Math.round(planVal / objVal * 100)) : 0;
+    var pctRaw = objVal > 0 ? Math.min(110, planVal / objVal * 100) : 0;
+    var pct = Math.round(pctRaw * 10) / 10; // one decimal for faithful display
     var pctColor = pct > 105 ? "var(--red)" : pct >= 90 ? color : pct >= 70 ? "var(--amber)" : "var(--text2)";
-    var resta = Math.round((objVal - planVal) * (unit==="g"?10:1)) / (unit==="g"?10:1);
+    var resta = Math.round(objVal - planVal);
     var restaLbl = resta > 0
       ? "faltan <strong style='color:"+color+";'>"+resta+unit+"</strong>"
       : "<strong style='color:var(--green);'>✓ objetivo cubierto</strong>";
