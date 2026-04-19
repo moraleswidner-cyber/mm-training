@@ -1982,17 +1982,21 @@ function selectFoodFromDB(id){
   if(f.pesoUnidad){
     document.getElementById("fa-db-peso-unidad").value = f.pesoUnidad;
     document.getElementById("fa-db-unit-nombre").value = f.unitNombre||"unidad";
-    document.getElementById("fa-u-label").textContent = "¿Cuántos "+( f.unitNombre||"unidades")+"?";
+    document.getElementById("fa-u-label").textContent = "¿Cuántos "+(f.unitNombre||"unidades")+"?";
     document.getElementById("fa-mode-toggle").style.display = "block";
     document.getElementById("fa-cant-units").value = "1";
     setCantMode("u");
   } else {
-    document.getElementById("fa-mode-toggle").style.display = "none";
-    document.getElementById("fa-sect-g").style.display = "block";
-    document.getElementById("fa-sect-u").style.display = "none";
-    _cantMode = "g";
-    document.getElementById("fa-cant").value = "100";
+    // No pesoUnidad: offer "porciones" mode (1 porción = 100g base)
+    var pUnit = parseFloat(document.getElementById("fa-cant").value)||100;
+    document.getElementById("fa-db-peso-unidad").value = pUnit;
+    document.getElementById("fa-db-unit-nombre").value = "porción";
+    document.getElementById("fa-u-label").textContent = "¿Cuántas porciones? (1 porción = "+pUnit+"g)";
+    document.getElementById("fa-mode-toggle").style.display = "block";
+    document.getElementById("fa-cant-units").value = "1";
+    document.getElementById("fa-cant").value = pUnit;
     updateFaPreview();
+    setCantMode("g"); // default to grams, user can switch to portions
   }
 }
 
