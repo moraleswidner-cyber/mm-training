@@ -244,17 +244,28 @@ button:active{opacity:.7;transform:scale(.98);}
       </div>
       <div class="card">
         <div class="card-hdr" style="margin-bottom:8px;">
-          <div class="card-title" style="margin:0;">Progresión ejercicio</div>
+          <div class="card-title" style="margin:0;">Progresión de peso (kg)</div>
           <select id="g-ex" onchange="renderExChart()" style="font-size:11px;padding:5px 24px 5px 8px;width:auto;"></select>
         </div>
         <div class="legend">
           <span class="leg"><span class="leg-sq" style="background:#B4B2A9;"></span>Prog.</span>
-          <span class="leg"><span class="leg-sq" style="background:#3ecf8e;border-style:dashed;"></span>Real (kg)</span>
+          <span class="leg"><span class="leg-sq" style="background:#3ecf8e;"></span>Real (kg)</span>
         </div>
-        <div class="chart-wrap" style="height:180px;"><canvas id="ch-ex" role="img" aria-label="Progresión ejercicio">Gráfico ejercicio.</canvas></div>
+        <div class="chart-wrap" style="height:160px;"><canvas id="ch-ex" role="img" aria-label="Progresión peso">Gráfico peso.</canvas></div>
       </div>
       <div class="card">
-        <div class="card-title" style="margin-bottom:8px;">Cumplimiento vs. programado por semana</div>
+        <div class="card-hdr" style="margin-bottom:8px;">
+          <div class="card-title" style="margin:0;">Progresión de series (reps)</div>
+          <select id="g-ex-ser" onchange="renderSeriesChart()" style="font-size:11px;padding:5px 24px 5px 8px;width:auto;"></select>
+        </div>
+        <div class="legend">
+          <span class="leg"><span class="leg-sq" style="background:#a78bfa;"></span>Reps prog.</span>
+          <span class="leg"><span class="leg-sq" style="background:#f5a623;"></span>Reps reales</span>
+        </div>
+        <div class="chart-wrap" style="height:160px;"><canvas id="ch-ser" role="img" aria-label="Progresión series">Gráfico series.</canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Cumplimiento por semana</div>
         <div class="chart-wrap" style="height:160px;"><canvas id="ch-cumpl" role="img" aria-label="Cumplimiento">Gráfico cumplimiento.</canvas></div>
       </div>
     </div>
@@ -277,23 +288,37 @@ button:active{opacity:.7;transform:scale(.98);}
           <div class="field" style="margin:0;"><span class="label">Agua (kg)</span><input type="number" id="ib-agua" step="0.1" placeholder="42.0"/></div>
           <div class="field" style="margin:0;"><span class="label">IMC</span><input type="number" id="ib-imc" step="0.1" placeholder="25.7"/></div>
         </div>
-        <div class="row2" style="margin-bottom:10px;">
+        <div class="row2" style="margin-bottom:8px;">
           <div class="field" style="margin:0;"><span class="label">Masa ósea (kg)</span><input type="number" id="ib-osea" step="0.1" placeholder="3.2"/></div>
           <div class="field" style="margin:0;"><span class="label">TMB (kcal)</span><input type="number" id="ib-tmb" step="1" placeholder="1890"/></div>
+        </div>
+        <div class="row2" style="margin-bottom:10px;">
+          <div class="field" style="margin:0;"><span class="label">Score InBody (/100)</span><input type="number" id="ib-punt" step="1" placeholder="80"/></div>
+          <div class="field" style="margin:0;"><span class="label">Grasa visceral</span><input type="number" id="ib-gvisc" step="1" placeholder="5"/></div>
         </div>
         <button class="btn-blue" style="width:100%;" onclick="saveInBody()">Guardar medición</button>
         <div id="ib-alert"></div>
       </div>
       <div id="ib-history"></div>
-      <div class="card" id="ib-chart-card" style="display:none;">
-        <div class="card-title" style="margin-bottom:8px;">Evolución composición corporal</div>
-        <div class="legend">
-          <span class="leg"><span class="leg-sq" style="background:#f0f0f3;"></span>Peso</span>
-          <span class="leg"><span class="leg-sq" style="background:#3ecf8e;"></span>Músculo</span>
-          <span class="leg"><span class="leg-sq" style="background:#f76f6f;"></span>Grasa kg</span>
-          <span class="leg"><span class="leg-sq" style="background:#f5a623;"></span>% Grasa</span>
-        </div>
-        <div class="chart-wrap" style="height:240px;"><canvas id="ch-inbody" role="img" aria-label="Evolución InBody">Gráfico InBody.</canvas></div>
+      <div class="card" id="ib-chart-peso" style="display:none;">
+        <div class="card-title" style="margin-bottom:6px;">Peso corporal (kg)</div>
+        <div class="chart-wrap" style="height:130px;"><canvas id="ch-ib-peso">Peso.</canvas></div>
+      </div>
+      <div class="card" id="ib-chart-musc" style="display:none;">
+        <div class="card-title" style="margin-bottom:6px;">Masa muscular (kg)</div>
+        <div class="chart-wrap" style="height:130px;"><canvas id="ch-ib-musc">Músculo.</canvas></div>
+      </div>
+      <div class="card" id="ib-chart-gras" style="display:none;">
+        <div class="card-title" style="margin-bottom:6px;">Grasa corporal (kg)</div>
+        <div class="chart-wrap" style="height:130px;"><canvas id="ch-ib-gras">Grasa.</canvas></div>
+      </div>
+      <div class="card" id="ib-chart-pctg" style="display:none;">
+        <div class="card-title" style="margin-bottom:6px;">% Grasa corporal</div>
+        <div class="chart-wrap" style="height:130px;"><canvas id="ch-ib-pctg">% Grasa.</canvas></div>
+      </div>
+      <div class="card" id="ib-chart-score" style="display:none;">
+        <div class="card-title" style="margin-bottom:6px;">Score InBody (/100)</div>
+        <div class="chart-wrap" style="height:130px;"><canvas id="ch-ib-score">Score.</canvas></div>
       </div>
     </div>
 
@@ -401,7 +426,7 @@ var SEM_KEYS = ["S1","S2","S3","S4","S5"];
 var DB = {sesiones:[], inbody:[]};
 var exCount = 0;
 var exportJSON = "";
-var chEn=null, chEx=null, chCumpl=null, chIb=null;
+var chEn=null, chEx=null, chSer=null, chCumpl=null, chIb1=null, chIb2=null, chIb3=null, chIb4=null, chIb5=null;
 
 var HIST_SESIONES = [
   {id:10001,fecha:"2026-04-05",dia:"d1",semana:"S1",energia:null,duracion:null,hora:"",dolor:"",obs:"Semana 1 base — resultados reales",
@@ -802,6 +827,24 @@ function delSession(id){
 }
 
 // ═══════════════════ GRÁFICOS ═══════════════════
+var MESES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+function parseKg(str){
+  if(!str||str==="—"||str==="omitido"||str==="OMITIR") return null;
+  var nums=str.replace(/,/g,".").match(/\d+\.?\d*/g);
+  if(!nums||!nums.length) return null;
+  return Math.max.apply(null,nums.map(Number));
+}
+function parseReps(str){
+  if(!str||str==="—"||str==="omitido"||str==="OMITIR") return null;
+  var m=str.match(/\d+[xX](\d+)/);
+  return m?parseInt(m[1]):null;
+}
+function semLabel(fecha,semana){
+  var d=new Date(fecha+"T12:00:00");
+  return MESES[d.getMonth()]+"'"+String(d.getFullYear()).slice(2)+" "+semana;
+}
+
 function renderGraficos(){
   var all=allSessions();
   var conEn=all.filter(function(s){return s.energia;});
@@ -816,6 +859,7 @@ function renderGraficos(){
   renderEnergiaChart();
   renderCumplChart();
   renderExChart();
+  renderSeriesChart();
 }
 
 function renderEnergiaChart(){
@@ -825,7 +869,7 @@ function renderEnergiaChart(){
   chEn=new Chart(document.getElementById("ch-energia"),{
     type:"line",
     data:{
-      labels:pts.map(function(s){return s.fecha.slice(5)+" "+(PLAN[s.dia]?PLAN[s.dia].nombre.slice(0,2):"");}),
+      labels:pts.map(function(s){return semLabel(s.fecha,s.semana);}),
       datasets:[{label:"Energia",data:pts.map(function(s){return s.energia;}),
         borderColor:"#4f8ef7",backgroundColor:"rgba(79,142,247,0.08)",pointBackgroundColor:"#4f8ef7",
         tension:.35,fill:true,pointRadius:5}]
@@ -840,14 +884,16 @@ function renderEnergiaChart(){
 function updateExSel(){
   var names=new Set();
   allSessions().forEach(function(s){s.ejercicios.forEach(function(e){if(e.n) names.add(e.n);});});
-  var sel=document.getElementById("g-ex");
-  var cur=sel.value;
-  sel.innerHTML="<option value=''>Seleccionar ejercicio...</option>";
-  names.forEach(function(n){
-    var o=document.createElement("option");
-    o.value=n;o.textContent=n;
-    if(n===cur) o.selected=true;
-    sel.appendChild(o);
+  ["g-ex","g-ex-ser"].forEach(function(selId){
+    var sel=document.getElementById(selId);
+    var cur=sel.value;
+    sel.innerHTML="<option value=''>Seleccionar ejercicio...</option>";
+    names.forEach(function(n){
+      var o=document.createElement("option");
+      o.value=n;o.textContent=n;
+      if(n===cur) o.selected=true;
+      sel.appendChild(o);
+    });
   });
 }
 
@@ -858,21 +904,25 @@ function renderExChart(){
   var pts=[];
   allSessions().forEach(function(s){
     s.ejercicios.forEach(function(e){
-      if(e.n===name&&e.pr&&e.pr!=="—"&&e.pr!=="omitido"){
-        var kg=parseFloat(e.pr.replace(/[^0-9.,]/g,"").replace(",","."));
-        var kgP=e.sp?parseFloat(e.sp.replace(/[^0-9.,]/g,"").replace(",",".")):null;
-        if(!isNaN(kg)) pts.push({label:s.fecha.slice(5)+" "+s.semana,real:kg,prog:isNaN(kgP)?null:kgP});
+      if(e.n===name){
+        var real=parseKg(e.pr);
+        var prog=parseKg(e.pp);
+        if(real!==null) pts.push({label:semLabel(s.fecha,s.semana),real:real,prog:prog});
       }
     });
   });
   if(!pts.length) return;
   chEx=new Chart(document.getElementById("ch-ex"),{
-    type:"bar",
+    type:"line",
     data:{
       labels:pts.map(function(p){return p.label;}),
       datasets:[
-        {label:"Prog.",data:pts.map(function(p){return p.prog;}),backgroundColor:"rgba(180,178,169,0.4)",borderRadius:3},
-        {label:"Real",data:pts.map(function(p){return p.real;}),backgroundColor:"#3ecf8e",borderRadius:3},
+        {label:"Prog.",data:pts.map(function(p){return p.prog;}),
+          borderColor:"rgba(180,178,169,0.8)",backgroundColor:"transparent",
+          tension:.3,pointRadius:4,borderDash:[5,3]},
+        {label:"Real (kg)",data:pts.map(function(p){return p.real;}),
+          borderColor:"#3ecf8e",backgroundColor:"rgba(62,207,142,0.08)",
+          tension:.3,pointRadius:5,fill:true},
       ]
     },
     options:{responsive:true,maintainAspectRatio:false,
@@ -882,24 +932,70 @@ function renderExChart(){
   });
 }
 
+function renderSeriesChart(){
+  var name=document.getElementById("g-ex-ser").value;
+  if(chSer) chSer.destroy();
+  if(!name) return;
+  var pts=[];
+  allSessions().forEach(function(s){
+    s.ejercicios.forEach(function(e){
+      if(e.n===name){
+        var real=parseReps(e.sr);
+        var prog=parseReps(e.sp);
+        if(real!==null) pts.push({label:semLabel(s.fecha,s.semana),real:real,prog:prog});
+      }
+    });
+  });
+  if(!pts.length) return;
+  chSer=new Chart(document.getElementById("ch-ser"),{
+    type:"line",
+    data:{
+      labels:pts.map(function(p){return p.label;}),
+      datasets:[
+        {label:"Reps prog.",data:pts.map(function(p){return p.prog;}),
+          borderColor:"rgba(167,139,250,0.8)",backgroundColor:"transparent",
+          tension:.3,pointRadius:4,borderDash:[5,3]},
+        {label:"Reps reales",data:pts.map(function(p){return p.real;}),
+          borderColor:"#f5a623",backgroundColor:"rgba(245,166,35,0.08)",
+          tension:.3,pointRadius:5,fill:true},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:"#9090a8",font:{size:9},maxRotation:45},grid:{display:false}},
+        y:{ticks:{color:"#9090a8",stepSize:1},grid:{color:"rgba(255,255,255,0.04)"},beginAtZero:false}}}
+  });
+}
+
 function renderCumplChart(){
-  var sems=["S1","S2","S3","S4","S5"];
-  var vals=sems.map(function(sem){
-    var exs=allSessions().filter(function(s){return s.semana===sem;}).flatMap(function(s){return s.ejercicios;});
+  var groups={};
+  allSessions().forEach(function(s){
+    var key=s.fecha.slice(0,7)+"-"+s.semana;
+    if(!groups[key]) groups[key]={exs:[],fecha:s.fecha,semana:s.semana};
+    groups[key].exs=groups[key].exs.concat(s.ejercicios);
+  });
+  var keys=Object.keys(groups).sort();
+  if(!keys.length) return;
+  var labels=keys.map(function(k){return semLabel(groups[k].fecha,groups[k].semana);});
+  var vals=keys.map(function(k){
+    var exs=groups[k].exs;
     if(!exs.length) return null;
     var done=exs.filter(function(e){return e.sr&&e.sr!=="—"&&e.sr!=="omitido";}).length;
     return Math.round(done/exs.length*100);
   });
   if(chCumpl) chCumpl.destroy();
   chCumpl=new Chart(document.getElementById("ch-cumpl"),{
-    type:"bar",
-    data:{labels:["S1","S2","S3","S4","S5"],datasets:[{label:"% cumplimiento",data:vals,
-      backgroundColor:vals.map(function(v){return v===null?"#26262e":v>=80?"#3ecf8e":v>=60?"#f5a623":"#f76f6f";}),
-      borderRadius:4}]},
+    type:"line",
+    data:{labels:labels,datasets:[{label:"% cumplimiento",data:vals,
+      borderColor:"#4f8ef7",backgroundColor:"rgba(79,142,247,0.08)",
+      tension:.35,fill:true,pointRadius:5,
+      pointBackgroundColor:vals.map(function(v){return v===null?"transparent":v>=80?"#3ecf8e":v>=60?"#f5a623":"#f76f6f";}),
+      pointBorderColor:vals.map(function(v){return v===null?"transparent":v>=80?"#3ecf8e":v>=60?"#f5a623":"#f76f6f";}),
+    }]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return (ctx.raw||0)+"%";}}}},
       scales:{y:{min:0,max:100,ticks:{color:"#9090a8",callback:function(v){return v+"%";}},grid:{color:"rgba(255,255,255,0.04)"}},
-        x:{ticks:{color:"#9090a8"},grid:{display:false}}}}
+        x:{ticks:{color:"#9090a8",font:{size:9},maxRotation:45},grid:{display:false}}}}
   });
 }
 
@@ -911,11 +1007,12 @@ function saveInBody(){
     peso:pf("ib-peso"),musculo:pf("ib-musc"),grasa:pf("ib-gras"),
     pctGrasa:pf("ib-pctg"),agua:pf("ib-agua"),imc:pf("ib-imc"),
     osea:pf("ib-osea"),tmb:pf("ib-tmb"),
+    puntuacion:pf("ib-punt"),grasaVisc:pf("ib-gvisc"),
   });
   DB.inbody.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
   saveDB();
   showAlert("ib-alert","Medicion guardada.","green");
-  ["ib-fecha","ib-ctx","ib-peso","ib-musc","ib-gras","ib-pctg","ib-agua","ib-imc","ib-osea","ib-tmb"].forEach(function(id){document.getElementById(id).value="";});
+  ["ib-fecha","ib-ctx","ib-peso","ib-musc","ib-gras","ib-pctg","ib-agua","ib-imc","ib-osea","ib-tmb","ib-punt","ib-gvisc"].forEach(function(id){document.getElementById(id).value="";});
   renderIbHistory();
 }
 
@@ -948,24 +1045,28 @@ function renderIbHistory(){
     +'<div style="font-size:11px;color:var(--text3);margin-top:8px;">'+sorted.length+' medicion'+(sorted.length>1?"es":"")+(sorted.length>1?" · "+sorted[0].fecha+" → "+last.fecha:"")+'</div>'
     +'<button class="btn-red btn-xs" style="margin-top:8px;" onclick="delIb('+last.id+')">Eliminar última</button>'
     +'</div>';
-  if(sorted.length>=2){
+  function makeIbLine(chVar,cardId,canvasId,vals,color,bgColor){
+    var card=document.getElementById(cardId);
+    var hasData=vals.some(function(v){return v!=null;});
+    if(!hasData||sorted.length<2){card.style.display="none";return null;}
     card.style.display="block";
-    if(chIb) chIb.destroy();
-    var lbs=sorted.map(function(m){return m.fecha.slice(5);});
-    chIb=new Chart(document.getElementById("ch-inbody"),{
+    if(chVar) chVar.destroy();
+    return new Chart(document.getElementById(canvasId),{
       type:"line",
-      data:{labels:lbs,datasets:[
-        {label:"Peso",data:sorted.map(function(m){return m.peso;}),borderColor:"#f0f0f3",backgroundColor:"rgba(240,240,243,0.05)",tension:.35,fill:false,pointRadius:6,borderDash:[],pointStyle:"circle"},
-        {label:"Musculo",data:sorted.map(function(m){return m.musculo;}),borderColor:"#3ecf8e",backgroundColor:"rgba(62,207,142,0.05)",tension:.35,fill:false,pointRadius:6,borderDash:[5,3],pointStyle:"rect"},
-        {label:"Grasa",data:sorted.map(function(m){return m.grasa;}),borderColor:"#f76f6f",backgroundColor:"rgba(247,111,111,0.05)",tension:.35,fill:false,pointRadius:6,borderDash:[2,2],pointStyle:"triangle"},
-        {label:"% Grasa",data:sorted.map(function(m){return m.pctGrasa;}),borderColor:"#f5a623",backgroundColor:"rgba(245,166,35,0.05)",tension:.35,fill:false,pointRadius:6,borderDash:[4,4],pointStyle:"star"},
-      ]},
+      data:{labels:sorted.map(function(m){return m.fecha.slice(5);}),
+        datasets:[{data:vals,borderColor:color,backgroundColor:bgColor,
+          tension:.35,fill:true,pointRadius:5,pointBackgroundColor:color}]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false}},
         scales:{x:{ticks:{color:"#9090a8",font:{size:9},maxRotation:45},grid:{display:false}},
-          y:{ticks:{color:"#9090a8"},grid:{color:"rgba(255,255,255,0.04)"}}}}
+          y:{ticks:{color:"#9090a8"},grid:{color:"rgba(255,255,255,0.04)"},beginAtZero:false}}}
     });
-  } else {card.style.display="none";}
+  }
+  chIb1=makeIbLine(chIb1,"ib-chart-peso","ch-ib-peso",sorted.map(function(m){return m.peso;}),"#f0f0f3","rgba(240,240,243,0.07)");
+  chIb2=makeIbLine(chIb2,"ib-chart-musc","ch-ib-musc",sorted.map(function(m){return m.musculo;}),"#3ecf8e","rgba(62,207,142,0.07)");
+  chIb3=makeIbLine(chIb3,"ib-chart-gras","ch-ib-gras",sorted.map(function(m){return m.grasa;}),"#f76f6f","rgba(247,111,111,0.07)");
+  chIb4=makeIbLine(chIb4,"ib-chart-pctg","ch-ib-pctg",sorted.map(function(m){return m.pctGrasa;}),"#f5a623","rgba(245,166,35,0.07)");
+  chIb5=makeIbLine(chIb5,"ib-chart-score","ch-ib-score",sorted.map(function(m){return m.puntuacion||null;}),"#a78bfa","rgba(167,139,250,0.07)");
 }
 
 function delIb(id){
