@@ -357,6 +357,11 @@ button:active{opacity:.7;transform:scale(.98);}
 
     <!-- ===== TAB CONFIG ===== -->
     <div id="tab-config" class="tab">
+      <div class="card" id="card-perfil">
+        <div class="card-title" style="margin-bottom:10px;">Perfil & Objetivos</div>
+        <div id="perfil-body"></div>
+      </div>
+
       <div class="card">
         <div class="card-title" style="margin-bottom:10px;">Escenario</div>
         <div class="scenario-group" id="scenario-group"></div>
@@ -1028,6 +1033,7 @@ function loadDB(){
         _recalcGymActividades();
       }
       renderConfigInbody();
+      renderPerfil();
       renderAll(); // re-render with InBody data
     }).catch(function(){});
   } else {
@@ -1126,7 +1132,7 @@ function getActCalForDate(fecha){
       // Always recalculate gym from session volume (overrides stored calExtra)
       var dk = _inferDiaKey(a);
       if(dk){
-        var sr = calcGymCalFromSession(dk, peso, a.duracion||60);
+        var sr = calcGymCalFromSession(dk, peso, a.duracion||60, a.fecha);
         if(sr){ total += sr.kcal; return; }
       }
     }
@@ -1158,23 +1164,52 @@ function _parseSR(str){
   var m = String(str||"").match(/(\d+)[x×](\d+)/i);
   return m ? {sets:parseInt(m[1]), reps:parseInt(m[2])} : {sets:0,reps:0};
 }
-function calcGymCalFromSession(diaKey, pesoKg, durMin){
+function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
   var sessions = SESSIONS_DATA.filter(function(s){ return s.dia===diaKey; });
   if(!sessions.length) return null;
   sessions.sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
-  var sess = sessions[0];
+
+  // Try exact date match first (real results)
+  var sess = null, isProg = false;
+  if(actFecha){
+    sess = sessions.find(function(s){ return s.fecha===actFecha; });
+  }
+  if(sess){
+    isProg = false;
+  } else {
+    sess = sessions[0]; // most recent, use program at 80%
+    isProg = true;
+  }
+
   var totalVol = 0;
   (sess.ejercicios||[]).forEach(function(ej){
-    var kg = _parseKg(ej.pr||ej.pp);
-    var sr = _parseSR(ej.sr||ej.sp);
+    var kg, sr;
+    if(!isProg){
+      // Real results: use pr/sr (skip if omitted/—)
+      kg = _parseKg(ej.pr);
+      sr = _parseSR(ej.sr);
+      // Fallback to program if real results missing for this exercise
+      if(!kg || !sr.sets){ kg = _parseKg(ej.pp); sr = _parseSR(ej.sp); isProg = true; }
+    } else {
+      // Program data at 80%
+      kg = _parseKg(ej.pp);
+      sr = _parseSR(ej.sp);
+    }
     if(kg>0 && sr.sets>0 && sr.reps>0) totalVol += kg*sr.sets*sr.reps;
   });
-  // Hybrid formula: time + volume, scaled by body weight
-  // net_kcal = durMin × (2.0 + volume/5000) × (peso/80)
+
+  if(isProg) totalVol = Math.round(totalVol * 0.80); // 80% of programmed volume
+
   var isLower = (diaKey==="d2"||diaKey==="d5");
-  var volFactor = isLower ? 4500 : 5500; // lower body exercises = higher kcal per kg-rep
+  var volFactor = isLower ? 4500 : 5500;
   var netKcal = Math.round(durMin * (2.0 + totalVol/volFactor) * (pesoKg/80));
-  return {kcal:netKcal, volume:Math.round(totalVol), fecha:sess.fecha, nEx:(sess.ejercicios||[]).length};
+  return {
+    kcal: netKcal,
+    volume: Math.round(totalVol),
+    fecha: sess.fecha,
+    nEx: (sess.ejercicios||[]).length,
+    source: isProg ? "program80" : "real"
+  };
 }
 
 // Infer diaKey from a stored activity (explicit field or notas string)
@@ -1202,11 +1237,11 @@ function _recalcGymActividades(){
     var dk = _inferDiaKey(a);
     if(!dk) return;
     var pesoAct = getWeightForDate(a.fecha);
-    var sessRes = calcGymCalFromSession(dk, pesoAct, a.duracion||60);
+    var sessRes = calcGymCalFromSession(dk, pesoAct, a.duracion||60, a.fecha);
     if(sessRes){
       a.diaKey     = dk;
       a.calExtra   = sessRes.kcal;
-      a.sessionInfo= sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
+      a.sessionInfo= (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
       updated = true;
     }
   });
@@ -1419,10 +1454,14 @@ function renderHoy(){
         var dispKcal = a.calExtra||0;
         var dispInfo = a.sessionInfo||"";
         if(dk){
-          var sr = calcGymCalFromSession(dk, getWeightForDate(fecha), a.duracion||60);
-          if(sr){ dispKcal = sr.kcal; dispInfo = "vol. "+sr.volume+" kg·rep · "+sr.nEx+" ej. ("+sr.fecha+")"; }
+          var sr = calcGymCalFromSession(dk, getWeightForDate(fecha), a.duracion||60, a.fecha);
+          if(sr){
+            dispKcal = sr.kcal;
+            var srcLbl = sr.source==="real" ? "✓ datos reales" : "~ estimado 80%";
+            detalle = (a.duracion||"?")+" min · "+dispKcal+" kcal · "+srcLbl+" · vol. "+sr.volume+" kg·rep ("+sr.fecha+")";
+          }
         }
-        detalle = (a.duracion||"?")+" min · "+dispKcal+" kcal"+(dispInfo?" · "+dispInfo:"");
+        if(!detalle) detalle = (a.duracion||"?")+" min · "+dispKcal+" kcal"+(dispInfo?" · "+dispInfo:"");
       } else {
         detalle = a.duracion+" min · "+a.calExtra+" kcal quemadas";
       }
@@ -1891,6 +1930,7 @@ function renderConfig(){
   // Act presets
   renderActPresets();
   renderConfigInbody();
+  renderPerfil();
 
   // Populate MET selects
   var opts = METS_PRESETS.map(function(m){ return "<option value='"+m.key+"'>"+m.label+" (MET "+m.met+")</option>"; }).join("");
@@ -1917,6 +1957,147 @@ function renderConfigInbody(){
   } else {
     el.innerHTML = "<span style='font-size:12px;color:var(--text2);'>Sin datos InBody. Usá los campos manuales ↓</span>";
   }
+  renderPerfil();
+}
+
+function renderPerfil(){
+  var el = document.getElementById("perfil-body");
+  if(!el) return;
+  var ib = INBODY_DATA_ALL.length ? INBODY_DATA_ALL[INBODY_DATA_ALL.length-1] : null;
+  if(!ib){ el.innerHTML="<div style='font-size:12px;color:var(--text2);'>Sin datos InBody disponibles.</div>"; return; }
+
+  var peso     = parseFloat(DB.config.pesoManual)||ib.peso;
+  var tmb      = getTMB();
+  var factor   = parseFloat(DB.config.factorBase)||1.2;
+  var tdee     = Math.round(tmb * factor);
+  var pctGrasa = ib.pctGrasa||0;
+  var musculo  = ib.musculo||0;
+  var pctMus   = peso>0 ? Math.round(musculo/peso*100) : 0;
+
+  // Morphology assessment
+  var morfo, morfoColor, morfoDesc;
+  if(pctGrasa < 15 && pctMus > 44){
+    morfo="Mesomorfo"; morfoColor="var(--green)";
+    morfoDesc="Alta masa muscular, bajo % grasa. Excelente composición.";
+  } else if(pctGrasa >= 15 && pctGrasa < 22 && pctMus >= 42){
+    morfo="Endo-mesomorfo"; morfoColor="var(--blue)";
+    morfoDesc="Buena masa muscular con tendencia a acumular grasa. Responde bien al entrenamiento de fuerza.";
+  } else if(pctGrasa >= 22){
+    morfo="Endomorfo"; morfoColor="var(--amber)";
+    morfoDesc="Mayor tendencia a acumular grasa. El déficit calórico moderado y el entrenamiento de fuerza son clave.";
+  } else {
+    morfo="Ectomorfo-meso"; morfoColor="var(--purple)";
+    morfoDesc="Estructura delgada con buena respuesta al entrenamiento.";
+  }
+
+  // Recommended factor
+  var recFactor = 1.55; // 4 training days/week = moderately active
+  var recTDEE   = Math.round(tmb * recFactor);
+
+  // Recommended scenarios
+  var recDef  = recTDEE - 450;
+  var recMant = recTDEE;
+  var recVol  = recTDEE + 300;
+
+  // Protein targets (g) per scenario
+  var pDef  = Math.round(peso * 2.4);
+  var pMant = Math.round(peso * 2.0);
+  var pVol  = Math.round(peso * 2.2);
+
+  // Fat targets (g)
+  var fDef  = Math.round(recDef  * 0.25 / 9);
+  var fMant = Math.round(recMant * 0.25 / 9);
+  var fVol  = Math.round(recVol  * 0.25 / 9);
+
+  // Carb targets (g)
+  var cDef  = Math.round((recDef  - pDef*4  - fDef*9)  / 4);
+  var cMant = Math.round((recMant - pMant*4 - fMant*9) / 4);
+  var cVol  = Math.round((recVol  - pVol*4  - fVol*9)  / 4);
+
+  var isFacOk = Math.abs(factor - recFactor) < 0.1;
+
+  el.innerHTML =
+    // Morphology badge
+    "<div style='display:flex;align-items:center;gap:10px;margin-bottom:12px;'>"+
+      "<div style='background:var(--bg4);border:1px solid "+morfoColor+";border-radius:var(--rsm);padding:6px 12px;'>"+
+        "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;'>Morfología</div>"+
+        "<div style='font-size:15px;font-weight:700;color:"+morfoColor+"'>"+morfo+"</div>"+
+      "</div>"+
+      "<div style='flex:1;font-size:11px;color:var(--text2);'>"+morfoDesc+"</div>"+
+    "</div>"+
+    // InBody summary
+    "<div style='display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:12px;'>"+
+      _kpiBox("Peso",  peso+"kg",  "")+
+      _kpiBox("% Grasa", pctGrasa+"%", pctGrasa>22?"var(--red)":pctGrasa>18?"var(--amber)":"var(--green)")+
+      _kpiBox("Músculo", musculo+"kg", "var(--green)")+
+      _kpiBox("TMB",   tmb+" kcal", "")+
+    "</div>"+
+    // Factor warning
+    (!isFacOk ?
+      "<div style='background:var(--amber-d);border:1px solid var(--amber);border-radius:var(--rsm);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--amber);'>"+
+        "⚠ Factor actividad actual: <strong>"+factor+"</strong>. Para 4 días de entrenamiento/semana se recomienda <strong>"+recFactor+"</strong>."+
+        "<br><button class='btn-xs btn-amber' style='margin-top:6px;' onclick='applyRecommendedFactor("+recFactor+")'>Aplicar factor "+recFactor+"</button>"+
+      "</div>" : "")+
+    // TDEE info
+    "<div style='background:var(--bg4);border-radius:var(--rsm);padding:8px 12px;margin-bottom:12px;'>"+
+      "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;margin-bottom:4px;'>TDEE recomendado (TMB × "+recFactor+")</div>"+
+      "<div style='font-size:17px;font-weight:700;color:var(--blue);'>"+recTDEE+" kcal</div>"+
+    "</div>"+
+    // Scenario table
+    "<div style='font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.07em;margin-bottom:6px;'>Objetivos por escenario</div>"+
+    "<table style='width:100%;border-collapse:collapse;font-size:12px;'>"+
+      "<thead><tr>"+
+        "<th style='text-align:left;padding:4px 6px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--bord);'>Escenario</th>"+
+        "<th style='text-align:right;padding:4px 6px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--bord);'>kcal</th>"+
+        "<th style='text-align:right;padding:4px 6px;color:var(--green);font-weight:600;border-bottom:1px solid var(--bord);'>Prot</th>"+
+        "<th style='text-align:right;padding:4px 6px;color:var(--amber);font-weight:600;border-bottom:1px solid var(--bord);'>Gras</th>"+
+        "<th style='text-align:right;padding:4px 6px;color:var(--purple);font-weight:600;border-bottom:1px solid var(--bord);'>Carb</th>"+
+      "</tr></thead>"+
+      "<tbody>"+
+        _scenRow("Déficit (−450)", recDef,  pDef,  fDef,  cDef,  "var(--amber)")+
+        _scenRow("Mantención",     recMant, pMant, fMant, cMant, "var(--blue)")+
+        _scenRow("Volumen (+300)",  recVol,  pVol,  fVol,  cVol,  "var(--green)")+
+      "</tbody>"+
+    "</table>"+
+    "<button class='btn-xs btn-blue btn-full' style='margin-top:10px;' onclick='applyRecommendedParams("+recFactor+","+recDef+","+recMant+","+recVol+","+pDef+","+pMant+","+pVol+")'>Aplicar parámetros recomendados</button>";
+}
+
+function _kpiBox(label, val, color){
+  return "<div style='background:var(--bg4);border-radius:var(--rxs);padding:6px 8px;text-align:center;'>"+
+    "<div style='font-size:9px;color:var(--text2);text-transform:uppercase;font-weight:700;'>"+label+"</div>"+
+    "<div style='font-size:13px;font-weight:700;"+(color?"color:"+color+";":"")+">"+val+"</div>"+
+  "</div>";
+}
+function _scenRow(label, cal, prot, gras, carb, color){
+  return "<tr style='border-bottom:1px solid var(--bord);'>"+
+    "<td style='padding:5px 6px;font-weight:600;color:"+color+"'>"+label+"</td>"+
+    "<td style='padding:5px 6px;text-align:right;font-weight:700;'>"+cal+"</td>"+
+    "<td style='padding:5px 6px;text-align:right;color:var(--green);'>"+prot+"g</td>"+
+    "<td style='padding:5px 6px;text-align:right;color:var(--amber);'>"+gras+"g</td>"+
+    "<td style='padding:5px 6px;text-align:right;color:var(--purple);'>"+carb+"g</td>"+
+  "</tr>";
+}
+
+function applyRecommendedFactor(factor){
+  document.getElementById("cfg-factor").value = factor;
+  saveConfig();
+  renderPerfil();
+}
+
+function applyRecommendedParams(factor, calDef, calMant, calVol, pDef, pMant, pVol){
+  // Update activity factor
+  document.getElementById("cfg-factor").value = factor;
+  // Update scenario calAdj relative to TDEE at new factor
+  var tdee = Math.round(getTMB() * factor);
+  SCENARIOS.deficit.calAdj    = calDef  - tdee;
+  SCENARIOS.mantencion.calAdj = 0;
+  SCENARIOS.volumen.calAdj    = calVol  - tdee;
+  SCENARIOS.deficit.protFactor    = parseFloat((pDef  / (parseFloat(DB.config.pesoManual)||INBODY_DATA_ALL[INBODY_DATA_ALL.length-1].peso)).toFixed(1));
+  SCENARIOS.mantencion.protFactor = parseFloat((pMant / (parseFloat(DB.config.pesoManual)||INBODY_DATA_ALL[INBODY_DATA_ALL.length-1].peso)).toFixed(1));
+  SCENARIOS.volumen.protFactor    = parseFloat((pVol  / (parseFloat(DB.config.pesoManual)||INBODY_DATA_ALL[INBODY_DATA_ALL.length-1].peso)).toFixed(1));
+  saveConfig();
+  renderPerfil();
+  alert("✓ Parámetros aplicados. Factor: "+factor+" · Déficit: "+calDef+" kcal · Mantención: "+calMant+" kcal · Volumen: "+calVol+" kcal");
 }
 
 function reloadInBodyData(){
@@ -2251,10 +2432,11 @@ function updateActPreview(){
     var dur = parseFloat(document.getElementById("act-dur").value)||0;
     if(!dur){ document.getElementById("act-preview").textContent=""; return; }
     if(tipoKey==="gym" && diaKey){
-      var sessRes = calcGymCalFromSession(diaKey, peso, dur);
+      var sessRes = calcGymCalFromSession(diaKey, peso, dur, _viewDate);
       if(sessRes){
+        var srcLblPrev = sessRes.source==="real" ? "✓ real" : "~80% prog";
         document.getElementById("act-preview").textContent =
-          "≈ "+sessRes.kcal+" kcal · vol. "+sessRes.volume+" kg·rep · "+sessRes.nEx+" ej. ("+sessRes.fecha+")";
+          "≈ "+sessRes.kcal+" kcal · vol. "+sessRes.volume+" kg·rep · "+sessRes.nEx+" ej. ("+sessRes.fecha+") ["+srcLblPrev+"]";
         return;
       }
     }
@@ -2286,10 +2468,10 @@ function saveActividad(){
   } else if(tipoKey==="gym" && diaKey){
     dur = parseFloat(document.getElementById("act-dur").value)||0;
     if(!dur){ alert("Ingresá la duración"); return; }
-    var sessRes = calcGymCalFromSession(diaKey, peso, dur);
+    var sessRes = calcGymCalFromSession(diaKey, peso, dur, _viewDate);
     if(sessRes){
       kcal = sessRes.kcal;
-      sessionInfo = sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
+      sessionInfo = (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
     } else {
       var metG = (METS_PRESETS.find(function(m){ return m.key===tipoKey; })||{met:4.5}).met;
       kcal = Math.round((metG-1)*peso*(dur/60));
@@ -2779,10 +2961,10 @@ function useActPreset(id){
     record.ritmo    = p.ritmo;
     record.calExtra = Math.round(1.04*peso*p.km - getTMBForDate(_viewDate)*(timMin/1440));
   } else if(p.tipo==="gym" && p.diaKey){
-    var sessRes = calcGymCalFromSession(p.diaKey, peso, p.duracion);
+    var sessRes = calcGymCalFromSession(p.diaKey, peso, p.duracion, _viewDate);
     record.duracion = p.duracion;
     record.calExtra = sessRes ? sessRes.kcal : Math.round((getMET("gym")-1)*peso*(p.duracion/60));
-    if(sessRes) record.sessionInfo = sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
+    if(sessRes) record.sessionInfo = (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg-reps";
   } else {
     var met = (METS_PRESETS.find(function(m){ return m.key===p.tipo; })||{met:4.5}).met;
     record.duracion = p.duracion;
