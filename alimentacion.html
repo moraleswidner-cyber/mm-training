@@ -1867,8 +1867,30 @@ function renderFoodDB(){
   document.getElementById("list-db").innerHTML = html;
 }
 
+// ─────────── PLAN TOTALS HELPER ───────────
+// Single source of truth — used by both the comparison bar and the summary card
+function _sumPlanTotals(fecha){
+  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  var cal=0, prot=0, gras=0, carb=0;
+  if(plan && plan.items && plan.items.length){
+    plan.items.forEach(function(i){
+      cal  += parseFloat(i.cal)  || 0;
+      prot += parseFloat(i.prot) || 0;
+      gras += parseFloat(i.gras) || 0;
+      carb += parseFloat(i.carb) || 0;
+    });
+  }
+  return {
+    cal:  Math.round(cal),
+    prot: Math.round(prot),
+    gras: Math.round(gras),
+    carb: Math.round(carb),
+    plan: plan
+  };
+}
+
 // ─────────── PLAN MACROS BAR (static HTML elements) ───────────
-function _renderPlanMacrosBar(fecha){
+function _renderPlanMacrosBar(fecha, totals){
   var tgt   = getMacroTargets(fecha);
   var tCal  = Math.round(tgt.cal  || 0);
   var tProt = Math.round(tgt.prot || 0);
@@ -1885,21 +1907,10 @@ function _renderPlanMacrosBar(fecha){
   if(elGras) elGras.textContent = tGras ? tGras+"g"      : "—";
   if(elCarb) elCarb.textContent = tCarb ? tCarb+"g"      : "—";
 
-  // Sum plan totals — calories use stored .cal (matches what the menu list shows)
-  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
-  var mCal = 0, mProt = 0, mGras = 0, mCarb = 0;
-  if(plan && plan.items && plan.items.length){
-    plan.items.forEach(function(i){
-      mCal  += parseFloat(i.cal)  || 0;
-      mProt += parseFloat(i.prot) || 0;
-      mGras += parseFloat(i.gras) || 0;
-      mCarb += parseFloat(i.carb) || 0;
-    });
-  }
-  mCal  = Math.round(mCal);
-  mProt = Math.round(mProt);
-  mGras = Math.round(mGras);
-  mCarb = Math.round(mCarb);
+  // Use pre-calculated totals if provided, otherwise calculate now
+  var t = totals || _sumPlanTotals(fecha);
+  var plan = t.plan;
+  var mCal = t.cal, mProt = t.prot, mGras = t.gras, mCarb = t.carb;
 
   var barsEl = document.getElementById("pmb-bars");
   if(!barsEl) return;
@@ -1968,23 +1979,27 @@ function renderMenuPropuesto(){
   var el2 = document.getElementById("menu-date-label2");
   if(el2) el2.textContent = "Plan del "+lbl;
 
-  var plan   = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
   var listEl = document.getElementById("list-menu-plan");
   var summEl = document.getElementById("plan-summary");
   if(!listEl) return;
 
-  // ── Macro objectives + plan comparison — update static HTML elements ──
-  _renderPlanMacrosBar(fecha);
+  // Calculate plan totals once — shared by comparison bar AND summary card
+  var planTotals = _sumPlanTotals(fecha);
+  var plan = planTotals.plan;
 
-  // Summary totals
-  var totalPlan = 0, totalConsumido = 0, actualCal = 0;
+  // ── Macro objectives + plan comparison — pass pre-calculated totals ──
+  _renderPlanMacrosBar(fecha, planTotals);
+
+  // Summary totals (reuse planTotals.cal so both numbers are always identical)
+  var totalPlan = planTotals.cal;
+  var totalConsumido = 0, actualCal = 0;
   var nConsumidos = 0, totalItems = 0;
   if(plan && plan.items.length){
     plan.items.forEach(function(item){
-      totalPlan += item.cal||0;
-      if(item.consumido){ totalConsumido += item.cal||0; nConsumidos++; }
+      if(item.consumido){ totalConsumido += parseFloat(item.cal)||0; nConsumidos++; }
       totalItems++;
     });
+    totalConsumido = Math.round(totalConsumido);
   }
   DB.registros.filter(function(r){ return r.fecha===fecha; }).forEach(function(r){ actualCal += r.cal||0; });
 
