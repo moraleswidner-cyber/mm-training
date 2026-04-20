@@ -772,6 +772,17 @@ button:active{opacity:.7;transform:scale(.98);}
       <input type="text" id="plan-nombre" placeholder="Nombre del alimento"/>
     </div>
     <!-- Toggle g vs unidades -->
+    <!-- Porciones stepper — siempre visible -->
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px;">Porciones</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button type="button" onclick="changePlanPorciones(-1)"
+          style="width:36px;height:36px;border-radius:50%;border:1px solid var(--bord2);background:var(--bg4);color:var(--text1);font-size:20px;line-height:1;cursor:pointer;">−</button>
+        <span id="plan-porciones-lbl" style="font-size:18px;font-weight:700;min-width:80px;text-align:center;">1 porción</span>
+        <button type="button" onclick="changePlanPorciones(1)"
+          style="width:36px;height:36px;border-radius:50%;border:1px solid var(--bord2);background:var(--bg4);color:var(--text1);font-size:20px;line-height:1;cursor:pointer;">+</button>
+      </div>
+    </div>
     <div id="plan-mode-toggle" style="display:none;margin-bottom:12px;">
       <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;">¿Cómo medís la cantidad?</div>
       <div style="display:flex;gap:6px;">
@@ -3015,6 +3026,9 @@ function deletePlanItem(planId, itemId){
 
 // Modal: agregar alimento al plan
 function openModalAddPlanItem(comida){
+  _planPorciones = 1;
+  var lbl = document.getElementById("plan-porciones-lbl");
+  if(lbl) lbl.textContent = "1 porción";
   document.getElementById("plan-search-input").value = "";
   document.getElementById("plan-food-results").classList.remove("show");
   document.getElementById("plan-food-badge").style.display = "none";
@@ -3134,8 +3148,8 @@ function clearPlanFoodSelection(){
 function updatePlanPreview(){
   var cal100 = parseFloat(document.getElementById("plan-db-cal100").value)||0;
   if(!cal100) return;
-  var cant   = parseFloat(document.getElementById("plan-cant").value)||100;
-  var f      = cant/100;
+  var cant = parseFloat(document.getElementById("plan-cant").value)||100;
+  var f    = cant/100 * (_planPorciones||1);
   document.getElementById("plan-cal").value  = Math.round((parseFloat(document.getElementById("plan-db-cal100").value)||0)*f);
   document.getElementById("plan-prot").value = Math.round((parseFloat(document.getElementById("plan-db-prot100").value)||0)*f*10)/10;
   document.getElementById("plan-gras").value = Math.round((parseFloat(document.getElementById("plan-db-gras100").value)||0)*f*10)/10;
@@ -3143,6 +3157,15 @@ function updatePlanPreview(){
 }
 
 var _planCantMode = "g";
+var _planPorciones = 1;
+
+function changePlanPorciones(delta){
+  _planPorciones = Math.max(1, _planPorciones + delta);
+  var lbl = document.getElementById("plan-porciones-lbl");
+  if(lbl) lbl.textContent = _planPorciones + (_planPorciones===1?" porción":" porciones");
+  if(_planCantMode==="u") updatePlanFromUnits();
+  else updatePlanPreview();
+}
 
 function _resetPlanCantMode(){
   _planCantMode = "g";
@@ -3176,10 +3199,11 @@ function updatePlanFromUnits(){
   var pesoU = parseFloat(document.getElementById("plan-db-peso-unidad").value)||0;
   var uNom  = document.getElementById("plan-db-unit-nombre").value;
   if(!pesoU) return;
-  var totalG = Math.round(n * pesoU);
+  var totalG = Math.round(n * pesoU * (_planPorciones||1));
   document.getElementById("plan-cant").value = totalG;
-  var label = n===1 ? (uNom||"unidad") : (uNom ? uNom+"s" : "unidades");
-  document.getElementById("plan-u-hint").textContent = n+" "+label+" = "+totalG+"g";
+  var totalN = n * (_planPorciones||1);
+  var label = totalN===1 ? (uNom||"unidad") : (uNom ? uNom+"s" : "unidades");
+  document.getElementById("plan-u-hint").textContent = totalN+" "+label+" = "+totalG+"g";
   updatePlanPreview();
 }
 
