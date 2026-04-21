@@ -576,6 +576,7 @@ var MUSCULOS = {
   "Ext. Tríceps Barra":["triceps"],
   "Curl Bíceps Manc. supin.":["biceps"],
   "Ext. Tríceps Manc. Tras-nuca":["triceps"],
+  "Ext. Tríceps polea V":["triceps"],
   "PM Rumano Barra":["isquios","gluteo"],
   "Prensa Unilateral":["cuadriceps","gluteo"],
   "Curl de Isquios":["isquios"],
@@ -712,6 +713,20 @@ var HIST_SESIONES = [
     {n:"Gemelo en MPW",        sp:"3x14",pp:"87,5 kg",sr:"3x14", pr:"87,5 kg",notas:"Ultima serie al fallo"},
     {n:"Plancha Abdominal",    sp:"3x14",pp:"30 kg",  sr:"omitida",pr:"—",   notas:"Por tiempo"},
   ]},
+  // ── S4 D1 — 2026-04-20 (consolidado desde 5 registros parciales por refresh) ──
+  {id:10012,fecha:"2026-04-20",dia:"d1",semana:"S4",energia:null,duracion:null,hora:"19:47",
+   dolor:"Hombro persiste",
+   obs:"S4 D1 consolidado. Jalón bajó a 105 kg (plan 115). Remo 60 kg / 3ra serie falló. Bíceps con caída de peso intraserie. Tríceps: cambio a polea agarre V (sin manc. trasnuca).",
+   ejercicios:[
+    {n:"Press Pecho Manc.",     sp:"4x12",pp:"15 kg",  sr:"4x12",          pr:"15 kg",   notas:"Calent: 12x10 kg"},
+    {n:"Jalón Pecho Unilat.",  sp:"3x12",pp:"115 kg", sr:"3x12",          pr:"105 kg",  notas:"Calent: 10x70 kg. Bajó a 105 kg — hombro. PR 105x12"},
+    {n:"Elev. Lateral Manc.",  sp:"3x14",pp:"7,5 kg", sr:"3x14",          pr:"7,5 kg",  notas:"Calent: 12x5 kg. PR 7,5x14"},
+    {n:"Press Incl. 30°",      sp:"OMITIR",pp:"—",    sr:"omitido",       pr:"—",        notas:"No hago por dolor de hombro"},
+    {n:"Remo en Máquina",      sp:"3x12",pp:"65 kg",  sr:"2x12+1x10",     pr:"60 kg",   notas:"Calent: 12x35 kg. 3ra serie 10x60 kg. RIR 0. Plan era 65 kg"},
+    {n:"Elev. Lat. Polea Unil.",sp:"3x12",pp:"10 kg", sr:"omitido",       pr:"—",        notas:"No hice por dolor hombro"},
+    {n:"Curl Bíceps Incl. 45°",sp:"4x10",pp:"10 kg",  sr:"4x10",          pr:"10 kg",   notas:"S1:10x10. S2:7x10+3x7,5(caída). S3:5x10+3x7,5(caída). S4:10x7,5 — fatiga intraserie"},
+    {n:"Ext. Tríceps polea V", sp:"4x12",pp:"90 kg",  sr:"2x12+1x10+1x8", pr:"50 kg",   notas:"Cambio: polea agarre V (sin manc. trasnuca). Calent: ~90lb otra máq. 3ra:10x50. 4ta:8x50"},
+  ]},
 ];
 var HIST_INBODY = [
   {id:20001,fecha:"2025-12-03",ctx:"Medicion 1 — diciembre 2025",
@@ -725,7 +740,13 @@ var HIST_INBODY = [
    puntuacion:82,grasaVisc:6,cinturaCadera:0.90,masaLibreGrasa:69.2},
 ];
 
+// IDs de registros parciales del 2026-04-20 que se reemplazan por sesión consolidada 10012
+var _CLEANUP_IDS = new Set([1776729105491, 1776729987949, 1776731322640, 1776732306822, 1776732710722]);
+
 function _injectHistorical(){
+  // 1. Eliminar registros parciales duplicados
+  DB.sesiones = DB.sesiones.filter(function(s){ return !_CLEANUP_IDS.has(s.id); });
+  // 2. Agregar sesiones históricas consolidadas
   var existIds=new Set(DB.sesiones.map(function(s){return s.id;}));
   HIST_SESIONES.forEach(function(s){if(!existIds.has(s.id))DB.sesiones.push(s);});
   DB.sesiones.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
@@ -1506,22 +1527,35 @@ function _migrarProgresion() {
   }
 }
 
+function _exToPlanEntry(ex){
+  return {
+    n: ex.n,
+    s1: {ser: ex.s1?ex.s1.ser:"", p: ex.s1?ex.s1.p:""},
+    s2: {ser: ex.s2?ex.s2.ser:"", p: ex.s2?ex.s2.p:""},
+    s3: {ser: ex.s3?ex.s3.ser:"", p: ex.s3?ex.s3.p:""},
+    s4: {ser: ex.s4?ex.s4.ser:"", p: ex.s4?ex.s4.p:""},
+    s5: {ser: ex.s5?ex.s5.ser:"", p: ex.s5?ex.s5.p:""},
+  };
+}
+
 function _initProgresionFromPlan() {
   _migrarProgresion();
   DB.progresion.periodos.forEach(function(p) {
     if (!p.plan) p.plan = {};
     ["d1","d2","d4","d5"].forEach(function(dia) {
+      if (!PLAN[dia]) return;
       if (!p.plan[dia]) {
-        p.plan[dia] = {exs: PLAN[dia].exs.map(function(ex) {
-          return {
-            n: ex.n,
-            s1: {ser: ex.s1?ex.s1.ser:"", p: ex.s1?ex.s1.p:""},
-            s2: {ser: ex.s2?ex.s2.ser:"", p: ex.s2?ex.s2.p:""},
-            s3: {ser: ex.s3?ex.s3.ser:"", p: ex.s3?ex.s3.p:""},
-            s4: {ser: ex.s4?ex.s4.ser:"", p: ex.s4?ex.s4.p:""},
-            s5: {ser: ex.s5?ex.s5.ser:"", p: ex.s5?ex.s5.p:""},
-          };
-        })};
+        // Día sin plan: crear desde PLAN completo
+        p.plan[dia] = {exs: PLAN[dia].exs.map(_exToPlanEntry)};
+      } else {
+        // Día con plan existente: añadir SOLO ejercicios nuevos que falten (sin borrar ediciones)
+        var existingNames = {};
+        p.plan[dia].exs.forEach(function(e){ existingNames[e.n] = true; });
+        PLAN[dia].exs.forEach(function(ex){
+          if (!existingNames[ex.n]) {
+            p.plan[dia].exs.push(_exToPlanEntry(ex));
+          }
+        });
       }
     });
   });
