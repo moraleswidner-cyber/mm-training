@@ -170,6 +170,22 @@ button:active{opacity:.7;transform:scale(.98);}
 .vol-badge{font-size:10px;color:var(--text3);margin-left:4px;}
 .rir-inp{background:var(--bg4);border:1px solid var(--bord);border-radius:var(--rxs);padding:3px 6px;font-size:11px;width:52px;color:var(--text);text-align:center;}
 .prev-ref{font-size:10px;color:var(--text2);background:var(--bg4);border-radius:var(--rxs);padding:3px 8px;margin-bottom:6px;line-height:1.6;}
+/* Series por ejercicio */
+.series-hdr{display:flex;justify-content:space-between;align-items:center;margin:8px 0 5px;}
+.series-hdr-lbl{font-size:10px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+.series-wrap{display:flex;flex-direction:column;gap:4px;}
+.serie-row{display:flex;align-items:center;gap:6px;}
+.serie-badge{width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sb-warmup{background:var(--amber-d);color:var(--amber);}
+.sb-work{background:var(--blue-d);color:var(--blue);}
+.serie-reps{width:48px!important;padding:5px 4px!important;text-align:center;font-size:12px;}
+.serie-peso{flex:1;font-size:12px;padding:5px 6px!important;}
+.serie-at{font-size:11px;color:var(--text3);flex-shrink:0;}
+.plan-display{font-size:10px;color:var(--text3);background:var(--bg4);border-radius:var(--rxs);padding:3px 8px;margin-bottom:2px;}
+/* Draft bar */
+.draft-bar{background:var(--amber-d);border:1px solid var(--amber);border-radius:var(--rsm);padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--amber);}
+.draft-bar-txt{flex:1;line-height:1.3;}
+.draft-btns{display:flex;gap:6px;flex-shrink:0;}
 .tend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
 .tend-up{background:var(--green);}
 .tend-flat{background:var(--amber);}
@@ -207,10 +223,17 @@ button:active{opacity:.7;transform:scale(.98);}
 
     <!-- REGISTRO -->
     <div id="tab-registro" class="tab active">
+      <div id="draft-bar" class="draft-bar" style="display:none;">
+        <span class="draft-bar-txt" id="draft-bar-txt">📝 Borrador guardado</span>
+        <div class="draft-btns">
+          <button class="btn-sm btn-blue" onclick="restoreDraft()">Restaurar</button>
+          <button class="btn-sm" onclick="clearDraft()">Descartar</button>
+        </div>
+      </div>
       <div class="card">
         <div class="card-title" style="margin-bottom:10px;">Nueva sesión</div>
         <div class="row2" style="margin-bottom:8px;">
-          <div class="field" style="margin:0;"><span class="label">Fecha</span><input type="date" id="r-fecha"/></div>
+          <div class="field" style="margin:0;"><span class="label">Fecha</span><input type="date" id="r-fecha" oninput="saveDraft()"/></div>
           <div class="field" style="margin:0;"><span class="label">Semana</span>
             <select id="r-semana" onchange="onSemChange()">
               <option value="S1">Sem 1 — Base</option>
@@ -232,11 +255,11 @@ button:active{opacity:.7;transform:scale(.98);}
           </select>
         </div>
         <div class="row3">
-          <div class="field" style="margin:0;"><span class="label">Energía /10</span><input type="number" id="r-energia" min="1" max="10" placeholder="7"/></div>
-          <div class="field" style="margin:0;"><span class="label">Duración min</span><input type="number" id="r-dur" placeholder="90"/></div>
-          <div class="field" style="margin:0;"><span class="label">Hora</span><input type="time" id="r-hora"/></div>
+          <div class="field" style="margin:0;"><span class="label">Energía /10</span><input type="number" id="r-energia" min="1" max="10" placeholder="7" oninput="saveDraft()"/></div>
+          <div class="field" style="margin:0;"><span class="label">Duración min</span><input type="number" id="r-dur" placeholder="90" oninput="saveDraft()"/></div>
+          <div class="field" style="margin:0;"><span class="label">Hora</span><input type="time" id="r-hora" oninput="saveDraft()"/></div>
         </div>
-        <div class="field" style="margin-top:8px;margin-bottom:0;"><span class="label">Dolor / molestias</span><input type="text" id="r-dolor" placeholder="Ej: hombro izq. leve"/></div>
+        <div class="field" style="margin-top:8px;margin-bottom:0;"><span class="label">Dolor / molestias</span><input type="text" id="r-dolor" placeholder="Ej: hombro izq. leve" oninput="saveDraft()"/></div>
       </div>
 
       <div id="plan-info" style="display:none;" class="alert alert-amber"></div>
@@ -253,7 +276,7 @@ button:active{opacity:.7;transform:scale(.98);}
 
       <div class="card">
         <div class="card-title" style="margin-bottom:8px;">Observaciones</div>
-        <textarea id="r-obs" placeholder="Sensaciones generales de la sesión..."></textarea>
+        <textarea id="r-obs" placeholder="Sensaciones generales de la sesión..." oninput="saveDraft()"></textarea>
       </div>
 
       <div style="display:flex;gap:8px;">
@@ -791,6 +814,7 @@ function onDiaChange(){
   var sem=document.getElementById("r-semana").value;
   exCount=0;
   document.getElementById("ex-list").innerHTML="";
+  saveDraft();
   document.getElementById("prog-wrap").style.display="none";
   document.getElementById("prog-lbl").style.display="none";
   var pi=document.getElementById("plan-info");
@@ -831,6 +855,7 @@ function onDiaChange(){
 function onSemChange(){
   var dia=document.getElementById("r-dia").value;
   if(dia) onDiaChange();
+  saveDraft();
 }
 
 function addExRow(data){
@@ -849,7 +874,7 @@ function addExRow(data){
     var prev=lastSessionForDia(data._dia,exName);
     if(prev){
       var pr=prev.session;var pe=prev.ex;
-      var ton=calcTonelaje(pe.sr,pe.pr);
+      var ton=calcTonelaje(pe.sr,pe.pr,pe.series);
       var prBadge=DB.prs[exName]&&DB.prs[exName].fecha===pr.fecha?"<span class='pr-badge'>PR</span>":"";
       prevHtml='<div class="prev-ref">📅 Última ('+pr.fecha+' · '+pr.semana+'): <b>'
         +(pe.sr&&pe.sr!=="omitido"?pe.sr:"—")+'</b>'
@@ -884,39 +909,101 @@ function addExRow(data){
   div.innerHTML=
     '<div class="ex-hdr">'
     +'<span class="ex-num '+numCls+'">'+id+'</span>'
-    +'<input class="ex-name-inp" type="text" id="ex-n-'+id+'" placeholder="Ejercicio"/>'
-    +'<button class="btn-red btn-xs" onclick="document.getElementById(\'ex-'+id+'\').remove();updProg()">✕</button>'
+    +'<input class="ex-name-inp" type="text" id="ex-n-'+id+'" placeholder="Ejercicio" oninput="saveDraft()"/>'
+    +'<button class="btn-red btn-xs" onclick="document.getElementById(\'ex-'+id+'\').remove();updProg();saveDraft();">✕</button>'
     +'</div>'
     +prevHtml
     +refHtml
     +noteHtml
     +(skip
-      ?'<div style="font-size:12px;color:var(--text3);padding:4px 0;">Omitido esta semana.</div>'
-      :'<div class="ex-grid">'
-      +'<div class="ex-fl"><span class="ex-lbl">Series prog.</span><input class="ex-inp" type="text" id="ex-sp-'+id+'" placeholder="3x10"/></div>'
-      +'<div class="ex-fl"><span class="ex-lbl">Peso prog. (kg)</span><input class="ex-inp" type="text" id="ex-pp-'+id+'" placeholder="50 kg"/></div>'
-      +'<div class="ex-fl"><span class="ex-lbl">Series real</span><input class="ex-inp" type="text" id="ex-sr-'+id+'" placeholder="3x12" oninput="updProg()"/></div>'
-      +'<div class="ex-fl"><span class="ex-lbl">Peso real (kg)</span><input class="ex-inp" type="text" id="ex-pr-'+id+'" placeholder="50 kg"/></div>'
+      ?'<div style="font-size:12px;color:var(--text3);padding:4px 0;">Omitido esta semana — sin series.</div>'
+      :'<div class="plan-display" id="ex-plan-'+id+'"></div>'
+      +'<div class="series-hdr">'
+      +'<span class="series-hdr-lbl">Series realizadas</span>'
+      +'<div style="display:flex;gap:5px;">'
+      +'<button class="btn-xs" onclick="addSerieRow('+id+',\'warmup\')" title="Agregar serie de calentamiento">+ Calent.</button>'
+      +'<button class="btn-xs btn-blue" onclick="addSerieRow('+id+',\'work\')" title="Agregar serie de trabajo">+ Serie</button>'
       +'</div>'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">'
-      +'<span class="ex-lbl" style="white-space:nowrap;">RIR (reps en reserva)</span>'
-      +'<input class="rir-inp" type="number" id="ex-rir-'+id+'" min="0" max="10" placeholder="0-5"/>'
+      +'</div>'
+      +'<div class="series-wrap" id="series-wrap-'+id+'"></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">'
+      +'<span class="ex-lbl" style="white-space:nowrap;">RIR</span>'
+      +'<input class="rir-inp" type="number" id="ex-rir-'+id+'" min="0" max="10" placeholder="0-5" oninput="saveDraft()"/>'
       +'<span style="font-size:10px;color:var(--text3);">0=fallo · 1-2=límite · 3+=fácil</span>'
       +'</div>')
-    +'<div class="ex-fl" style="margin-top:6px;"><span class="ex-lbl">Notas</span><input class="ex-inp" type="text" id="ex-nt-'+id+'" placeholder="Observaciones..."/></div>';
+    +'<div class="ex-fl" style="margin-top:6px;"><span class="ex-lbl">Notas</span><input class="ex-inp" type="text" id="ex-nt-'+id+'" placeholder="Observaciones..." oninput="saveDraft()"/></div>';
   document.getElementById("ex-list").appendChild(div);
 
   // Set values after DOM
   var ni=document.getElementById("ex-n-"+id);
-  var spi=document.getElementById("ex-sp-"+id);
-  var ppi=document.getElementById("ex-pp-"+id);
   if(ni&&data) ni.value=data.nombre||"";
-  if(spi&&data&&!skip) spi.value=data.serProg||"";
-  if(ppi&&data&&!skip) ppi.value=data.pesoProg||"";
+
+  if(!skip){
+    var sp=data?data.serProg||"":"";
+    var pp=data?data.pesoProg||"":"";
+    var planEl=document.getElementById("ex-plan-"+id);
+    if(planEl) planEl.textContent="Plan: "+(sp||"—")+" · "+(pp||"—");
+
+    // Auto-populate series rows
+    if(data&&data._series&&data._series.length){
+      // Restore from draft
+      data._series.forEach(function(s){ addSerieRow(id,s.tipo,s.reps,s.peso,true); });
+    } else {
+      // Build from plan: 1 warmup + N work sets
+      var parsed=parseSerReps(sp);
+      var planSets=parsed?parsed.sets:3;
+      var planReps=parsed?parsed.reps:null;
+      var workKg=parseKg(pp);
+      // Warmup suggestion: 50% of working weight, rounded to nearest 2.5 kg
+      var warmupKg=workKg?Math.round(workKg*0.5/2.5)*2.5:null;
+      var warmupPeso=warmupKg?(warmupKg+" kg"):"";
+      addSerieRow(id,"warmup",10,warmupPeso,true);
+      for(var s=0;s<planSets;s++){
+        addSerieRow(id,"work",planReps,pp,true);
+      }
+    }
+  }
 
   document.getElementById("prog-wrap").style.display="block";
   document.getElementById("prog-lbl").style.display="block";
   updProg();
+}
+
+function addSerieRow(exId, tipo, reps, peso, silent){
+  var wrap=document.getElementById("series-wrap-"+exId);
+  if(!wrap) return;
+  var isWarmup=(tipo==="warmup");
+  var workRows=wrap.querySelectorAll(".serie-work").length;
+  var badgeNum=isWarmup?"W":(workRows+1);
+  var badgeCls=isWarmup?"sb-warmup":"sb-work";
+  var row=document.createElement("div");
+  row.className="serie-row "+(isWarmup?"serie-warmup":"serie-work");
+  row.innerHTML=
+    '<span class="serie-badge '+badgeCls+'" style="font-size:9px;">'+badgeNum+'</span>'
+    +'<input type="number" class="ex-inp serie-reps" placeholder="reps" min="1" max="50"'
+    +' value="'+(reps||"")+'" oninput="updProg();saveDraft()">'
+    +'<span class="serie-at">@</span>'
+    +'<input type="text" class="ex-inp serie-peso" placeholder="kg"'
+    +' value="'+(peso||"")+'" oninput="saveDraft()">'
+    +'<button class="btn-red btn-xs" onclick="this.parentElement.remove();renumberSeries('+exId+');updProg();saveDraft();">✕</button>';
+  wrap.appendChild(row);
+  renumberSeries(exId);
+  if(!silent){ updProg(); saveDraft(); }
+}
+
+function renumberSeries(exId){
+  var wrap=document.getElementById("series-wrap-"+exId);
+  if(!wrap) return;
+  var wn=1;
+  wrap.querySelectorAll(".serie-row").forEach(function(row){
+    var badge=row.querySelector(".serie-badge");
+    if(!badge) return;
+    if(row.classList.contains("serie-warmup")){
+      badge.textContent="W"; badge.className="serie-badge sb-warmup";
+    } else {
+      badge.textContent=wn++; badge.className="serie-badge sb-work";
+    }
+  });
 }
 
 function updProg(){
@@ -924,8 +1011,17 @@ function updProg(){
   for(var i=1;i<=exCount;i++){
     if(!document.getElementById("ex-"+i)) continue;
     total++;
-    var sr=document.getElementById("ex-sr-"+i);
-    if(sr&&sr.value.trim()) done++;
+    // Count as done if at least one work series has reps filled
+    var wrap=document.getElementById("series-wrap-"+i);
+    if(wrap){
+      var workRows=wrap.querySelectorAll(".serie-work");
+      var hasDone=false;
+      workRows.forEach(function(row){
+        var repsEl=row.querySelector(".serie-reps");
+        if(repsEl&&repsEl.value.trim()) hasDone=true;
+      });
+      if(hasDone) done++;
+    }
   }
   var pct=total?Math.round(done/total*100):0;
   var pb=document.getElementById("prog-fill");
@@ -938,20 +1034,165 @@ function getExs(){
   var out=[];
   for(var i=1;i<=exCount;i++){
     if(!document.getElementById("ex-"+i)) continue;
-    var hasReal=!!document.getElementById("ex-sr-"+i);
+    var planEl=document.getElementById("ex-plan-"+i);
+    var planTxt=planEl?planEl.textContent.replace("Plan: ",""):"";
+    var planParts=planTxt.split(" · ");
+    var sp=planParts[0]||"";
+    var pp=planParts[1]||"";
     var rirEl=document.getElementById("ex-rir-"+i);
     var rirVal=rirEl&&rirEl.value.trim()!==""?parseInt(rirEl.value):null;
+    var wrap=document.getElementById("series-wrap-"+i);
+    var isSkip=!wrap;
+    // Read series data
+    var series=[];
+    if(wrap){
+      wrap.querySelectorAll(".serie-row").forEach(function(row){
+        var tipo=row.classList.contains("serie-warmup")?"warmup":"work";
+        var repsEl=row.querySelector(".serie-reps");
+        var pesoEl=row.querySelector(".serie-peso");
+        var reps=parseInt(repsEl?repsEl.value:0)||0;
+        var peso=(pesoEl?pesoEl.value:"").trim();
+        if(reps||peso) series.push({tipo:tipo,reps:reps,peso:peso});
+      });
+    }
+    // Generate sr/pr strings from work series (backward compat for calcs)
+    var workSeries=series.filter(function(s){return s.tipo==="work";});
+    var sr="omitido",pr="—";
+    if(workSeries.length>0){
+      // Group consecutive equal reps → "2x10+1x9"
+      var groups=[];
+      workSeries.forEach(function(s){
+        if(groups.length&&groups[groups.length-1].reps===s.reps){
+          groups[groups.length-1].count++;
+        } else {
+          groups.push({count:1,reps:s.reps||0});
+        }
+      });
+      sr=groups.map(function(g){return g.count+"x"+g.reps;}).join("+");
+      pr=workSeries[0].peso||"—";
+    }
     out.push({
       n:  (document.getElementById("ex-n-"+i)||{value:""}).value,
-      sp: hasReal?(document.getElementById("ex-sp-"+i)||{value:""}).value:"OMITIR",
-      pp: hasReal?(document.getElementById("ex-pp-"+i)||{value:""}).value:"—",
-      sr: hasReal?(document.getElementById("ex-sr-"+i)||{value:""}).value:"omitido",
-      pr: hasReal?(document.getElementById("ex-pr-"+i)||{value:""}).value:"—",
+      sp: isSkip?"OMITIR":sp,
+      pp: isSkip?"—":pp,
+      sr: sr,
+      pr: pr,
       notas:(document.getElementById("ex-nt-"+i)||{value:""}).value,
-      rir:rirVal,
+      rir: rirVal,
+      series: series,  // full per-series detail
     });
   }
   return out;
+}
+
+/* ── Draft auto-save ── */
+function saveDraft(){
+  try{
+    var d={
+      fecha:document.getElementById("r-fecha").value,
+      semana:document.getElementById("r-semana").value,
+      dia:document.getElementById("r-dia").value,
+      energia:(document.getElementById("r-energia")||{}).value||"",
+      dur:(document.getElementById("r-dur")||{}).value||"",
+      hora:(document.getElementById("r-hora")||{}).value||"",
+      dolor:(document.getElementById("r-dolor")||{}).value||"",
+      obs:(document.getElementById("r-obs")||{}).value||"",
+      exs:getExsDraft()
+    };
+    if(!d.fecha&&!d.dia&&!d.exs.length) return; // nothing to save
+    localStorage.setItem("nm-train-draft",JSON.stringify(d));
+  }catch(e){}
+}
+function getExsDraft(){
+  var out=[];
+  for(var i=1;i<=exCount;i++){
+    if(!document.getElementById("ex-"+i)) continue;
+    var planEl=document.getElementById("ex-plan-"+i);
+    var planTxt=planEl?planEl.textContent.replace("Plan: ",""):"";
+    var planParts=planTxt.split(" · ");
+    var wrap=document.getElementById("series-wrap-"+i);
+    var series=[];
+    if(wrap){
+      wrap.querySelectorAll(".serie-row").forEach(function(row){
+        var tipo=row.classList.contains("serie-warmup")?"warmup":"work";
+        var repsEl=row.querySelector(".serie-reps");
+        var pesoEl=row.querySelector(".serie-peso");
+        series.push({tipo:tipo,reps:parseInt(repsEl?repsEl.value:0)||0,peso:(pesoEl?pesoEl.value:"").trim()});
+      });
+    }
+    out.push({
+      n:(document.getElementById("ex-n-"+i)||{value:""}).value,
+      sp:planParts[0]||"",pp:planParts[1]||"",
+      rir:(document.getElementById("ex-rir-"+i)||{value:""}).value,
+      nt:(document.getElementById("ex-nt-"+i)||{value:""}).value,
+      series:series,
+      skip:!wrap
+    });
+  }
+  return out;
+}
+function loadDraft(){
+  try{
+    var raw=localStorage.getItem("nm-train-draft");
+    if(!raw) return;
+    var d=JSON.parse(raw);
+    if(!d||(!d.exs||!d.exs.length)&&!d.fecha) return;
+    var bar=document.getElementById("draft-bar");
+    var txt=document.getElementById("draft-bar-txt");
+    if(!bar) return;
+    var label="📝 Borrador guardado: "+(d.fecha||"?")+
+      (d.dia?" · "+d.dia.toUpperCase():"")+
+      (d.exs&&d.exs.length?" · "+d.exs.length+" ejercicios":"");
+    if(txt) txt.textContent=label;
+    bar.style.display="flex";
+  }catch(e){}
+}
+function restoreDraft(){
+  try{
+    var raw=localStorage.getItem("nm-train-draft");
+    if(!raw) return;
+    var d=JSON.parse(raw);
+    // Restore header fields
+    if(d.fecha) document.getElementById("r-fecha").value=d.fecha;
+    if(d.semana) document.getElementById("r-semana").value=d.semana;
+    if(d.dia){
+      document.getElementById("r-dia").value=d.dia;
+      // Don't call onDiaChange — we restore manually below
+    }
+    if(d.energia&&document.getElementById("r-energia")) document.getElementById("r-energia").value=d.energia;
+    if(d.dur&&document.getElementById("r-dur")) document.getElementById("r-dur").value=d.dur;
+    if(d.hora&&document.getElementById("r-hora")) document.getElementById("r-hora").value=d.hora;
+    if(d.dolor&&document.getElementById("r-dolor")) document.getElementById("r-dolor").value=d.dolor;
+    if(d.obs&&document.getElementById("r-obs")) document.getElementById("r-obs").value=d.obs;
+    // Restore exercises
+    document.getElementById("ex-list").innerHTML="";
+    exCount=0;
+    if(d.exs&&d.exs.length){
+      d.exs.forEach(function(ex){
+        addExRow({
+          nombre:ex.n||"",
+          serProg:ex.sp||"",
+          pesoProg:ex.pp||"",
+          skip:ex.skip||false,
+          _series:ex.series||[]
+        });
+        var id=exCount;
+        if(ex.rir&&document.getElementById("ex-rir-"+id)) document.getElementById("ex-rir-"+id).value=ex.rir;
+        if(ex.nt&&document.getElementById("ex-nt-"+id)) document.getElementById("ex-nt-"+id).value=ex.nt;
+      });
+      document.getElementById("prog-wrap").style.display="block";
+      document.getElementById("prog-lbl").style.display="block";
+      document.getElementById("plan-info").style.display="block";
+      document.getElementById("plan-info").textContent="Sesión restaurada desde borrador.";
+      updProg();
+    }
+    clearDraft();
+  }catch(e){ clearDraft(); }
+}
+function clearDraft(){
+  localStorage.removeItem("nm-train-draft");
+  var bar=document.getElementById("draft-bar");
+  if(bar) bar.style.display="none";
 }
 
 function saveSession(){
@@ -977,6 +1218,7 @@ function saveSession(){
   DB.sesiones.push(s);
   DB.sesiones.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
   saveDB();updateUI();
+  clearDraft();
   var prMsg=newPRs.length?" 🏆 ¡PR en: "+newPRs.join(", ")+"!":"";
   showAlert("r-alert","Sesión guardada correctamente."+prMsg,"green");
   clearForm();
@@ -993,6 +1235,7 @@ function clearForm(){
   document.getElementById("prog-lbl").style.display="none";
   document.getElementById("plan-info").style.display="none";
   exCount=0;
+  clearDraft();
 }
 
 // ═══════════════════ ALL SESSIONS ═══════════════════
@@ -1013,8 +1256,18 @@ function parseSerReps(str){
   if(!m) return null;
   return {sets:parseInt(m[1]),reps:parseInt(m[2])};
 }
-function calcTonelaje(sr,pr){
-  // sr="3x10", pr="50 kg" → 3*10*50 = 1500
+function calcTonelaje(sr,pr,series){
+  // If per-series array available, compute exactly: sum(reps_i * peso_i) for work sets
+  if(series&&series.length){
+    var total=0,valid=false;
+    series.forEach(function(s){
+      if(s.tipo!=="work") return;
+      var kg=parseKg(s.peso);
+      if(s.reps&&kg){ total+=s.reps*kg; valid=true; }
+    });
+    return valid?Math.round(total):null;
+  }
+  // Fallback: string format "3x10" + "50 kg"
   var s=parseSerReps(sr);
   var kg=parseKg(pr);
   if(!s||kg===null||kg===0) return null;
@@ -1169,7 +1422,7 @@ function renderHistorial(){
       var color=PLAN[s.dia]&&PLAN[s.dia].color==="green"?"var(--green)":"var(--blue)";
       var sessionTon=0;
       var exStr=s.ejercicios.map(function(e){
-        var ton=calcTonelaje(e.sr,e.pr);
+        var ton=calcTonelaje(e.sr,e.pr,e.series);
         if(ton) sessionTon+=ton;
         var isPR=DB.prs[e.n]&&DB.prs[e.n].fecha===s.fecha;
         return '<b>'+e.n+'</b> '
@@ -1511,7 +1764,7 @@ function renderGraficos(){
   var totalEx=all.reduce(function(a,s){return a+s.ejercicios.length;},0);
   var dias=new Set(all.map(function(s){return s.dia;})).size;
   var totalTon=0;
-  all.forEach(function(s){s.ejercicios.forEach(function(e){var t=calcTonelaje(e.sr,e.pr);if(t)totalTon+=t;});});
+  all.forEach(function(s){s.ejercicios.forEach(function(e){var t=calcTonelaje(e.sr,e.pr,e.series);if(t)totalTon+=t;});});
   document.getElementById("g-metrics").innerHTML=
     '<div class="mc"><div class="mc-val">'+all.length+'</div><div class="mc-lbl">Sesiones</div></div>'
     +'<div class="mc"><div class="mc-val">'+dias+'</div><div class="mc-lbl">Días distintos</div></div>'
@@ -1895,6 +2148,7 @@ document.getElementById("r-fecha").value=today();
 document.getElementById("r-hora").value=nowT();
 document.getElementById("ib-fecha").value=today();
 loadDB();
+loadDraft();
 </script>
 </body>
 </html>
