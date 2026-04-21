@@ -1783,35 +1783,48 @@ function renderHoy(){
     } else {
       // itemsReal existe — mostrar sección editable completa
       var rItems = planHoy.itemsReal;
-      var rTotals = _sumRealTotals(fecha);
-      var tgt = getMacroTargets(fecha);
-      var nCons = rItems.filter(function(i){ return i.consumido; }).length;
-      var _bar2 = function(label, val, obj, unit, color){
-        var pct = obj>0 ? Math.round(val/obj*1000)/10 : 0;
+      var rCons  = _sumRealTotals(fecha, true);   // solo consumidos → actualiza al tickear
+      var rPlan  = _sumRealTotals(fecha, false);  // total del plan real
+      var tgt    = getMacroTargets(fecha);
+      var nCons  = rItems.filter(function(i){ return i.consumido; }).length;
+      // Usar valores consumidos (o 0 si aún no hay)
+      var cCal  = rCons ? rCons.cal  : 0;
+      var cProt = rCons ? rCons.prot : 0;
+      var cGras = rCons ? rCons.gras : 0;
+      var cCarb = rCons ? rCons.carb : 0;
+      var pCal  = rPlan ? rPlan.cal  : 0;
+      var _bar2 = function(label, cons, plan, obj, unit, color){
+        var pct  = obj>0 ? Math.round(cons/obj*1000)/10 : 0;
         var pctC = pct>100?"var(--red)":pct>=90?color:pct>=70?"var(--amber)":"var(--text3)";
-        var diff = Math.round(val-obj);
-        var diffLbl = diff===0?"<span style='color:var(--green);'>✓ exacto</span>"
-          :diff>0?"<span style='color:var(--red);'>+"+diff+unit+"</span>"
-          :"<span style='color:"+color+";'>"+diff+unit+"</span>";
+        var diff = Math.round(cons-obj);
+        var diffLbl = nCons===0 ? "<span style='color:var(--text3);'>sin consumidos aún</span>"
+          : diff===0 ? "<span style='color:var(--green);'>✓ exacto</span>"
+          : diff>0   ? "<span style='color:var(--red);'>+"+diff+unit+"</span>"
+          :             "<span style='color:"+color+";'>faltan "+Math.abs(diff)+unit+"</span>";
         return "<div style='margin-bottom:8px;'>"+
           "<div style='display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;'>"+
             "<span style='color:var(--text2);font-weight:600;'>"+label+"</span>"+
-            "<span><strong style='color:"+pctC+";'>"+pct+"%</strong> · "+val+unit+" / "+obj+unit+" · "+diffLbl+"</span>"+
+            "<span><strong style='color:"+pctC+";'>"+cons+unit+"</strong>"+
+              "<span style='color:var(--text3);'> / obj "+obj+unit+"</span>"+
+              " · "+diffLbl+"</span>"+
           "</div>"+
-          "<div style='height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;'>"+
-            "<div style='height:100%;width:"+Math.min(100,pct)+"%;background:"+color+";border-radius:3px;transition:width .3s;'></div>"+
+          "<div style='height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;position:relative;'>"+
+            // plan total faint bar
+            (plan>0&&obj>0?"<div style='position:absolute;height:100%;width:"+Math.min(100,Math.round(plan/obj*100))+"%;background:"+color+";opacity:0.18;border-radius:3px;'></div>":"")+
+            // consumed solid bar
+            "<div style='position:relative;height:100%;width:"+Math.min(100,pct)+"%;background:"+color+";border-radius:3px;transition:width .4s;'></div>"+
           "</div></div>";
       };
       var barsHtml =
         "<div style='background:var(--bg3);border-radius:10px;padding:10px 12px;margin-bottom:10px;'>"+
         "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>"+
-          "<span style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;'>Seguimiento vs objetivo</span>"+
-          "<span style='font-size:11px;color:var(--text2);'>"+nCons+" / "+rItems.length+" ✓</span>"+
+          "<span style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;'>Consumido vs objetivo</span>"+
+          "<span style='font-size:11px;color:var(--text2);'>"+nCons+"/"+rItems.length+" ✓ · plan "+pCal+" kcal</span>"+
         "</div>"+
-        _bar2("Calorías", rTotals.cal, tgt.cal, " kcal","var(--blue)")+
-        _bar2("Proteínas", rTotals.prot, tgt.prot, "g", "var(--green)")+
-        _bar2("Grasas",    rTotals.gras, tgt.gras, "g", "var(--amber)")+
-        _bar2("Carbos",    rTotals.carb, tgt.carb, "g", "var(--purple)")+
+        _bar2("Calorías",  cCal,  pCal,  tgt.cal,  " kcal","var(--blue)")+
+        _bar2("Proteínas", cProt, rPlan?rPlan.prot:0, tgt.prot, "g","var(--green)")+
+        _bar2("Grasas",    cGras, rPlan?rPlan.gras:0, tgt.gras, "g","var(--amber)")+
+        _bar2("Carbos",    cCarb, rPlan?rPlan.carb:0, tgt.carb, "g","var(--purple)")+
         "</div>";
       var groupHtml = "";
       var allComidas2 = COMIDAS.concat([{key:null,label:"Sin categoría",maxHora:null}]);
@@ -3151,11 +3164,12 @@ function deletePlanItem(planId, itemId){
 }
 
 // ─────────── SEGUIMIENTO REAL (Hoy tab) ───────────
-function _sumRealTotals(fecha){
+function _sumRealTotals(fecha, onlyConsumed){
   var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
   if(!plan || !plan.itemsReal) return null;
   var cal=0, prot=0, gras=0, carb=0;
   plan.itemsReal.forEach(function(i){
+    if(onlyConsumed && !i.consumido) return;
     cal  += parseFloat(i.cal)  || 0;
     prot += parseFloat(i.prot) || 0;
     gras += parseFloat(i.gras) || 0;
