@@ -1783,15 +1783,18 @@ function renderHoy(){
     } else {
       // itemsReal existe — mostrar sección editable completa
       var rItems = planHoy.itemsReal;
-      var rCons  = _sumRealTotals(fecha, true);   // solo consumidos → actualiza al tickear
       var rPlan  = _sumRealTotals(fecha, false);  // total del plan real
       var tgt    = getMacroTargets(fecha);
       var nCons  = rItems.filter(function(i){ return i.consumido; }).length;
-      // Usar valores consumidos (o 0 si aún no hay)
-      var cCal  = rCons ? rCons.cal  : 0;
-      var cProt = rCons ? rCons.prot : 0;
-      var cGras = rCons ? rCons.gras : 0;
-      var cCarb = rCons ? rCons.carb : 0;
+      // Consumidos: leer desde DB.registros (misma fuente que barra principal — siempre confiable)
+      var cCal=0, cProt=0, cGras=0, cCarb=0;
+      DB.registros.filter(function(r){ return r.fecha===fecha; }).forEach(function(r){
+        cCal  += parseFloat(r.cal)  || 0;
+        cProt += parseFloat(r.prot) || 0;
+        cGras += parseFloat(r.gras) || 0;
+        cCarb += parseFloat(r.carb) || 0;
+      });
+      cCal=Math.round(cCal); cProt=Math.round(cProt); cGras=Math.round(cGras); cCarb=Math.round(cCarb);
       var pCal  = rPlan ? rPlan.cal  : 0;
       var _bar2 = function(label, cons, plan, obj, unit, color){
         var pct  = obj>0 ? Math.round(cons/obj*1000)/10 : 0;
