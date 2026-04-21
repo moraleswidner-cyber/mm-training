@@ -228,6 +228,7 @@ button:active{opacity:.7;transform:scale(.98);}
   <div id="nav">
     <button class="tab-btn active" onclick="showTab('hoy',this)">Hoy</button>
     <button class="tab-btn" onclick="showTab('semana',this)">Semana</button>
+    <button class="tab-btn" onclick="showTab('progreso',this)">Progreso</button>
     <button class="tab-btn" onclick="showTab('metas',this)">Metas</button>
     <button class="tab-btn" onclick="showTab('alimentos',this)">Alimentos</button>
     <button class="tab-btn" onclick="showTab('menus',this)">Menús</button>
@@ -325,6 +326,35 @@ button:active{opacity:.7;transform:scale(.98);}
       <div class="card" style="margin-top:10px;">
         <div class="card-title" style="margin-bottom:8px;">Macros promedio semanal</div>
         <div id="semana-macros"></div>
+      </div>
+    </div>
+
+    <!-- ===== TAB PROGRESO ===== -->
+    <div id="tab-progreso" class="tab">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title" style="margin:0;">Calorías — plan vs consumido</div>
+          <div style="display:flex;gap:5px;">
+            <button class="btn-xs" id="prog-btn-7"  onclick="setProgresoRange(7,this)">7d</button>
+            <button class="btn-xs btn-blue" id="prog-btn-14" onclick="setProgresoRange(14,this)">14d</button>
+            <button class="btn-xs" id="prog-btn-30" onclick="setProgresoRange(30,this)">30d</button>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:180px;"><canvas id="ch-prog-cal" role="img" aria-label="Cumplimiento calórico diario"></canvas></div>
+        <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--text2);">
+          <span><span style="display:inline-block;width:10px;height:10px;background:var(--blue);border-radius:2px;margin-right:3px;"></span>Consumido</span>
+          <span><span style="display:inline-block;width:18px;height:2px;background:#f5a623;margin-right:3px;vertical-align:middle;"></span>Objetivo</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:var(--green);border-radius:2px;margin-right:3px;"></span>≥90%</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:var(--amber);border-radius:2px;margin-right:3px;"></span>70-89%</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px;">Macros diarios</div>
+        <div id="prog-macro-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Tabla de cumplimiento</div>
+        <div id="prog-table"></div>
       </div>
     </div>
 
@@ -553,6 +583,19 @@ button:active{opacity:.7;transform:scale(.98);}
         <span id="fa-db-badge-nombre" style="font-size:13px;font-weight:600;flex:1;color:var(--green);"></span>
         <button type="button" style="background:transparent;color:var(--text2);font-size:11px;padding:2px 8px;border:1px solid var(--bord2);border-radius:var(--rxs);" onclick="clearFoodSelection()">cambiar</button>
       </div>
+    </div>
+
+    <!-- Comida -->
+    <div class="field">
+      <label class="label">Momento del día</label>
+      <select id="fa-comida">
+        <option value="">— Sin categoría —</option>
+        <option value="desayuno">Desayuno</option>
+        <option value="colacion1">Colación</option>
+        <option value="almuerzo">Almuerzo</option>
+        <option value="colacion2">Colación tarde</option>
+        <option value="cena">Cena</option>
+      </select>
     </div>
 
     <div id="fa-or-label" style="margin-bottom:10px;font-size:11px;color:var(--text2);">— o ingresá manualmente —</div>
@@ -834,6 +877,7 @@ button:active{opacity:.7;transform:scale(.98);}
     <input type="hidden" id="plan-db-unit-nombre"/>
     <input type="hidden" id="plan-edit-id"/>
     <input type="hidden" id="plan-edit-plan-id"/>
+    <input type="hidden" id="plan-edit-mode" value="plan"/>
   </div>
 </div>
 
@@ -1707,66 +1751,115 @@ function renderHoy(){
     }
   }
 
-  // ── Plan de comidas del día (compacto, con checkboxes → sync a Alimentos registrados) ──
+  // ── Seguimiento real del día ──
   var planHoyEl = document.getElementById("plan-hoy-section");
   if(planHoyEl){
     var planHoy = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
-    if(planHoy && planHoy.items.length){
-      var totalPlanCal = planHoy.items.reduce(function(s,i){ return s+(i.cal||0); }, 0);
-      var nConsPlan    = planHoy.items.filter(function(i){ return i.consumido; }).length;
-      var planGroupHtml = "";
-      // Grouped by meal category
+    if(!planHoy || !planHoy.items.length){
+      planHoyEl.innerHTML = "";
+    } else if(!planHoy.itemsReal){
+      // Plan existe pero no hay seguimiento iniciado — mostrar plan en lectura + botón iniciar
+      var previewCal = planHoy.items.reduce(function(s,i){ return s+(parseFloat(i.cal)||0); },0);
+      var previewHtml = "";
       COMIDAS.forEach(function(c){
         var cItems = planHoy.items.filter(function(i){ return i.comida===c.key; });
         if(!cItems.length) return;
-        planGroupHtml += "<div style='font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px;'>"+c.label+
-          " <span style='color:var(--text3);font-weight:400;'>máx "+c.maxHora+"</span></div>";
-        planGroupHtml += cItems.map(function(item){
-          var consPct = item.consumido ? " consumido" : "";
-          return "<div class='plan-item"+consPct+"' style='margin-bottom:4px;'>"+
-            "<div class='plan-check' onclick='togglePlanItem(\""+planHoy.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
-            "<div class='plan-item-info'>"+
-              "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
-              "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g</div>"+
-            "</div>"+
+        previewHtml += "<div style='font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px;'>"+c.label+"</div>";
+        previewHtml += cItems.map(function(item){
+          return "<div style='display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bord);'>"+
+            "<div style='flex:1;font-size:12px;color:var(--text2);'>"+esc(item.nombre)+"</div>"+
+            "<div style='font-size:11px;color:var(--text3);'>"+Math.round(item.cal||0)+" kcal</div>"+
           "</div>";
         }).join("");
       });
-      // Items without category
-      var nocat = planHoy.items.filter(function(i){ return !i.comida; });
-      if(nocat.length){
-        planGroupHtml += "<div style='font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px;'>Sin categoría</div>";
-        planGroupHtml += nocat.map(function(item){
-          return "<div class='plan-item"+(item.consumido?" consumido":"")+"' style='margin-bottom:4px;'>"+
-            "<div class='plan-check' onclick='togglePlanItem(\""+planHoy.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
-            "<div class='plan-item-info'>"+
-              "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
-              "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g</div>"+
-            "</div>"+
-          "</div>";
-        }).join("");
-      }
       planHoyEl.innerHTML =
         "<div class='section-hdr' style='margin-top:12px;'>"+
-          "<span class='section-title'>Plan de comidas</span>"+
-          "<span style='font-size:11px;color:var(--text2);'>"+nConsPlan+"/"+planHoy.items.length+" · "+Math.round(totalPlanCal)+" kcal</span>"+
+          "<span class='section-title'>Menú propuesto</span>"+
+          "<span style='font-size:11px;color:var(--text2);'>"+Math.round(previewCal)+" kcal</span>"+
         "</div>"+
-        "<div style='font-size:11px;color:var(--text2);margin-bottom:8px;'>"+
-          "✓ = marca como comido y suma a <em>Alimentos registrados</em>"+
-        "</div>"+
-        "<div>"+planGroupHtml+"</div>";
+        "<div style='font-size:11px;color:var(--text2);margin-bottom:10px;'>Este es el menú planificado. Inicia el seguimiento para editar lo que realmente comiste.</div>"+
+        previewHtml+
+        "<button class='btn-blue btn-full' style='margin-top:12px;' onclick='initRealItems(\""+planHoy.id+"\")'>▶ Iniciar seguimiento del día</button>";
     } else {
-      planHoyEl.innerHTML = "";
+      // itemsReal existe — mostrar sección editable completa
+      var rItems = planHoy.itemsReal;
+      var rTotals = _sumRealTotals(fecha);
+      var tgt = getMacroTargets(fecha);
+      var nCons = rItems.filter(function(i){ return i.consumido; }).length;
+      var _bar2 = function(label, val, obj, unit, color){
+        var pct = obj>0 ? Math.round(val/obj*1000)/10 : 0;
+        var pctC = pct>100?"var(--red)":pct>=90?color:pct>=70?"var(--amber)":"var(--text3)";
+        var diff = Math.round(val-obj);
+        var diffLbl = diff===0?"<span style='color:var(--green);'>✓ exacto</span>"
+          :diff>0?"<span style='color:var(--red);'>+"+diff+unit+"</span>"
+          :"<span style='color:"+color+";'>"+diff+unit+"</span>";
+        return "<div style='margin-bottom:8px;'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;'>"+
+            "<span style='color:var(--text2);font-weight:600;'>"+label+"</span>"+
+            "<span><strong style='color:"+pctC+";'>"+pct+"%</strong> · "+val+unit+" / "+obj+unit+" · "+diffLbl+"</span>"+
+          "</div>"+
+          "<div style='height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;'>"+
+            "<div style='height:100%;width:"+Math.min(100,pct)+"%;background:"+color+";border-radius:3px;transition:width .3s;'></div>"+
+          "</div></div>";
+      };
+      var barsHtml =
+        "<div style='background:var(--bg3);border-radius:10px;padding:10px 12px;margin-bottom:10px;'>"+
+        "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>"+
+          "<span style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;'>Seguimiento vs objetivo</span>"+
+          "<span style='font-size:11px;color:var(--text2);'>"+nCons+" / "+rItems.length+" ✓</span>"+
+        "</div>"+
+        _bar2("Calorías", rTotals.cal, tgt.cal, " kcal","var(--blue)")+
+        _bar2("Proteínas", rTotals.prot, tgt.prot, "g", "var(--green)")+
+        _bar2("Grasas",    rTotals.gras, tgt.gras, "g", "var(--amber)")+
+        _bar2("Carbos",    rTotals.carb, tgt.carb, "g", "var(--purple)")+
+        "</div>";
+      var groupHtml = "";
+      var allComidas2 = COMIDAS.concat([{key:null,label:"Sin categoría",maxHora:null}]);
+      allComidas2.forEach(function(c){
+        var cItems = rItems.filter(function(i){ return c.key===null?!i.comida:(i.comida===c.key); });
+        if(c.key===null && !cItems.length) return;
+        var catCal = cItems.reduce(function(s,i){ return s+(parseFloat(i.cal)||0); },0);
+        groupHtml += "<div style='margin-bottom:14px;'>"+
+          "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;'>"+
+            "<span style='font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;'>"+c.label+(c.maxHora?"<span style='color:var(--text3);font-weight:400;margin-left:5px;font-size:9px;'>máx "+c.maxHora+"</span>":"")+"</span>"+
+            "<div style='display:flex;align-items:center;gap:6px;'>"+
+              "<span style='font-size:10px;color:var(--text3);'>"+Math.round(catCal)+" kcal</span>"+
+              (c.key!==null?"<button class='btn-xs' style='padding:2px 7px;font-size:10px;' onclick='openModalAddRealItem(\""+c.key+"\",\""+planHoy.id+"\")'>+ agregar</button>":"")+
+            "</div>"+
+          "</div>"+
+          (cItems.length ? cItems.map(function(item){
+            var cantLbl = item.cantUnidades&&item.unitNombre?item.cantUnidades+" "+item.unitNombre+(item.cantUnidades>1?"s":""):(item.cantidad?item.cantidad+"g":"");
+            return "<div class='plan-item"+(item.consumido?" consumido":"")+"' style='margin-bottom:4px;'>"+
+              "<div class='plan-check' onclick='toggleRealItem(\""+planHoy.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
+              "<div class='plan-item-info'>"+
+                "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
+                "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal"+(cantLbl?" · "+cantLbl:"")+" · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g C:"+Math.round(item.carb||0)+"g</div>"+
+              "</div>"+
+              "<div style='display:flex;gap:3px;flex-shrink:0;'>"+
+                "<button class='btn-xs btn-amber' onclick='openModalEditRealItem(\""+planHoy.id+"\",\""+item.id+"\")'>✎</button>"+
+                "<button class='btn-xs btn-red' onclick='deleteRealItem(\""+planHoy.id+"\",\""+item.id+"\")'>✕</button>"+
+              "</div>"+
+            "</div>";
+          }).join("") : "<div style='font-size:11px;color:var(--text3);padding:4px 0;font-style:italic;'>Sin alimentos</div>")+
+        "</div>";
+      });
+      planHoyEl.innerHTML =
+        "<div class='section-hdr' style='margin-top:12px;'>"+
+          "<span class='section-title'>Seguimiento de hoy</span>"+
+          "<button class='btn-xs' style='font-size:10px;' onclick='resetRealItems(\""+planHoy.id+"\")' title='Reiniciar desde plan'>↺ Reiniciar</button>"+
+        "</div>"+
+        barsHtml+
+        groupHtml;
     }
   }
 
-  // List alimentos
+  // List alimentos — agrupados por comida
   var listAlim = document.getElementById("list-alimentos-hoy");
   var regsHoy  = DB.registros.filter(function(r){ return r.fecha===fecha; });
   if(!regsHoy.length){
     listAlim.innerHTML = "<div class='empty-hint'>Sin alimentos registrados</div>";
   } else {
-    listAlim.innerHTML = regsHoy.map(function(r){
+    var _renderReg = function(r){
       var cantLabel = "";
       if(r.cantUnidades && r.unitNombre){
         var n = r.cantUnidades;
@@ -1781,7 +1874,24 @@ function renderHoy(){
         "<button class='btn-xs btn-green' onclick='openModalAlimento(\""+r.id+"\")'>✏️</button>"+
         "<button class='btn-xs btn-red' onclick='deleteRegistro(\""+r.id+"\")'>✕</button>"+
         "</div></div>";
-    }).join("");
+    };
+    var regHtml = "";
+    var allCom = COMIDAS.concat([{key:null, label:"Sin categoría"}]);
+    allCom.forEach(function(c){
+      var cRegs = regsHoy.filter(function(r){ return c.key===null ? !r.comida : r.comida===c.key; });
+      if(!cRegs.length) return;
+      var catCal = cRegs.reduce(function(s,r){ return s+(r.cal||0); },0);
+      regHtml +=
+        "<div style='display:flex;align-items:center;justify-content:space-between;margin:10px 0 4px;'>"+
+          "<span style='font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;'>"+c.label+"</span>"+
+          "<div style='display:flex;align-items:center;gap:8px;'>"+
+            "<span style='font-size:10px;color:var(--text3);'>"+Math.round(catCal)+" kcal</span>"+
+            (c.key!==null?"<button class='btn-xs' style='padding:2px 7px;font-size:10px;' onclick='openModalAlimento(null,\""+c.key+"\")'>+ agregar</button>":"")+
+          "</div>"+
+        "</div>"+
+        cRegs.map(_renderReg).join("");
+    });
+    listAlim.innerHTML = regHtml;
   }
 }
 
@@ -2563,23 +2673,25 @@ function updateFaFromUnits(){
   updateFaPreview();
 }
 
-function openModalAlimento(editId){
+function openModalAlimento(editId, comidaDefault){
   ["fa-nombre","fa-cal","fa-cant","fa-prot","fa-gras","fa-carb"].forEach(function(id){ document.getElementById(id).value=""; });
   ["fa-edit-id","fa-db-id","fa-db-cal100","fa-db-prot100","fa-db-gras100","fa-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
   document.getElementById("food-search-input").value="";
   document.getElementById("food-results").classList.remove("show");
+  document.getElementById("fa-comida").value = comidaDefault||"";
   _resetCantMode();
 
   if(editId){
     var r = DB.registros.find(function(r){ return r.id===editId; });
     if(r){
-      document.getElementById("fa-edit-id").value = editId;
-      document.getElementById("fa-nombre").value  = r.nombre||"";
-      document.getElementById("fa-cal").value     = r.cal||"";
-      document.getElementById("fa-prot").value    = r.prot||"";
-      document.getElementById("fa-gras").value    = r.gras||"";
-      document.getElementById("fa-carb").value    = r.carb||"";
-      document.getElementById("fa-cant").value    = r.cantidad||"";
+      document.getElementById("fa-edit-id").value  = editId;
+      document.getElementById("fa-nombre").value   = r.nombre||"";
+      document.getElementById("fa-cal").value      = r.cal||"";
+      document.getElementById("fa-prot").value     = r.prot||"";
+      document.getElementById("fa-gras").value     = r.gras||"";
+      document.getElementById("fa-carb").value     = r.carb||"";
+      document.getElementById("fa-cant").value     = r.cantidad||"";
+      document.getElementById("fa-comida").value   = r.comida||"";
     }
   } else {
     document.getElementById("fa-cant").value = "100";
@@ -2682,7 +2794,7 @@ function saveAlimentoHoy(){
   var editId = document.getElementById("fa-edit-id").value;
   if(editId){
     var idx = DB.registros.findIndex(function(r){ return r.id===editId; });
-    if(idx>=0) DB.registros[idx] = Object.assign(DB.registros[idx], {nombre:nombre,cal:cal,prot:prot,gras:gras,carb:carb,cantidad:cant,cantUnidades:cantUnidades,unitNombre:unitNombre});
+    if(idx>=0) DB.registros[idx] = Object.assign(DB.registros[idx], {nombre:nombre,cal:cal,prot:prot,gras:gras,carb:carb,cantidad:cant,cantUnidades:cantUnidades,unitNombre:unitNombre,comida:document.getElementById("fa-comida").value||null});
   } else {
     var now = new Date();
     DB.registros.push({
@@ -2691,7 +2803,8 @@ function saveAlimentoHoy(){
       hora:  pad2(now.getHours())+":"+pad2(now.getMinutes()),
       nombre:nombre, cal:cal, prot:prot, gras:gras, carb:carb,
       cantidad:cant, cantUnidades:cantUnidades, unitNombre:unitNombre,
-      dbId: document.getElementById("fa-db-id").value||null
+      dbId: document.getElementById("fa-db-id").value||null,
+      comida: document.getElementById("fa-comida").value||null
     });
   }
   saveDB();
@@ -3037,6 +3150,90 @@ function deletePlanItem(planId, itemId){
   saveDB(); renderMenuPropuesto(); renderHoy();
 }
 
+// ─────────── SEGUIMIENTO REAL (Hoy tab) ───────────
+function _sumRealTotals(fecha){
+  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  if(!plan || !plan.itemsReal) return null;
+  var cal=0, prot=0, gras=0, carb=0;
+  plan.itemsReal.forEach(function(i){
+    cal  += parseFloat(i.cal)  || 0;
+    prot += parseFloat(i.prot) || 0;
+    gras += parseFloat(i.gras) || 0;
+    carb += parseFloat(i.carb) || 0;
+  });
+  return { cal:Math.round(cal), prot:Math.round(prot), gras:Math.round(gras), carb:Math.round(carb), plan:plan };
+}
+
+function initRealItems(planId){
+  var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
+  if(!plan) return;
+  plan.itemsReal = plan.items.map(function(i){
+    return { id:"ri"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
+      nombre:i.nombre, cal:i.cal, prot:i.prot||0, gras:i.gras||0, carb:i.carb||0,
+      cantidad:i.cantidad||null, cantUnidades:i.cantUnidades||null, unitNombre:i.unitNombre||null,
+      dbId:i.dbId||null, comida:i.comida||null, consumido:false, registroId:null };
+  });
+  saveDB(); renderHoy();
+}
+
+function resetRealItems(planId){
+  if(!confirm("¿Reiniciar el seguimiento de hoy desde el plan original? Se perderán los cambios de hoy.")) return;
+  var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
+  if(!plan) return;
+  // Remove registros linked to real items
+  if(plan.itemsReal) plan.itemsReal.forEach(function(i){
+    if(i.registroId) DB.registros = DB.registros.filter(function(r){ return r.id!==i.registroId; });
+  });
+  plan.itemsReal = null;
+  saveDB(); renderHoy();
+}
+
+function toggleRealItem(planId, itemId){
+  var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
+  if(!plan || !plan.itemsReal) return;
+  var item = plan.itemsReal.find(function(i){ return i.id===itemId; });
+  if(!item) return;
+  if(!item.consumido){
+    var now = new Date();
+    var reg = { id:Date.now()+"_r", fecha:plan.fecha,
+      hora:pad2(now.getHours())+":"+pad2(now.getMinutes()),
+      nombre:item.nombre, cal:item.cal, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
+      cantidad:item.cantidad||null, dbId:item.dbId||null };
+    DB.registros.push(reg);
+    item.consumido = true; item.registroId = reg.id;
+  } else {
+    if(item.registroId) DB.registros = DB.registros.filter(function(r){ return r.id!==item.registroId; });
+    item.consumido = false; item.registroId = null;
+  }
+  saveDB(); renderHoy();
+}
+
+function deleteRealItem(planId, itemId){
+  var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
+  if(!plan || !plan.itemsReal) return;
+  var item = plan.itemsReal.find(function(i){ return i.id===itemId; });
+  if(item && item.consumido && item.registroId)
+    DB.registros = DB.registros.filter(function(r){ return r.id!==item.registroId; });
+  plan.itemsReal = plan.itemsReal.filter(function(i){ return i.id!==itemId; });
+  saveDB(); renderHoy();
+}
+
+function openModalAddRealItem(comida, planId){
+  _planEditMode = "real";
+  _realPlanId = planId;
+  document.getElementById("plan-edit-mode").value = "real";
+  openModalAddPlanItem(comida);
+  document.getElementById("modal-plan-title").textContent = "Agregar — seguimiento real";
+}
+
+function openModalEditRealItem(planId, itemId){
+  _planEditMode = "real";
+  _realPlanId = planId;
+  document.getElementById("plan-edit-mode").value = "real";
+  openModalEditPlanItem(planId, itemId, true);
+  document.getElementById("modal-plan-title").textContent = "Editar — seguimiento real";
+}
+
 // Modal: agregar alimento al plan
 function openModalAddPlanItem(comida){
   _planPorciones = 1;
@@ -3060,10 +3257,14 @@ function openModalAddPlanItem(comida){
   openModal("modal-plan-alimento");
 }
 
-function openModalEditPlanItem(planId, itemId){
+function openModalEditPlanItem(planId, itemId, useReal){
+  _planEditMode = useReal ? "real" : "plan";
+  document.getElementById("plan-edit-mode").value = _planEditMode;
   var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
   if(!plan) return;
-  var item = plan.items.find(function(i){ return i.id===itemId; });
+  var item = useReal && plan.itemsReal
+    ? plan.itemsReal.find(function(i){ return i.id===itemId; })
+    : plan.items.find(function(i){ return i.id===itemId; });
   if(!item) return;
   // Reset first
   document.getElementById("plan-search-input").value = "";
@@ -3083,9 +3284,24 @@ function openModalEditPlanItem(planId, itemId){
   document.getElementById("plan-carb").value = item.carb||0;
   document.getElementById("plan-cant").value = item.cantidad||100;
   document.getElementById("plan-db-id").value = item.dbId||"";
-  ["plan-db-cal100","plan-db-prot100","plan-db-gras100","plan-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
   document.getElementById("plan-db-peso-unidad").value = "";
   document.getElementById("plan-db-unit-nombre").value = "";
+  // Restaurar valores por 100g para que updatePlanPreview pueda recalcular al editar cantidad
+  var _dbFood = item.dbId ? DB.alimentos.find(function(f){ return f.id===item.dbId; }) : null;
+  if(_dbFood){
+    document.getElementById("plan-db-cal100").value  = _dbFood.cal;
+    document.getElementById("plan-db-prot100").value = _dbFood.prot;
+    document.getElementById("plan-db-gras100").value = _dbFood.gras;
+    document.getElementById("plan-db-carb100").value = _dbFood.carb;
+    if(_dbFood.pesoUnidad) document.getElementById("plan-db-peso-unidad").value = _dbFood.pesoUnidad;
+  } else if(item.cantidad && item.cantidad > 0){
+    document.getElementById("plan-db-cal100").value  = Math.round((parseFloat(item.cal)||0)  / item.cantidad * 100);
+    document.getElementById("plan-db-prot100").value = Math.round((parseFloat(item.prot)||0) / item.cantidad * 1000) / 10;
+    document.getElementById("plan-db-gras100").value = Math.round((parseFloat(item.gras)||0) / item.cantidad * 1000) / 10;
+    document.getElementById("plan-db-carb100").value = Math.round((parseFloat(item.carb)||0) / item.cantidad * 1000) / 10;
+  } else {
+    ["plan-db-cal100","plan-db-prot100","plan-db-gras100","plan-db-carb100"].forEach(function(id){ document.getElementById(id).value=""; });
+  }
   if(item.cantUnidades && item.unitNombre){
     document.getElementById("plan-cant-units").value = item.cantUnidades;
     document.getElementById("plan-db-unit-nombre").value = item.unitNombre;
@@ -3171,6 +3387,8 @@ function updatePlanPreview(){
 
 var _planCantMode = "g";
 var _planPorciones = 1;
+var _planEditMode = "plan"; // "plan" | "real"
+var _realPlanId = null;
 
 function changePlanPorciones(delta){
   _planPorciones = Math.max(1, _planPorciones + delta);
@@ -3236,10 +3454,12 @@ function savePlanItem(){
   }
   var editItemId = document.getElementById("plan-edit-id").value;
   var editPlanId = document.getElementById("plan-edit-plan-id").value;
+  var editMode   = document.getElementById("plan-edit-mode").value || "plan";
   if(editItemId && editPlanId){
     var ePlan = DB.menusPropuestos.find(function(m){ return m.id===editPlanId; });
     if(ePlan){
-      var eItem = ePlan.items.find(function(i){ return i.id===editItemId; });
+      var arr = (editMode==="real" && ePlan.itemsReal) ? ePlan.itemsReal : ePlan.items;
+      var eItem = arr.find(function(i){ return i.id===editItemId; });
       if(eItem){
         eItem.nombre=nombre; eItem.cal=cal; eItem.prot=prot; eItem.gras=gras; eItem.carb=carb;
         eItem.cantidad=cant; eItem.comida=comida;
@@ -3250,6 +3470,16 @@ function savePlanItem(){
         }
       }
     }
+  } else if(editMode==="real" && _realPlanId){
+    var rPlan = DB.menusPropuestos.find(function(m){ return m.id===_realPlanId; });
+    if(rPlan && rPlan.itemsReal){
+      rPlan.itemsReal.push({
+        id:"ri"+Date.now(), nombre:nombre, cal:cal, prot:prot, gras:gras, carb:carb,
+        cantidad:cant, cantUnidades:cantUnidades, unitNombre:planUnitNombre,
+        dbId:document.getElementById("plan-db-id").value||null,
+        consumido:false, registroId:null, comida:comida
+      });
+    }
   } else {
     var plan = _getOrCreatePlan(_viewDate);
     plan.items.push({
@@ -3259,7 +3489,8 @@ function savePlanItem(){
       consumido:false, registroId:null, comida:comida
     });
   }
-  saveDB(); closeModal("modal-plan-alimento"); renderMenuPropuesto();
+  saveDB(); closeModal("modal-plan-alimento");
+  if(editMode==="real") renderHoy(); else renderMenuPropuesto();
 }
 
 function openApplyPresetToPlan(){
@@ -3424,12 +3655,141 @@ function saveConfig(){
 }
 
 // ─────────── TABS ───────────
+// ─────────── PROGRESO TAB ───────────
+var _progresoRange = 14;
+var _chProgCal = null;
+
+function setProgresoRange(n, btn){
+  _progresoRange = n;
+  document.querySelectorAll("#tab-progreso .btn-xs").forEach(function(b){ b.classList.remove("btn-blue"); });
+  if(btn) btn.classList.add("btn-blue");
+  renderProgreso();
+}
+
+function renderProgreso(){
+  var today = todayStr();
+  var days = [];
+  for(var i=_progresoRange-1; i>=0; i--){
+    var d = new Date(today+"T12:00:00");
+    d.setDate(d.getDate()-i);
+    days.push(d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()));
+  }
+
+  var labels=[], calCons=[], calObj=[], protCons=[], protObj=[], grasCons=[], grasObj=[], carbCons=[], carbObj=[], barColors=[];
+
+  days.forEach(function(fecha){
+    var d = new Date(fecha+"T12:00:00");
+    labels.push(DIAS[d.getDay()]+" "+d.getDate());
+    var tgt = getMacroTargets(fecha);
+    var cons = {cal:0,prot:0,gras:0,carb:0};
+    DB.registros.filter(function(r){ return r.fecha===fecha; }).forEach(function(r){
+      cons.cal  += r.cal||0;
+      cons.prot += r.prot||0;
+      cons.gras += r.gras||0;
+      cons.carb += r.carb||0;
+    });
+    calCons.push(Math.round(cons.cal));
+    calObj.push(tgt.cal||0);
+    protCons.push(Math.round(cons.prot));
+    protObj.push(tgt.prot||0);
+    grasCons.push(Math.round(cons.gras));
+    grasObj.push(tgt.gras||0);
+    carbCons.push(Math.round(cons.carb));
+    carbObj.push(tgt.carb||0);
+    var pct = tgt.cal>0 ? cons.cal/tgt.cal : 0;
+    barColors.push(
+      cons.cal===0 ? "rgba(255,255,255,0.08)"
+      : pct>=0.9&&pct<=1.1 ? "#3ecf8e"
+      : pct>=0.7 ? "#f5a623"
+      : "#f76f6f"
+    );
+  });
+
+  // Kcal chart
+  if(_chProgCal) _chProgCal.destroy();
+  var ctx = document.getElementById("ch-prog-cal");
+  if(ctx){
+    _chProgCal = new Chart(ctx.getContext("2d"),{
+      type:"bar",
+      data:{
+        labels:labels,
+        datasets:[
+          {label:"Consumido",data:calCons,backgroundColor:barColors,borderRadius:3,order:2},
+          {label:"Objetivo",data:calObj,type:"line",borderColor:"#f5a623",borderWidth:2,pointRadius:2,pointBackgroundColor:"#f5a623",fill:false,tension:0,order:1}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.dataset.label+": "+c.parsed.y+" kcal";}}}},
+        scales:{
+          x:{grid:{display:false},ticks:{color:"#888",font:{size:9},maxRotation:45}},
+          y:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#888",font:{size:9}}}
+        }
+      }
+    });
+  }
+
+  // Macro mini bars
+  var macroHtml = "";
+  var macros = [
+    {label:"Proteínas",cons:protCons,obj:protObj,color:"var(--green)",unit:"g"},
+    {label:"Grasas",   cons:grasCons,obj:grasObj,color:"var(--amber)",unit:"g"},
+    {label:"Carbos",   cons:carbCons,obj:carbObj,color:"var(--purple)",unit:"g"}
+  ];
+  macros.forEach(function(m){
+    var avgCons = Math.round(m.cons.reduce(function(s,v){return s+v;},0)/m.cons.length);
+    var avgObj  = Math.round(m.obj.reduce(function(s,v){return s+v;},0)/m.obj.length);
+    var pct = avgObj>0?Math.min(100,Math.round(avgCons/avgObj*100)):0;
+    var pctColor = pct>=90&&pct<=110?"var(--green)":pct>=70?"var(--amber)":"var(--red)";
+    macroHtml += "<div style='margin-bottom:10px;'>"+
+      "<div style='display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;'>"+
+        "<span style='color:var(--text2);font-weight:600;'>"+m.label+"</span>"+
+        "<span style='color:"+pctColor+";font-weight:700;'>"+avgCons+m.unit+" / "+avgObj+m.unit+" · "+pct+"%</span>"+
+      "</div>"+
+      "<div style='height:8px;background:var(--bg4);border-radius:4px;overflow:hidden;'>"+
+        "<div style='height:100%;width:"+pct+"%;background:"+m.color+";border-radius:4px;'></div>"+
+      "</div></div>";
+  });
+  var mbEl = document.getElementById("prog-macro-bars");
+  if(mbEl) mbEl.innerHTML = "<div style='font-size:10px;color:var(--text2);margin-bottom:8px;'>Promedio del período seleccionado</div>"+macroHtml;
+
+  // Tabla
+  var tbl = "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;font-size:11px;'>"+
+    "<tr style='color:var(--text2);font-size:9px;text-transform:uppercase;letter-spacing:.06em;'>"+
+    "<th style='text-align:left;padding:5px 6px;'>Día</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>Kcal</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>%</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>Prot</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>Gras</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>Carb</th>"+
+    "</tr>";
+  for(var i=days.length-1;i>=0;i--){
+    var pct2 = calObj[i]>0?Math.round(calCons[i]/calObj[i]*100):0;
+    var pctC2 = pct2>=90&&pct2<=110?"var(--green)":pct2>=70?"var(--amber)":"var(--red)";
+    var isHoy = days[i]===today;
+    var d2 = new Date(days[i]+"T12:00:00");
+    var dlbl = isHoy?"Hoy":DIAS[d2.getDay()]+" "+d2.getDate();
+    tbl += "<tr style='border-top:1px solid var(--bord);"+(isHoy?"background:var(--bg3);":"")+"'>"+
+      "<td style='padding:5px 6px;color:"+(isHoy?"var(--blue)":"var(--text2)")+";font-weight:"+(isHoy?"700":"400")+"'>"+dlbl+"</td>"+
+      "<td style='text-align:center;padding:5px 4px;'>"+(calCons[i]>0?calCons[i]:"—")+"<span style='color:var(--text3);font-size:9px;'>/"+calObj[i]+"</span></td>"+
+      "<td style='text-align:center;padding:5px 4px;color:"+pctC2+";font-weight:700;'>"+(calCons[i]>0?pct2+"%":"—")+"</td>"+
+      "<td style='text-align:center;padding:5px 4px;'>"+(protCons[i]>0?protCons[i]+"g":"—")+"</td>"+
+      "<td style='text-align:center;padding:5px 4px;'>"+(grasCons[i]>0?grasCons[i]+"g":"—")+"</td>"+
+      "<td style='text-align:center;padding:5px 4px;'>"+(carbCons[i]>0?carbCons[i]+"g":"—")+"</td>"+
+    "</tr>";
+  }
+  tbl += "</table></div>";
+  var tblEl = document.getElementById("prog-table");
+  if(tblEl) tblEl.innerHTML = tbl;
+}
+
 function showTab(name, btn){
   document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
   document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
   document.getElementById("tab-"+name).classList.add("active");
   btn.classList.add("active");
   if(name==="semana") renderSemana();
+  if(name==="progreso") renderProgreso();
   if(name==="metas") renderMetas();
   if(name==="alimentos") renderFoodDB();
   if(name==="menus") renderMenus();
