@@ -1248,7 +1248,10 @@ function saveSession(){
 function clearForm(){
   document.getElementById("r-fecha").value=today();
   document.getElementById("r-hora").value=nowT();
-  document.getElementById("r-semana").value="S4";
+  // Default semana = semana activa real (máximo entre calendario y última sesión)
+  var _activePeriod=_periodoParaFecha(today());
+  var semActiva=_activePeriod?(_progSemActiva(_activePeriod.cicloInicio)||"S4"):"S4";
+  document.getElementById("r-semana").value=semActiva;
   document.getElementById("r-dia").value="";
   ["r-energia","r-dur","r-dolor","r-obs"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});
   document.getElementById("ex-list").innerHTML="";
@@ -1493,14 +1496,35 @@ function _progAddDays(dateStr, n) {
 function _progWeekEnd(monStr) { return _progAddDays(monStr, 6); }
 
 function _progSemActiva(cicloInicio) {
-  if (!cicloInicio) return null;
-  var t = today();
-  for (var i = 0; i < 5; i++) {
-    var mon = _progAddDays(cicloInicio, i * 7);
-    var sun = _progWeekEnd(mon);
-    if (t >= mon && t <= sun) return "S" + (i + 1);
+  var semOrder = {S1:1,S2:2,S3:3,S4:4,S5:5};
+  var candidates = [];
+
+  // Candidato 1: calendario (basado en cicloInicio)
+  if (cicloInicio) {
+    var t = today();
+    for (var i = 0; i < 5; i++) {
+      var mon = _progAddDays(cicloInicio, i * 7);
+      var sun = _progWeekEnd(mon);
+      if (t >= mon && t <= sun) { candidates.push("S" + (i + 1)); break; }
+    }
   }
-  return null;
+
+  // Candidato 2: semana de la última sesión real registrada
+  var allS = allSessions();
+  if (allS.length) {
+    var maxOrd = 0, maxSem = null;
+    allS.forEach(function(s){
+      var ord = semOrder[s.semana] || 0;
+      if (ord > maxOrd) { maxOrd = ord; maxSem = s.semana; }
+    });
+    if (maxSem) candidates.push(maxSem);
+  }
+
+  if (!candidates.length) return null;
+  // Retorna la semana más avanzada entre calendario y sesiones reales
+  return candidates.reduce(function(best, s){
+    return (semOrder[s]||0) > (semOrder[best]||0) ? s : best;
+  });
 }
 
 function _progIsCurrent(p) {
@@ -1725,10 +1749,14 @@ function showProgDia(dia, btn) {
   var planDia = p && p.plan[dia];
   if (!planDia) { document.getElementById("prog-dia-content").innerHTML = '<div class="empty">Sin ejercicios para este día.</div>'; return; }
   var semLabels = _semCalLabels();
+  var semActiva = _progSemActiva(p.cicloInicio) || "";
   var html = '<div class="card" style="overflow-x:auto;">'
     + '<div class="card-title" style="margin-bottom:8px;">' + PLAN[dia].nombre + ' — Editar progresión</div>'
     + '<table class="prog-table"><tr><th>Ejercicio</th>'
-    + ["S1","S2","S3","S4","S5"].map(function(s, i) { return '<th class="sem-col-hdr">' + semLabels[i] + '</th>'; }).join("")
+    + ["S1","S2","S3","S4","S5"].map(function(s, i) {
+        var isActive = (s === semActiva);
+        return '<th class="sem-col-hdr" style="'+(isActive?"background:rgba(79,142,247,0.12);color:var(--blue);border-bottom:2px solid var(--blue);":"")+'">'+semLabels[i]+(isActive?' <span style="font-size:8px;background:var(--blue);color:#fff;border-radius:99px;padding:1px 5px;vertical-align:middle;">HOY</span>':'')+'</th>';
+      }).join("")
     + '</tr>';
   planDia.exs.forEach(function(ex, ei) {
     html += '<tr><td style="min-width:90px;font-size:11px;">' + ex.n + '</td>';
