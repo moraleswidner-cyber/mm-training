@@ -394,11 +394,21 @@ button:active{opacity:.7;transform:scale(.98);}
     <!-- ===== TAB MENÚS ===== -->
     <div id="tab-menus" class="tab">
 
+      <!-- Navegación de día -->
+      <div class="date-nav" style="margin-bottom:10px;">
+        <button onclick="navMenuDay(-1)">‹</button>
+        <div style="text-align:center;">
+          <div class="date-nav-label" id="menu-date-nav-label">—</div>
+          <div style="font-size:10px;color:var(--text2);" id="menu-date-nav-sub"></div>
+        </div>
+        <button onclick="navMenuDay(+1)">›</button>
+      </div>
+
       <!-- Menú planificado del día -->
       <div class="section-hdr" style="margin-top:0;">
-        <span class="section-title">Menú planificado</span>
+        <span class="section-title">Plan del día</span>
         <div style="display:flex;gap:6px;">
-          <button class="btn-xs btn-blue" onclick="openModalAddPlanItem()">+ Alimento</button>
+          <button class="btn-xs btn-blue" onclick="openModalAddPlanItem(null,_menuDate)">+ Alimento</button>
           <button class="btn-xs btn-amber" onclick="openApplyPresetToPlan()">Desde preset</button>
         </div>
       </div>
@@ -429,7 +439,7 @@ button:active{opacity:.7;transform:scale(.98);}
       <!-- Presets de menús -->
       <div class="section-hdr" style="margin-top:0;">
         <span class="section-title">Presets de menús</span>
-        <button class="btn-xs btn-blue" onclick="saveMenuPreset()">Guardar hoy</button>
+        <button class="btn-xs btn-blue" onclick="saveMenuPreset()">Guardar como preset</button>
       </div>
       <div id="list-menus"></div>
     </div>
@@ -1140,6 +1150,8 @@ var _savedAt = 0; // timestamp of last local save — suppresses snapshot overwr
 var _fbTrain = null;
 var _useFS   = false;
 var _viewDate = todayStr();
+var _menuDate = todayStr();   // date shown in Menús tab (independent of Hoy)
+var _planContextDate = null;  // target date for savePlanItem()
 
 function todayStr(){
   var d = new Date();
@@ -1559,6 +1571,13 @@ function navDay(delta){
   renderHoy();
 }
 
+function navMenuDay(delta){
+  var d = new Date(_menuDate+"T12:00:00");
+  d.setDate(d.getDate()+delta);
+  _menuDate = d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+  renderMenus();
+}
+
 function updateDateLabel(){
   var d   = new Date(_viewDate+"T12:00:00");
   var lbl = document.getElementById("date-label");
@@ -1759,28 +1778,60 @@ function renderHoy(){
     if(!planHoy || !planHoy.items.length){
       planHoyEl.innerHTML = "";
     } else if(!planHoy.itemsReal){
-      // Plan existe pero no hay seguimiento iniciado — mostrar plan en lectura + botón iniciar
-      var previewCal = planHoy.items.reduce(function(s,i){ return s+(parseFloat(i.cal)||0); },0);
-      var previewHtml = "";
-      COMIDAS.forEach(function(c){
-        var cItems = planHoy.items.filter(function(i){ return i.comida===c.key; });
-        if(!cItems.length) return;
-        previewHtml += "<div style='font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin:8px 0 4px;'>"+c.label+"</div>";
-        previewHtml += cItems.map(function(item){
-          return "<div style='display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bord);'>"+
-            "<div style='flex:1;font-size:12px;color:var(--text2);'>"+esc(item.nombre)+"</div>"+
-            "<div style='font-size:11px;color:var(--text3);'>"+Math.round(item.cal||0)+" kcal</div>"+
-          "</div>";
-        }).join("");
+      // Plan existe — mostrarlo directamente interactivo (marca como consumido o ajusta)
+      var prevCal = planHoy.items.reduce(function(s,i){ return s+(parseFloat(i.cal)||0); },0);
+      var prevTgt = getMacroTargets(fecha);
+      var prevPct = prevTgt.cal>0 ? Math.min(100,Math.round(prevCal/prevTgt.cal*100)) : 0;
+      var barColor = prevPct>=95?"var(--red)":prevPct>=80?"var(--blue)":"var(--amber)";
+      var planGroupHtml = "";
+      var allComidas0 = COMIDAS.concat([{key:null,label:"Sin categoría",maxHora:null}]);
+      allComidas0.forEach(function(c){
+        var cItems = planHoy.items.filter(function(i){ return c.key===null?!i.comida:(i.comida===c.key); });
+        if(c.key===null && !cItems.length) return;
+        var catCal = cItems.reduce(function(s,i){ return s+(parseFloat(i.cal)||0); },0);
+        planGroupHtml += "<div style='margin-bottom:12px;'>"+
+          "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;'>"+
+            "<span style='font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;'>"+c.label+"</span>"+
+            "<div style='display:flex;align-items:center;gap:6px;'>"+
+              "<span style='font-size:10px;color:var(--text3);'>"+Math.round(catCal)+" kcal</span>"+
+              (c.key!==null?"<button class='btn-xs' style='padding:2px 7px;font-size:10px;' onclick='openModalAddPlanItem(\""+c.key+"\",\""+fecha+"\")'>+ agregar</button>":"")+
+            "</div>"+
+          "</div>"+
+          (cItems.length ? cItems.map(function(item){
+            var cantLbl = item.cantUnidades&&item.unitNombre?item.cantUnidades+" "+item.unitNombre+(item.cantUnidades>1?"s":""):(item.cantidad?item.cantidad+"g":"");
+            return "<div class='plan-item"+(item.consumido?" consumido":"")+"' style='margin-bottom:4px;'>"+
+              "<div class='plan-check' onclick='togglePlanItem(\""+planHoy.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
+              "<div class='plan-item-info'>"+
+                "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
+                "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal"+(cantLbl?" · "+cantLbl:"")+" · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g C:"+Math.round(item.carb||0)+"g</div>"+
+              "</div>"+
+              "<div style='display:flex;gap:3px;flex-shrink:0;'>"+
+                "<button class='btn-xs btn-amber' onclick='openModalEditPlanItem(\""+planHoy.id+"\",\""+item.id+"\")'>✎</button>"+
+                "<button class='btn-xs btn-red' onclick='deletePlanItem(\""+planHoy.id+"\",\""+item.id+"\")'>✕</button>"+
+              "</div>"+
+            "</div>";
+          }).join("") : "<div style='font-size:11px;color:var(--text3);padding:3px 0;font-style:italic;'>Sin alimentos</div>")+
+        "</div>";
       });
       planHoyEl.innerHTML =
         "<div class='section-hdr' style='margin-top:12px;'>"+
-          "<span class='section-title'>Menú propuesto</span>"+
-          "<span style='font-size:11px;color:var(--text2);'>"+Math.round(previewCal)+" kcal</span>"+
+          "<span class='section-title'>Menú de hoy</span>"+
+          "<span style='font-size:11px;color:var(--text2);'>"+Math.round(prevCal)+" kcal</span>"+
         "</div>"+
-        "<div style='font-size:11px;color:var(--text2);margin-bottom:10px;'>Este es el menú planificado. Inicia el seguimiento para editar lo que realmente comiste.</div>"+
-        previewHtml+
-        "<button class='btn-blue btn-full' style='margin-top:12px;' onclick='initRealItems(\""+planHoy.id+"\")'>▶ Iniciar seguimiento del día</button>";
+        "<div style='background:var(--bg3);border-radius:8px;padding:8px 12px;margin-bottom:10px;'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;'>"+
+            "<span style='color:var(--text2);'>Plan vs objetivo</span>"+
+            "<span style='color:"+barColor+";font-weight:700;'>"+prevPct+"%</span>"+
+          "</div>"+
+          "<div style='height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;'>"+
+            "<div style='height:100%;width:"+prevPct+"%;background:"+barColor+";border-radius:3px;transition:width .4s;'></div>"+
+          "</div>"+
+          "<div style='font-size:10px;color:var(--text2);margin-top:4px;'>Marca ✓ lo que comiste · editá o eliminá lo que cambió</div>"+
+        "</div>"+
+        planGroupHtml+
+        "<div style='margin-top:6px;text-align:center;'>"+
+          "<button class='btn-xs' style='font-size:10px;color:var(--text3);background:transparent;' onclick='initRealItems(\""+planHoy.id+"\")'>▶ Seguimiento avanzado (plan real vs planificado)</button>"+
+        "</div>";
     } else {
       // itemsReal existe — mostrar sección editable completa
       var rItems = planHoy.itemsReal;
@@ -2100,11 +2151,19 @@ function renderMenus(){
 
 // ─────────── RENDER MENÚ PROPUESTO ───────────
 function renderMenuPropuesto(){
-  var fecha = _viewDate;
+  var fecha = _menuDate;
   var d = new Date(fecha+"T12:00:00");
   var lbl = DIAS[d.getDay()]+" "+d.getDate()+" de "+MESES[d.getMonth()];
+  var isToday = (fecha === todayStr());
+
+  // Update nav labels
+  var navLbl = document.getElementById("menu-date-nav-label");
+  var navSub = document.getElementById("menu-date-nav-sub");
+  if(navLbl) navLbl.textContent = lbl;
+  if(navSub) navSub.textContent = isToday ? "hoy" : "";
+
   var el2 = document.getElementById("menu-date-label2");
-  if(el2) el2.textContent = "Plan del "+lbl;
+  if(el2) el2.textContent = "";
 
   var listEl = document.getElementById("list-menu-plan");
   var summEl = document.getElementById("plan-summary");
@@ -2131,7 +2190,18 @@ function renderMenuPropuesto(){
   DB.registros.filter(function(r){ return r.fecha===fecha; }).forEach(function(r){ actualCal += r.cal||0; });
 
   if(!plan || !plan.items.length){
-    listEl.innerHTML = "<div class='empty-hint'>Sin plan para este día. Agregá alimentos o aplicá un preset.</div>";
+    // Show per-category empty slots with add buttons
+    var emptyHtml = "";
+    COMIDAS.forEach(function(c){
+      emptyHtml += "<div style='margin-bottom:14px;'>"+
+        "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;'>"+
+          "<span style='font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;'>"+c.label+"</span>"+
+          "<button class='btn-xs' style='padding:3px 8px;font-size:10px;' onclick='openModalAddPlanItem(\""+c.key+"\",\""+fecha+"\")'>+ agregar</button>"+
+        "</div>"+
+        "<div style='font-size:11px;color:var(--text3);padding:4px 0;font-style:italic;'>Sin alimentos planificados</div>"+
+      "</div>";
+    });
+    listEl.innerHTML = emptyHtml;
     if(summEl) summEl.style.display = "none";
     return;  // macros-bar stays visible (shows objectives with 0 plan values)
   }
@@ -2166,7 +2236,7 @@ function renderMenuPropuesto(){
           (c.maxHora ? "<span style='font-size:10px;color:var(--text3);margin-left:6px;'>máx "+c.maxHora+"</span>" : "")+
           (items.length ? "<span style='font-size:10px;color:var(--text2);margin-left:8px;'>"+Math.round(catCal)+" kcal · "+catCons+"/"+items.length+"</span>" : "")+
         "</div>"+
-        (c.key!==null ? "<button class='btn-xs' style='padding:3px 8px;font-size:10px;' onclick='openModalAddPlanItem(\""+c.key+"\")'>+ agregar</button>" : "")+
+        (c.key!==null ? "<button class='btn-xs' style='padding:3px 8px;font-size:10px;' onclick='openModalAddPlanItem(\""+c.key+"\",\""+fecha+"\")'>+ agregar</button>" : "")+
       "</div>"+
       (items.length ? items.map(function(item){
         var cantLbl = item.cantUnidades&&item.unitNombre ? item.cantUnidades+" "+item.unitNombre+(item.cantUnidades>1?"s":"") : (item.cantidad ? item.cantidad+"g" : "");
@@ -3069,13 +3139,13 @@ function deleteAlimentoDB(){
 // ─────────── MENÚS ───────────
 var _presetSaveSource = "registros"; // "registros" | "plan"
 function saveMenuPreset(){
-  var regsHoy = DB.registros.filter(function(r){ return r.fecha===_viewDate; });
-  var plan    = DB.menusPropuestos.find(function(m){ return m.fecha===_viewDate; });
+  var regsHoy = DB.registros.filter(function(r){ return r.fecha===_menuDate; });
+  var plan    = DB.menusPropuestos.find(function(m){ return m.fecha===_menuDate; });
   var planItems = plan ? plan.items : [];
   if(!regsHoy.length && !planItems.length){
     alert("No hay alimentos registrados ni menú planificado para este día"); return;
   }
-  _presetSaveSource = regsHoy.length ? "registros" : "plan";
+  _presetSaveSource = planItems.length ? "plan" : "registros"; // prefer plan
   var hint = document.getElementById("menu-nombre-hint");
   if(hint) hint.textContent = _presetSaveSource==="plan"
     ? "Se guardará desde el menú planificado ("+planItems.length+" items)"
@@ -3088,10 +3158,10 @@ function confirmSaveMenu(){
   if(!nombre){ alert("Ingresá un nombre para el menú"); return; }
   var items;
   if(_presetSaveSource==="plan"){
-    var plan = DB.menusPropuestos.find(function(m){ return m.fecha===_viewDate; });
+    var plan = DB.menusPropuestos.find(function(m){ return m.fecha===_menuDate; });
     items = (plan ? plan.items : []).map(function(i){ return {nombre:i.nombre,cal:i.cal,prot:i.prot||0,gras:i.gras||0,carb:i.carb||0,dbId:i.dbId||null,cantidad:i.cantidad||null,comida:i.comida||null}; });
   } else {
-    var regsHoy = DB.registros.filter(function(r){ return r.fecha===_viewDate; });
+    var regsHoy = DB.registros.filter(function(r){ return r.fecha===_menuDate; });
     items = regsHoy.map(function(r){ return {nombre:r.nombre,cal:r.cal,prot:r.prot,gras:r.gras,carb:r.carb,dbId:r.dbId,cantidad:r.cantidad}; });
   }
   if(!items.length){ alert("Sin alimentos para guardar"); return; }
@@ -3253,7 +3323,8 @@ function openModalEditRealItem(planId, itemId){
 }
 
 // Modal: agregar alimento al plan
-function openModalAddPlanItem(comida){
+function openModalAddPlanItem(comida, targetDate){
+  _planContextDate = targetDate || _menuDate;
   _planPorciones = 1;
   var lbl = document.getElementById("plan-porciones-lbl");
   if(lbl) lbl.textContent = "1 porción";
@@ -3499,7 +3570,7 @@ function savePlanItem(){
       });
     }
   } else {
-    var plan = _getOrCreatePlan(_viewDate);
+    var plan = _getOrCreatePlan(_planContextDate || _menuDate);
     plan.items.push({
       id:"pi"+Date.now(), nombre:nombre, cal:cal, prot:prot, gras:gras, carb:carb,
       cantidad:cant, cantUnidades:cantUnidades, unitNombre:planUnitNombre,
@@ -3526,7 +3597,7 @@ function openApplyPresetToPlan(){
 function applyPresetToPlan(presetId){
   var m = DB.menuPresets.find(function(m){ return m.id===presetId; });
   if(!m) return;
-  var plan = _getOrCreatePlan(_viewDate);
+  var plan = _getOrCreatePlan(_menuDate);
   m.items.forEach(function(item){
     plan.items.push({
       id:"pi"+Date.now()+"_"+Math.random().toString(36).slice(2,5),
@@ -3810,7 +3881,7 @@ function showTab(name, btn){
   if(name==="progreso") renderProgreso();
   if(name==="metas") renderMetas();
   if(name==="alimentos") renderFoodDB();
-  if(name==="menus") renderMenus();
+  if(name==="menus"){ _menuDate = _viewDate; renderMenus(); }
   if(name==="compras") renderPlanSemanal();
   if(name==="config") renderConfig();
 }
