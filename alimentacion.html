@@ -2239,8 +2239,8 @@ function renderMenuPropuesto(){
       "</div>"+
       (items.length ? items.map(function(item){
         var cantLbl = item.cantUnidades&&item.unitNombre ? item.cantUnidades+" "+item.unitNombre+(item.cantUnidades>1?"s":"") : (item.cantidad ? item.cantidad+"g" : "");
-        return "<div class='plan-item"+(item.consumido?" consumido":"")+"'>"+
-          "<div class='plan-check' onclick='togglePlanItem(\""+plan.id+"\",\""+item.id+"\")'>"+(item.consumido?"✓":"")+"</div>"+
+        return "<div class='plan-item'>"+
+          "<div style='width:30px;height:30px;flex-shrink:0;'></div>"+
           "<div class='plan-item-info'>"+
             "<div class='plan-item-name'>"+esc(item.nombre)+"</div>"+
             "<div class='plan-item-cal'>"+Math.round(item.cal||0)+" kcal"+(cantLbl?" · "+cantLbl:"")+" · P:"+Math.round(item.prot||0)+"g G:"+Math.round(item.gras||0)+"g C:"+Math.round(item.carb||0)+"g</div>"+
