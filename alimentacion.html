@@ -3939,13 +3939,14 @@ function showTab(name, btn){
   document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
   document.getElementById("tab-"+name).classList.add("active");
   btn.classList.add("active");
-  if(name==="semana") renderSemana();
+  if(name==="hoy")      renderHoy();
+  if(name==="semana")   renderSemana();
   if(name==="progreso") renderProgreso();
-  if(name==="metas") renderMetas();
+  if(name==="metas")    renderMetas();
   if(name==="alimentos") renderFoodDB();
   if(name==="menus"){ _menuDate = _viewDate; renderMenus(); }
-  if(name==="compras") renderPlanSemanal();
-  if(name==="config") renderConfig();
+  if(name==="compras")  renderPlanSemanal();
+  if(name==="config")   renderConfig();
 }
 
 // ─────────── UTILS ───────────
