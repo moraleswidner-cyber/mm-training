@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Actualizar app en el celu</title>
+<style>
+  body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #0f172a; color: #f1f5f9; }
+  h2 { margin-bottom: 4px; font-size: 1.2rem; }
+  p { color: #94a3b8; margin-bottom: 24px; font-size: 0.9rem; }
+  #qr { background: white; padding: 16px; border-radius: 12px; }
+  a { color: #38bdf8; margin-top: 20px; font-size: 0.85rem; word-break: break-all; text-align: center; max-width: 320px; }
+</style>
+</head>
+<body>
+<h2>📱 Escanea con el celu</h2>
+<p>App Alimentación — v5 (bug fix calorías gym)</p>
+<div id="qr"></div>
+<a href="https://nm-training-a4eb8.web.app/alimentacion.html?v=5">https://nm-training-a4eb8.web.app/alimentacion.html?v=5</a>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+  new QRCode(document.getElementById("qr"), {
+    text: "https://nm-training-a4eb8.web.app/alimentacion.html?v=5",
+    width: 240,
+    height: 240,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+</script>
+</body>
+</html>

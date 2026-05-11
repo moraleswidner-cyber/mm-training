@@ -1,0 +1,10 @@
+{
+  "name": "NM Alimentación",
+  "short_name": "NM Alim",
+  "version": "5",
+  "display": "standalone",
+  "start_url": "/alimentacion.html",
+  "background_color": "#0f0f12",
+  "theme_color": "#0f0f12",
+  "icons": []
+}
