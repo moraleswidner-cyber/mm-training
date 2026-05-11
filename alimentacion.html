@@ -1,15 +1,47 @@
 <!DOCTYPE html>
+<!-- build:2026-05-10-v22 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
+<script>
+// ── VERSION GUARD — completamente independiente del Service Worker ──
+// Si el número de build almacenado no coincide con el actual, limpia todos
+// los cachés del SW y recarga forzado. Resuelve updates pegados en Safari iOS.
+(function(){
+  var BUILD = '2026-05-10-v23';
+  var stored = localStorage.getItem('nm-alim-build');
+  if(stored !== BUILD){
+    localStorage.setItem('nm-alim-build', BUILD);
+    // Borrar todos los cachés del SW y recargar
+    if('caches' in window){
+      caches.keys().then(function(keys){
+        return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+      }).then(function(){
+        // Desregistrar SWs viejos también
+        if(navigator.serviceWorker){
+          navigator.serviceWorker.getRegistrations().then(function(regs){
+            return Promise.all(regs.map(function(r){ return r.unregister(); }));
+          }).then(function(){
+            window.location.reload(true);
+          });
+        } else {
+          window.location.reload(true);
+        }
+      });
+    } else {
+      window.location.reload(true);
+    }
+  }
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="NM Alimentación"/>
-<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;NM Alimentación&quot;,&quot;short_name&quot;:&quot;NM Alim&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0f0f12&quot;,&quot;theme_color&quot;:&quot;#0f0f12&quot;}"/>
+<link rel="manifest" href="/manifest-alimentacion.json"/>
 <title>NM Alimentación — Nico Morales</title>
 
 <!-- Firebase compat -->
@@ -234,6 +266,7 @@ button:active{opacity:.7;transform:scale(.98);}
     <button class="tab-btn" onclick="showTab('alimentos',this)">Alimentos</button>
     <button class="tab-btn" onclick="showTab('menus',this)">Menús</button>
     <button class="tab-btn" onclick="showTab('compras',this)">Compras</button>
+    <button class="tab-btn" onclick="showTab('seguimiento',this)">Seguimiento</button>
     <button class="tab-btn" onclick="showTab('config',this)">Config</button>
   </div>
 
@@ -323,6 +356,7 @@ button:active{opacity:.7;transform:scale(.98);}
     <div id="tab-semana" class="tab">
       <div id="semana-header" style="margin-bottom:10px;"></div>
       <div id="banner-semana" class="banner banner-amber"></div>
+      <div id="semana-sugerencias"></div>
       <div id="semana-view"></div>
       <div class="card" style="margin-top:10px;">
         <div class="card-title" style="margin-bottom:8px;">Macros promedio semanal</div>
@@ -342,11 +376,12 @@ button:active{opacity:.7;transform:scale(.98);}
           </div>
         </div>
         <div class="chart-wrap" style="height:180px;"><canvas id="ch-prog-cal" role="img" aria-label="Cumplimiento calórico diario"></canvas></div>
-        <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--text2);">
-          <span><span style="display:inline-block;width:10px;height:10px;background:var(--blue);border-radius:2px;margin-right:3px;"></span>Consumido</span>
-          <span><span style="display:inline-block;width:18px;height:2px;background:#f5a623;margin-right:3px;vertical-align:middle;"></span>Objetivo</span>
-          <span><span style="display:inline-block;width:10px;height:10px;background:var(--green);border-radius:2px;margin-right:3px;"></span>≥90%</span>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:10px;color:var(--text2);">
+          <span style="font-weight:700;color:var(--text2);">Barras = consumido:</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:var(--green);border-radius:2px;margin-right:3px;"></span>≥90% del obj.</span>
           <span><span style="display:inline-block;width:10px;height:10px;background:var(--amber);border-radius:2px;margin-right:3px;"></span>70-89%</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#f76f6f;border-radius:2px;margin-right:3px;"></span>&lt;70% o sin datos</span>
+          <span><span style="display:inline-block;width:18px;height:2px;background:#f5a623;margin-right:3px;vertical-align:middle;"></span>Objetivo (línea)</span>
         </div>
       </div>
       <div class="card">
@@ -365,7 +400,7 @@ button:active{opacity:.7;transform:scale(.98);}
       <div class="card">
         <div class="card-title" style="margin-bottom:10px;">Cumplimiento diario</div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em;">
-          <span>Día</span><span style="flex:1;text-align:center;padding:0 8px;">Calorías · Proteína</span><span>Consumido / Obj.</span>
+          <span>Día</span><span style="flex:1;text-align:center;padding:0 8px;">Cal · Prot</span><span>Consumido / Obj.</span>
         </div>
         <div id="metas-daily"></div>
       </div>
@@ -410,6 +445,7 @@ button:active{opacity:.7;transform:scale(.98);}
         <div style="display:flex;gap:6px;">
           <button class="btn-xs btn-blue" onclick="openModalAddPlanItem(null,_menuDate)">+ Alimento</button>
           <button class="btn-xs btn-amber" onclick="openApplyPresetToPlan()">Desde preset</button>
+          <button class="btn-xs btn-red" id="btn-clear-plan" style="display:none;" onclick="clearDayPlan(_menuDate)">Vaciar</button>
         </div>
       </div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px;" id="menu-date-label2"></div>
@@ -433,6 +469,7 @@ button:active{opacity:.7;transform:scale(.98);}
       <div id="plan-summary" style="display:none;background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;"></div>
       <div id="plan-macros-bar" style="display:none;"></div>
       <div id="list-menu-plan"></div>
+      <div id="plan-confirm-section"></div>
 
       <div style="height:1px;background:var(--bord);margin:18px 0 14px;"></div>
 
@@ -488,6 +525,81 @@ button:active{opacity:.7;transform:scale(.98);}
 
     </div>
 
+    <!-- ===== TAB SEGUIMIENTO ===== -->
+    <div id="tab-seguimiento" class="tab">
+
+      <!-- ALERTAS -->
+      <div id="seg-alertas-box" style="display:none;margin-bottom:12px;"></div>
+
+      <!-- BODY COMPOSITION -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">Composición corporal (InBody)</div>
+          <button class="btn-xs btn-blue" onclick="openModalInBody()">+ Registro</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;text-align:center;margin-bottom:12px;" id="seg-inbody-kpis">
+          <div><div id="seg-ib-peso" style="font-size:18px;font-weight:700;color:var(--blue);">—</div><div style="font-size:9px;color:var(--text2);">kg peso</div></div>
+          <div><div id="seg-ib-musculo" style="font-size:18px;font-weight:700;color:var(--green);">—</div><div style="font-size:9px;color:var(--text2);">kg músculo</div></div>
+          <div><div id="seg-ib-grasa" style="font-size:18px;font-weight:700;color:var(--amber);">—</div><div style="font-size:9px;color:var(--text2);">% grasa</div></div>
+          <div><div id="seg-ib-tmb" style="font-size:18px;font-weight:700;color:var(--purple);">—</div><div style="font-size:9px;color:var(--text2);">kcal TMB</div></div>
+        </div>
+        <div class="chart-wrap" style="height:160px;margin-bottom:10px;"><canvas id="ch-seg-inbody" role="img" aria-label="Tendencia InBody"></canvas></div>
+        <div id="seg-inbody-table" style="font-size:11px;"></div>
+        <!-- Proyecciones -->
+        <div id="seg-proyecciones" style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:var(--rsm);border:1px solid var(--bord2);font-size:11px;display:none;">
+          <div style="font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-size:10px;">📈 Proyección próximos 3 meses</div>
+          <div id="seg-proj-body"></div>
+        </div>
+      </div>
+
+      <!-- GYM PERFORMANCE -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">Rendimiento Gym</div>
+          <button class="btn-xs btn-blue" onclick="openModalGymPerf()">+ Registro</button>
+        </div>
+        <div style="margin-bottom:8px;">
+          <select id="seg-gym-ejercicio-sel" onchange="renderGymPerfChart()" style="width:100%;font-size:12px;padding:7px 10px;">
+            <option value="">— Seleccionar ejercicio —</option>
+          </select>
+        </div>
+        <div class="chart-wrap" style="height:150px;"><canvas id="ch-seg-gym" role="img" aria-label="Progreso ejercicio"></canvas></div>
+        <div id="seg-gym-table" style="margin-top:8px;font-size:11px;"></div>
+      </div>
+
+      <!-- NUTRITION ADHERENCE -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px;">Adherencia nutricional</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-bottom:10px;">
+          <div style="background:var(--bg3);border-radius:var(--rsm);padding:8px;">
+            <div id="seg-adh-7d" style="font-size:22px;font-weight:700;color:var(--green);">—</div>
+            <div style="font-size:9px;color:var(--text2);">7 días</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:var(--rsm);padding:8px;">
+            <div id="seg-adh-14d" style="font-size:22px;font-weight:700;color:var(--blue);">—</div>
+            <div style="font-size:9px;color:var(--text2);">14 días</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:var(--rsm);padding:8px;">
+            <div id="seg-adh-30d" style="font-size:22px;font-weight:700;color:var(--purple);">—</div>
+            <div style="font-size:9px;color:var(--text2);">30 días</div>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:130px;"><canvas id="ch-seg-adh" role="img" aria-label="Adherencia calórica"></canvas></div>
+        <div id="seg-adh-detail" style="margin-top:8px;font-size:11px;color:var(--text2);"></div>
+      </div>
+
+      <!-- SPORT WELLNESS -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">Bienestar deportivo</div>
+          <button class="btn-xs btn-blue" onclick="openModalWellness()">+ Registro</button>
+        </div>
+        <div class="chart-wrap" style="height:150px;"><canvas id="ch-seg-well" role="img" aria-label="Bienestar deportivo"></canvas></div>
+        <div id="seg-well-table" style="margin-top:8px;font-size:11px;"></div>
+      </div>
+
+    </div><!-- /tab-seguimiento -->
+
     <!-- ===== TAB CONFIG ===== -->
     <div id="tab-config" class="tab">
       <div class="card" id="card-perfil">
@@ -498,6 +610,7 @@ button:active{opacity:.7;transform:scale(.98);}
       <div class="card">
         <div class="card-title" style="margin-bottom:10px;">Escenario</div>
         <div class="scenario-group" id="scenario-group"></div>
+        <div id="scenario-history" style="display:none;margin-top:8px;padding:8px;background:var(--bg3);border-radius:var(--rsm);border:1px solid var(--bord);"></div>
       </div>
 
       <div class="card">
@@ -1025,13 +1138,314 @@ var ACT_PRESETS_DEFAULT = [
   {id:"ap_t5",      nombre:"Trote 5 km",                   tipo:"trote",     duracion:35,  km:5,   ritmo:7},
   {id:"ap_t75",     nombre:"Trote 7.5 km",                 tipo:"trote",     duracion:53,  km:7.5, ritmo:7},
   {id:"ap_t10",     nombre:"Trote 10 km",                  tipo:"trote",     duracion:70,  km:10,  ritmo:7},
-  // Entrenamiento NM (4-day split)
-  {id:"ap_d1", nombre:"Día 1 — Torso (pecho/espalda/hombros/brazos)",     tipo:"gym", duracion:70, diaKey:"d1"},
-  {id:"ap_d2", nombre:"Día 2 — Pierna (hip thrust/sentadilla/prensa)",    tipo:"gym", duracion:75, diaKey:"d2"},
-  {id:"ap_d4", nombre:"Día 4 — Torso (remo/press mil./jalón/peck deck)", tipo:"gym", duracion:70, diaKey:"d4"},
-  {id:"ap_d5", nombre:"Día 5 — Pierna (rumano/prensa unil./curl/ext.)",  tipo:"gym", duracion:80, diaKey:"d5"},
+  // Entrenamiento NM — P1 (hasta abril 2026)
+  {id:"ap_d1", nombre:"P1 · D1 Torso (pecho/espalda/hombros/brazos)",     tipo:"gym", duracion:70, diaKey:"d1"},
+  {id:"ap_d2", nombre:"P1 · D2 Pierna (hip thrust/sentadilla/prensa)",    tipo:"gym", duracion:75, diaKey:"d2"},
+  {id:"ap_d4", nombre:"P1 · D4 Torso (remo/press mil./jalón/peck deck)", tipo:"gym", duracion:70, diaKey:"d4"},
+  {id:"ap_d5", nombre:"P1 · D5 Pierna (rumano/prensa unil./curl/ext.)",  tipo:"gym", duracion:80, diaKey:"d5"},
+  // Entrenamiento NM — P2 Full Body (desde mayo 2026)
+  {id:"ap_d1b", nombre:"P2 · D1 Full Body A — Hip Thrust · Cuad · Tracción",   tipo:"gym", duracion:90, diaKey:"d1b"},
+  {id:"ap_d2b", nombre:"P2 · D2 Full Body B — Tracción · Isquio · Gemelo",     tipo:"gym", duracion:75, diaKey:"d2b"},
+  {id:"ap_d4b", nombre:"P2 · D4 Full Body C — Rumano · Sentadilla · Tracción", tipo:"gym", duracion:95, diaKey:"d4b"},
+  {id:"ap_d5b", nombre:"P2 · D5 Full Body D — Hip Thrust · Isquio · Rehab",    tipo:"gym", duracion:75, diaKey:"d5b"},
+  // Entrenamiento NM — P3 Upper/Lower Potencia (desde mayo 2026)
+  {id:"ap_d1c", nombre:"P3 · D1 Lower A — Squat Potencia + Glúteo",            tipo:"gym", duracion:80, diaKey:"d1c"},
+  {id:"ap_d2c", nombre:"P3 · D2 Upper A — Tracción + Rehab Hombro",            tipo:"gym", duracion:55, diaKey:"d2c"},
+  {id:"ap_d4c", nombre:"P3 · D4 Lower B — Hinge Potencia + Posterior Chain",   tipo:"gym", duracion:75, diaKey:"d4c"},
+  {id:"ap_d5c", nombre:"P3 · D5 Upper B — Tracción Unilat + Core + Gemelo",    tipo:"gym", duracion:55, diaKey:"d5c"},
   {id:"ap_fut7",  nombre:"Futbolito 7v7 (80 min)",  tipo:"futbol7",  duracion:80},
   {id:"ap_fut11", nombre:"Fútbol 11v11 (80 min)",   tipo:"futbol11", duracion:80}
+];
+
+// ─────────── MENU PRESETS DEFAULT ───────────
+// Incrementar MENU_PRESETS_VERSION para forzar reinserción en próximo deploy
+// v3: rediseño completo — fajitas+pollo molido+palta en cena, más proteína (185-210g), 14 presets (7 déficit + 7 mantención)
+var MENU_PRESETS_VERSION = 3;
+var MENU_PRESETS_DEFAULT = [
+  // ══════════════════════════ DÉFICIT ══════════════════════════════════════════
+  // ── 1. GYM 19h — DÉFICIT ────────────────────────────────────────────────────
+  {id:"mp_gym19_def", nombre:"🏋️ Gym 19h — Déficit",
+   desc:"Gym 19h • ~2355 kcal · P ~191g · G ~70g · C ~237g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz cocido 180g",     cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Avena 40g pre-gym",     cal:156, prot:7,  gras:3,  carb:26, cantidad:40,  comida:"colacion2"},
+    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+  ]},
+  // ── 2. GYM 21h — DÉFICIT ────────────────────────────────────────────────────
+  {id:"mp_gym21_def", nombre:"🏋️ Gym 21h — Déficit",
+   desc:"Gym 21h • ~2432 kcal · P ~194g · G ~71g · C ~251g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz cocido 180g",     cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Avena 60g pre-gym",     cal:233, prot:10, gras:4,  carb:40, cantidad:60,  comida:"colacion2"},
+    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+  ]},
+  // ── 3. FUTBOLITO JUE 21h — DÉFICIT ──────────────────────────────────────────
+  {id:"mp_futbol_jue", nombre:"⚽ Futbolito Jue 21h — Déficit",
+   desc:"Futbolito 21h • ~2435 kcal · P ~187g · G ~70g · C ~263g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 150g",   cal:248, prot:47, gras:5,  carb:0,  cantidad:150, comida:"almuerzo"},
+    {nombre:"Arroz cocido 220g",     cal:286, prot:6,  gras:1,  carb:62, cantidad:220, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Avena 60g pre-futbol",  cal:233, prot:10, gras:4,  carb:40, cantidad:60,  comida:"colacion2"},
+    {nombre:"Plátano pre-futbol",    cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+  ]},
+  // ── 4. FÚTBOL SÁB 9:30h — DÉFICIT + CARGA CARBOS ───────────────────────────
+  {id:"mp_futbol_sab", nombre:"⚽ Fútbol Sáb 9:30h — Carga Carbos",
+   desc:"Partido mañana • ~2236 kcal · P ~176g · G ~52g · C ~267g",
+   items:[
+    {nombre:"Plátano ×2 pre-partido",cal:214, prot:3,  gras:1,  carb:54, cantidad:240, comida:"desayuno"},
+    {nombre:"Pan integral ×3 taj",   cal:210, prot:9,  gras:3,  carb:38, cantidad:90,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Yogur Nestlé ×3 (PW)",  cal:340, prot:30, gras:6,  carb:39, cantidad:300, comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz cocido 200g",     cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"}
+  ]},
+  // ── 5. GYM DOM 12h — DÉFICIT ────────────────────────────────────────────────
+  {id:"mp_gym_dom", nombre:"🏋️ Gym Dom 12h — Déficit",
+   desc:"Gym mediodía • ~2344 kcal · P ~184g · G ~69g · C ~242g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Avena 60g pre-gym",     cal:233, prot:10, gras:4,  carb:40, cantidad:60,  comida:"colacion1"},
+    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"almuerzo"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"almuerzo"},
+    {nombre:"Pechuga cocida 150g",   cal:248, prot:47, gras:5,  carb:0,  cantidad:150, comida:"almuerzo"},
+    {nombre:"Arroz cocido 150g",     cal:195, prot:4,  gras:0,  carb:42, cantidad:150, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"}
+  ]},
+  // ── 6. DESCANSO — DÉFICIT ───────────────────────────────────────────────────
+  {id:"mp_descanso_def", nombre:"😴 Descanso — Déficit",
+   desc:"Sin actividad • ~1919 kcal · P ~156g · G ~73g · C ~157g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 130g",   cal:215, prot:40, gras:5,  carb:0,  cantidad:130, comida:"almuerzo"},
+    {nombre:"Arroz cocido 130g",     cal:169, prot:4,  gras:0,  carb:37, cantidad:130, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
+    {nombre:"Yogur Nestlé ×1",       cal:113, prot:10, gras:2,  carb:13, cantidad:100, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g",     cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"}
+  ]},
+  // ── 7. VIERNES — CARGA CARBOS (pre-Sáb) — DÉFICIT ──────────────────────────
+  {id:"mp_vie_carbload", nombre:"🍝 Viernes — Carga Carbos (pre-Sáb)",
+   desc:"Gym + carga pre-partido • ~2295 kcal · P ~175g · G ~49g · C ~288g",
+   items:[
+    {nombre:"Avena 70g",             cal:272, prot:12, gras:5,  carb:46, cantidad:70,  comida:"desayuno"},
+    {nombre:"Plátano",               cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"colacion1"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Fideos cocidos 200g",   cal:316, prot:12, gras:2,  carb:62, cantidad:200, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
+    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+  ]},
+  // ══════════════════════════ MANTENCIÓN ═══════════════════════════════════════
+  // ── 8. GYM 19h — MANTENCIÓN ─────────────────────────────────────────────────
+  {id:"mp_gym19_mant", nombre:"🏋️ Gym 19h — Mantención",
+   desc:"Gym 19h • ~2618 kcal · P ~198g · G ~78g · C ~278g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz cocido 230g",     cal:299, prot:6,  gras:1,  carb:65, cantidad:230, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
+    {nombre:"Avena 60g pre-gym",     cal:233, prot:10, gras:4,  carb:40, cantidad:60,  comida:"colacion2"},
+    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+  ]},
+  // ── 9. GYM 21h — MANTENCIÓN ─────────────────────────────────────────────────
+  {id:"mp_gym21_mant", nombre:"🏋️ Gym 21h — Mantención",
+   desc:"Gym 21h • ~2695 kcal · P ~201g · G ~79g · C ~292g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz cocido 230g",     cal:299, prot:6,  gras:1,  carb:65, cantidad:230, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
+    {nombre:"Avena 70g pre-gym",     cal:272, prot:12, gras:5,  carb:46, cantidad:70,  comida:"colacion2"},
+    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+  ]},
+  // ── 10. FUTBOLITO JUE 21h — MANTENCIÓN ──────────────────────────────────────
+  {id:"mp_futbol_jue_mant", nombre:"⚽ Futbolito Jue 21h — Mantención",
+   desc:"Futbolito 21h • ~2698 kcal · P ~197g · G ~79g · C ~307g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 150g",   cal:248, prot:47, gras:5,  carb:0,  cantidad:150, comida:"almuerzo"},
+    {nombre:"Arroz cocido 260g",     cal:338, prot:7,  gras:1,  carb:73, cantidad:260, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
+    {nombre:"Avena 70g pre-futbol",  cal:272, prot:12, gras:5,  carb:46, cantidad:70,  comida:"colacion2"},
+    {nombre:"Plátano pre-futbol",    cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+  ]},
+  // ── 11. FÚTBOL SÁB 9:30h — MANTENCIÓN + CARGA CARBOS ───────────────────────
+  {id:"mp_futbol_sab_mant", nombre:"⚽ Fútbol Sáb 9:30h — Mantención",
+   desc:"Partido mañana • ~2599 kcal · P ~197g · G ~62g · C ~307g",
+   items:[
+    {nombre:"Plátano ×2 pre-partido",cal:214, prot:3,  gras:1,  carb:54, cantidad:240, comida:"desayuno"},
+    {nombre:"Pan integral ×3 taj",   cal:210, prot:9,  gras:3,  carb:38, cantidad:90,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Yogur Nestlé ×3 (PW)",  cal:340, prot:30, gras:6,  carb:39, cantidad:300, comida:"colacion1"},
+    {nombre:"Pechuga cocida 200g",   cal:330, prot:62, gras:7,  carb:0,  cantidad:200, comida:"almuerzo"},
+    {nombre:"Arroz cocido 230g",     cal:299, prot:6,  gras:1,  carb:65, cantidad:230, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×1",       cal:113, prot:10, gras:2,  carb:13, cantidad:100, comida:"cena"}
+  ]},
+  // ── 12. GYM DOM 12h — MANTENCIÓN ────────────────────────────────────────────
+  {id:"mp_gym_dom_mant", nombre:"🏋️ Gym Dom 12h — Mantención",
+   desc:"Gym mediodía • ~2707 kcal · P ~204g · G ~79g · C ~283g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Avena 70g pre-gym",     cal:272, prot:12, gras:5,  carb:46, cantidad:70,  comida:"colacion1"},
+    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"almuerzo"},
+    {nombre:"Yogur Nestlé ×3 (PW)",  cal:340, prot:30, gras:6,  carb:39, cantidad:300, comida:"almuerzo"},
+    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz cocido 180g",     cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×1",       cal:113, prot:10, gras:2,  carb:13, cantidad:100, comida:"cena"}
+  ]},
+  // ── 13. DESCANSO — MANTENCIÓN ───────────────────────────────────────────────
+  {id:"mp_descanso_mant", nombre:"😴 Descanso — Mantención",
+   desc:"Sin actividad • ~2282 kcal · P ~177g · G ~83g · C ~199g",
+   items:[
+    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz cocido 180g",     cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
+    {nombre:"Yogur Nestlé ×2",       cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g",     cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×1 (cena)",cal:113, prot:10, gras:2,  carb:13, cantidad:100, comida:"cena"}
+  ]},
+  // ── 14. VIERNES — CARGA CARBOS — MANTENCIÓN ─────────────────────────────────
+  {id:"mp_vie_carbload_mant", nombre:"🍝 Viernes — Carga Carbos — Mantención",
+   desc:"Gym + carga pre-partido • ~2758 kcal · P ~196g · G ~59g · C ~351g",
+   items:[
+    {nombre:"Avena 80g",             cal:311, prot:14, gras:6,  carb:53, cantidad:80,  comida:"desayuno"},
+    {nombre:"Plátano",               cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
+    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"colacion1"},
+    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 200g",   cal:330, prot:62, gras:7,  carb:0,  cantidad:200, comida:"almuerzo"},
+    {nombre:"Fideos cocidos 250g",   cal:395, prot:15, gras:3,  carb:77, cantidad:250, comida:"almuerzo"},
+    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
+    {nombre:"Plátano ×2 pre-gym",    cal:214, prot:2,  gras:0,  carb:54, cantidad:240, comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
+    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
+    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
+    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+  ]}
 ];
 
 // ─────────── COMIDAS ───────────
@@ -1046,20 +1460,46 @@ var COMIDAS = [
 // ─────────── SCENARIOS ───────────
 var SCENARIOS = {
   volumen:     {label:"Volumen",     desc:"Superávit +250 kcal · 2.2g prot/kg",  calAdj:+250, protFactor:2.2, color:"var(--green)"},
-  deficit:     {label:"Déficit",     desc:"Déficit −400 kcal · 2.4g prot/kg",    calAdj:-400, protFactor:2.4, color:"var(--red)"},
-  mantencion:  {label:"Mantención",  desc:"Sin ajuste · 2.0g prot/kg",           calAdj:0,    protFactor:2.0, color:"var(--blue)"}
+  deficit:     {label:"Déficit",     desc:"Déficit −400 kcal · 2.2g prot/kg",    calAdj:-400, protFactor:2.2, color:"var(--red)"},
+  mantencion:  {label:"Mantención",  desc:"Sin ajuste · 2.2g prot/kg",           calAdj:0,    protFactor:2.2, color:"var(--blue)"}
 };
+
+// ─────────── SCENARIO HISTORY ───────────
+// Returns the scenario key active on a given date.
+// scenarioHistory: [{desde:"YYYY-MM-DD", escenario:"mantencion"}, ...]  sorted ascending.
+// The entry with the highest "desde" that is <= fecha wins.
+// Falls back to DB.config.escenario (current) for today and future.
+function getScenarioForDate(fecha){
+  var hist = (DB.config.scenarioHistory || []).slice().sort(function(a,b){ return a.desde.localeCompare(b.desde); });
+  var matched = null;
+  for(var i = 0; i < hist.length; i++){
+    if(hist[i].desde <= fecha) matched = hist[i].escenario;
+    else break;
+  }
+  return matched || DB.config.escenario || "mantencion";
+}
+
+// Call this when initializing to ensure history has at least one entry.
+function _initScenarioHistory(){
+  if(!DB.config.scenarioHistory) DB.config.scenarioHistory = [];
+  // If empty, seed with mantencion from the very beginning
+  if(DB.config.scenarioHistory.length === 0){
+    DB.config.scenarioHistory.push({desde:"2000-01-01", escenario:"mantencion"});
+  }
+}
 
 // ─────────── DB ───────────
 var DB = {
-  config:          {escenario:"mantencion", factorBase:1.2, tmbManual:null, pesoManual:null, scenCalDef:-450, scenCalVol:300, scenProtDef:2.4, scenProtMant:2.0, scenProtVol:2.2},
+  config:          {escenario:"mantencion", factorBase:1.2, tmbManual:null, pesoManual:null, scenCalDef:-450, scenCalVol:300, scenProtDef:2.2, scenProtMant:2.0, scenProtVol:2.2, scenarioHistory:[]},
   alimentos:       [],   // food database
   registros:       [],   // [{id, fecha, hora, nombre, cal, prot, gras, carb, dbId, cantidad}]
   actividades:     [],   // [{id, fecha, tipo, duracion, calExtra, notas, km, ritmo}]
   menuPresets:     [],   // [{id, nombre, items:[{nombre,cal,prot,gras,carb}]}]
   actPresets:      [],   // [{id, nombre, tipo, duracion, km, ritmo}]
   menusPropuestos: [],   // [{id, fecha, items:[{id,nombre,cal,prot,gras,carb,dbId,cantidad,consumido,registroId}]}]
-  planSemanal:     {}    // {"2026-04-21": {items:[{id,nombre,cal,prot,gras,carb,cantidad,cantUnidades,unitNombre,comida}]}, ...}
+  planSemanal:     {},   // {"2026-04-21": {items:[{id,nombre,cal,prot,gras,carb,cantidad,cantUnidades,unitNombre,comida}]}, ...}
+  gymPerformance:  [],   // [{id,fecha,ejercicio,peso_kg,reps,series,notas}]
+  wellnessRecords: []    // [{id,fecha,energia,dolores,motivacion,notas,actividad}]
 };
 
 // InBody snapshots — sorted ascending by date.
@@ -1070,7 +1510,8 @@ var INBODY_DATA     = null;
 var _INBODY_BASELINE = [
   {id:20001,fecha:"2025-12-03",peso:85.7,tmb:1893,musculo:40.4,pctGrasa:17.7,grasa:15.2},
   {id:20002,fecha:"2026-01-05",peso:83.4,tmb:1875,musculo:40.2,pctGrasa:16.4,grasa:13.7},
-  {id:20003,fecha:"2026-02-02",peso:85.6,tmb:1866,musculo:39.6,pctGrasa:19.1,grasa:16.4}
+  {id:20003,fecha:"2026-02-02",peso:85.6,tmb:1866,musculo:39.6,pctGrasa:19.1,grasa:16.4},
+  {id:1776870797218, fecha:"2026-04-22", peso:88.5, tmb:1904, musculo:40.8, pctGrasa:19.7, grasa:17.5, grasaVisc:7, imc:26.1, agua:52, osea:4.85, puntuacion:83, ctx:"Ayuna"}
 ];
 var INBODY_DATA_ALL = _INBODY_BASELINE.slice();
 
@@ -1178,17 +1619,18 @@ function loadDB(){
       if(doc.exists){
         var d = doc.data();
         if(!freshSave){
-        DB.config          = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null,scenCalDef:-450,scenCalVol:300,scenProtDef:2.4,scenProtMant:2.0,scenProtVol:2.2}, d.config||{});
+        DB.config          = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null,scenCalDef:-450,scenCalVol:300,scenProtDef:2.2,scenProtMant:2.0,scenProtVol:2.2,scenarioHistory:[]}, d.config||{});
         SCENARIOS.deficit.calAdj        = typeof DB.config.scenCalDef==="number"  ? DB.config.scenCalDef  : -450;
         SCENARIOS.volumen.calAdj        = typeof DB.config.scenCalVol==="number"  ? DB.config.scenCalVol  : 300;
-        SCENARIOS.deficit.protFactor    = typeof DB.config.scenProtDef==="number" ? DB.config.scenProtDef : 2.4;
+        SCENARIOS.deficit.protFactor    = typeof DB.config.scenProtDef==="number" ? DB.config.scenProtDef : 2.2;
         SCENARIOS.mantencion.protFactor = typeof DB.config.scenProtMant==="number"? DB.config.scenProtMant: 2.0;
         SCENARIOS.volumen.protFactor    = typeof DB.config.scenProtVol==="number" ? DB.config.scenProtVol : 2.2;
+        _initScenarioHistory();
         // Guard: if tmbManual is set but equals the InBody fallback (1800), clear it — it was set by accident
         if(DB.config.tmbManual === 1800 || DB.config.tmbManual === "1800"){
           DB.config.tmbManual = null;
           // Save the fix to Firestore
-          if(_useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos,planSemanal:DB.planSemanal||{}}).catch(function(){});
+          if(_useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos,planSemanal:DB.planSemanal||{},gymPerformance:DB.gymPerformance||[],wellnessRecords:DB.wellnessRecords||[]}).catch(function(){});
         }
         DB.alimentos       = d.alimentos       || [];
         DB.registros       = d.registros       || [];
@@ -1197,6 +1639,8 @@ function loadDB(){
         DB.actPresets      = d.actPresets      || [];
         DB.menusPropuestos = d.menusPropuestos || [];
         DB.planSemanal     = d.planSemanal     || {};
+        DB.gymPerformance  = d.gymPerformance  || [];
+        DB.wellnessRecords = d.wellnessRecords || [];
         } // end if(!freshSave)
       }
       // Inject default foods if DB is empty OR version is outdated
@@ -1213,7 +1657,16 @@ function loadDB(){
         DB.config.presetsVersion = PRESETS_VERSION;
         needSave = true;
       }
-      if(needSave && _useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos,planSemanal:DB.planSemanal||{}}).catch(function(){});
+      var storedMPV = parseInt(DB.config.menuPresetsVersion)||0;
+      if(storedMPV < MENU_PRESETS_VERSION){
+        // Merge: keep user-created presets (those not in default IDs), inject defaults fresh
+        var defaultIds = MENU_PRESETS_DEFAULT.map(function(p){return p.id;});
+        var userPresets = DB.menuPresets.filter(function(p){return defaultIds.indexOf(p.id)<0;});
+        DB.menuPresets = MENU_PRESETS_DEFAULT.map(function(p){return Object.assign({},p);}).concat(userPresets);
+        DB.config.menuPresetsVersion = MENU_PRESETS_VERSION;
+        needSave = true;
+      }
+      if(needSave && _useFS && _fbAlim) _fbAlim.set({config:DB.config,alimentos:DB.alimentos,registros:DB.registros,actividades:DB.actividades,menuPresets:DB.menuPresets,actPresets:DB.actPresets,menusPropuestos:DB.menusPropuestos,planSemanal:DB.planSemanal||{},gymPerformance:DB.gymPerformance||[],wellnessRecords:DB.wellnessRecords||[]}).catch(function(){});
       // If sessions already loaded, recalculate gym activities now
       if(SESSIONS_DATA.length > 4) _recalcGymActividades();
       renderAll();
@@ -1276,8 +1729,11 @@ function _loadLocal(){
       DB.actPresets      = d.actPresets      || [];
       DB.menusPropuestos = d.menusPropuestos || [];
       DB.planSemanal     = d.planSemanal     || {};
+      DB.gymPerformance  = d.gymPerformance  || [];
+      DB.wellnessRecords = d.wellnessRecords || [];
     }
   } catch(e){}
+  _initScenarioHistory();
   var storedV  = parseInt(DB.config.foodsVersion)||0;
   var storedPV = parseInt(DB.config.presetsVersion)||0;
   if(DB.alimentos.length === 0 || storedV < FOODS_VERSION){
@@ -1287,6 +1743,13 @@ function _loadLocal(){
   if(DB.actPresets.length === 0 || storedPV < PRESETS_VERSION){
     DB.actPresets = ACT_PRESETS_DEFAULT.slice();
     DB.config.presetsVersion = PRESETS_VERSION;
+  }
+  var storedMPV = parseInt(DB.config.menuPresetsVersion)||0;
+  if(storedMPV < MENU_PRESETS_VERSION){
+    var defaultIds = MENU_PRESETS_DEFAULT.map(function(p){return p.id;});
+    var userPresets = DB.menuPresets.filter(function(p){return defaultIds.indexOf(p.id)<0;});
+    DB.menuPresets = MENU_PRESETS_DEFAULT.map(function(p){return Object.assign({},p);}).concat(userPresets);
+    DB.config.menuPresetsVersion = MENU_PRESETS_VERSION;
   }
 }
 
@@ -1302,7 +1765,9 @@ function saveDB(){
       menuPresets:     DB.menuPresets,
       actPresets:      DB.actPresets,
       menusPropuestos: DB.menusPropuestos,
-      planSemanal:     DB.planSemanal||{}
+      planSemanal:     DB.planSemanal||{},
+      gymPerformance:  DB.gymPerformance||[],
+      wellnessRecords: DB.wellnessRecords||[]
     }).catch(function(e){
       try{ localStorage.setItem("nm-alim-v1", JSON.stringify(DB)); }catch(e2){}
     });
@@ -1403,7 +1868,9 @@ function _parseSR(str){
   return {sets:0, reps:0};
 }
 function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
-  var sessions = SESSIONS_DATA.filter(function(s){ return s.dia===diaKey; });
+  // Compatibilidad P1/P2: d1↔d1b, d2↔d2b, d4↔d4b, d5↔d5b
+  var diaKeyAlt = /b$/.test(diaKey) ? diaKey.replace(/b$/,'') : diaKey+'b';
+  var sessions = SESSIONS_DATA.filter(function(s){ return s.dia===diaKey || s.dia===diaKeyAlt; });
   if(!sessions.length) return null;
   sessions.sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
 
@@ -1422,10 +1889,13 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
   var totalVol = 0, totalSets = 0;
   (sess.ejercicios||[]).forEach(function(ej){
     var kg, sr;
+    // Check if exercise was explicitly skipped/omitted in the real session
+    var wasOmitido = /omiti|OMITIR/i.test(ej.sr||'') || /omiti|OMITIR/i.test(ej.pr||'');
     if(!isProg){
       kg = _parseKg(ej.pr);
       sr = _parseSR(ej.sr);
-      if(!kg || !sr.sets){ kg = _parseKg(ej.pp); sr = _parseSR(ej.sp); }
+      // Only fall back to plan values if exercise was NOT explicitly omitted
+      if(!wasOmitido && (!kg || !sr.sets)){ kg = _parseKg(ej.pp); sr = _parseSR(ej.sp); }
     } else {
       kg = _parseKg(ej.pp);
       sr = _parseSR(ej.sp);
@@ -1440,7 +1910,7 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
     }
   });
 
-  var isLower = (diaKey==="d2"||diaKey==="d5");
+  var isLower = (diaKey==="d2"||diaKey==="d5"||diaKey==="d2b"||diaKey==="d5b");
   // Pure volume-based formula — no duration dependency
   // Lower body (large muscle groups): 0.020 kcal per kg·rep + 100 kcal base overhead
   // Upper body: 0.018 kcal per kg·rep + 100 kcal base overhead
@@ -1497,7 +1967,8 @@ function _recalcGymActividades(){
 function getDailyTarget(fecha){
   var tmb    = getTMBForDate(fecha);
   var factor = parseFloat(DB.config.factorBase) || 1.2;
-  var scen   = SCENARIOS[DB.config.escenario] || SCENARIOS.mantencion;
+  var scenKey = getScenarioForDate(fecha);
+  var scen   = SCENARIOS[scenKey] || SCENARIOS.mantencion;
   var actCal = getActCalForDate(fecha);
   return Math.round(tmb * factor + scen.calAdj + actCal);
 }
@@ -1505,10 +1976,13 @@ function getDailyTarget(fecha){
 function getMacroTargets(fecha){
   fecha = fecha || _viewDate;
   var peso  = getWeightForDate(fecha);
-  var scen  = SCENARIOS[DB.config.escenario] || SCENARIOS.mantencion;
+  var scenKey = getScenarioForDate(fecha);
+  var scen  = SCENARIOS[scenKey] || SCENARIOS.mantencion;
   var total = getDailyTarget(fecha);
   var prot  = Math.round(scen.protFactor * peso);
-  var gras  = Math.round((total * 0.25) / 9);
+  var grasByPct = (total * 0.25) / 9;
+  var grasFloor = (scenKey === 'deficit') ? (0.79 * peso) : 0;
+  var gras  = Math.round(Math.max(grasByPct, grasFloor));
   var carb  = Math.round((total - prot*4 - gras*9) / 4);
   if(carb < 0) carb = 0;
   return {cal:total, prot:prot, gras:gras, carb:carb};
@@ -1531,14 +2005,15 @@ function calcWeeklyAdjustment(){
   var today  = todayStr();
   var days   = getWeekRange(today);
   var factor = parseFloat(DB.config.factorBase) || 1.2;
-  var scen   = SCENARIOS[DB.config.escenario] || SCENARIOS.mantencion;
 
   var pastDays = days.filter(function(d){ return d < today; });
   if(!pastDays.length) return null;
 
-  // Per-day target uses the InBody that was current on each specific day
+  // Per-day target uses the InBody AND scenario that were current on each specific day
   var targetSoFar = 0;
   pastDays.forEach(function(d){
+    var scenKey = getScenarioForDate(d);
+    var scen = SCENARIOS[scenKey] || SCENARIOS.mantencion;
     targetSoFar += Math.round(getTMBForDate(d) * factor + scen.calAdj + getActCalForDate(d));
   });
 
@@ -1553,8 +2028,9 @@ function calcWeeklyAdjustment(){
   var cumDiff = Math.round(consumedSoFar - targetSoFar);
   if(Math.abs(cumDiff) < 150) return null;
 
-  // Estimate remaining days using today's InBody
-  var todayBase = Math.round(getTMBForDate(today) * factor + scen.calAdj);
+  // Estimate remaining days using today's scenario and InBody
+  var todayScen = SCENARIOS[getScenarioForDate(today)] || SCENARIOS.mantencion;
+  var todayBase = Math.round(getTMBForDate(today) * factor + todayScen.calAdj);
   var weeklyTotal = targetSoFar + todayBase * daysRemaining;
   var adjustedDaily = Math.round((weeklyTotal - consumedSoFar) / daysRemaining);
   return {cumDiff: cumDiff, adjustedDaily: adjustedDaily, daysRemaining: daysRemaining, baseTarget: todayBase};
@@ -1595,6 +2071,7 @@ function renderAll(){
   renderMenus();
   renderMetas();
   renderConfig();
+  renderSeguimiento();
 }
 
 // ─────────── BREAKDOWN CARD ───────────
@@ -1603,7 +2080,8 @@ function renderBreakdownCard(){
   if(!el) return;
   var tmb    = getTMBForDate(_viewDate);   // uses InBody current on this date
   var factor = parseFloat(DB.config.factorBase)||1.2;
-  var scen   = SCENARIOS[DB.config.escenario]||SCENARIOS.mantencion;
+  var scenKey = getScenarioForDate(_viewDate);
+  var scen   = SCENARIOS[scenKey]||SCENARIOS.mantencion;
   var actCal = getActCalForDate(_viewDate);
   var base   = Math.round(tmb * factor);
   var total  = Math.round(base + scen.calAdj + actCal);
@@ -1777,17 +2255,6 @@ function renderHoy(){
     var planHoy = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
     var isHoyFecha = (fecha === todayStr());
 
-    // Auto-iniciar seguimiento para HOY si hay plan y aún no se inició
-    if(isHoyFecha && planHoy && planHoy.items && planHoy.items.length && !planHoy.itemsReal){
-      planHoy.itemsReal = planHoy.items.map(function(i){
-        return {id:"ri"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
-          nombre:i.nombre, cal:i.cal, prot:i.prot||0, gras:i.gras||0, carb:i.carb||0,
-          cantidad:i.cantidad||null, cantUnidades:i.cantUnidades||null, unitNombre:i.unitNombre||null,
-          dbId:i.dbId||null, comida:i.comida||null, consumido:false, registroId:null};
-      });
-      saveDB();
-    }
-
     if(planHoy && planHoy.itemsReal){
       // ─── MODO SEGUIMIENTO: menú cargado, seguimiento activo ───
       var rItems = planHoy.itemsReal;
@@ -1886,33 +2353,67 @@ function renderHoy(){
         barsHtml+groupHtml;
 
     } else if(isHoyFecha){
-      // ─── SIN MENÚ PARA HOY: mostrar opciones de carga ───
-      var presetListHtml = "";
-      if(DB.menuPresets.length){
-        presetListHtml = "<div style='font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;'>Presets guardados:</div>"+
-          DB.menuPresets.map(function(m){
-            var tot = m.items.reduce(function(s,i){ return s+(i.cal||0); },0);
-            return "<div class='menu-row' style='margin-bottom:5px;'>"+
-              "<div><div class='menu-row-name'>"+esc(m.nombre)+"</div>"+
-              "<div class='menu-row-meta'>"+m.items.length+" alimentos · "+Math.round(tot)+" kcal</div></div>"+
-              "<button class='btn-xs btn-blue' onclick='cargarPresetEnHoy(\""+m.id+"\")'>Cargar</button>"+
-            "</div>";
-          }).join("");
-      } else {
-        presetListHtml = "<div style='font-size:11px;color:var(--text3);'>Aún no tenés presets. Creá uno en la tab <strong>Menús</strong>.</div>";
-      }
+      // ─── SIN MENÚ PARA HOY: tres casos según estado del plan ───
+      if(planHoy && planHoy.items && planHoy.items.length && planHoy.confirmed && !planHoy.itemsReal){
+        // Caso A: Plan confirmado — botón prominente para cargar
+        var pItems = planHoy.items;
+        var pCal2  = Math.round(pItems.reduce(function(s,i){ return s+(i.cal||0); },0));
+        var pProt2 = Math.round(pItems.reduce(function(s,i){ return s+(i.prot||0); },0));
+        var pGras2 = Math.round(pItems.reduce(function(s,i){ return s+(i.gras||0); },0));
+        var pCarb2 = Math.round(pItems.reduce(function(s,i){ return s+(i.carb||0); },0));
+        planHoyEl.innerHTML =
+          "<div class='section-hdr' style='margin-top:12px;'>"+
+            "<span class='section-title'>Menú del día</span>"+
+          "</div>"+
+          "<div style='background:var(--bg3);border:1px solid var(--green);border-radius:var(--r);padding:14px;margin-bottom:8px;'>"+
+            "<div style='font-size:12px;font-weight:700;color:var(--green);margin-bottom:4px;'>✅ Menú planificado listo</div>"+
+            "<div style='font-size:11px;color:var(--text2);margin-bottom:4px;'>"+
+              pItems.length+" alimentos · "+pCal2+" kcal · P:"+pProt2+"g G:"+pGras2+"g C:"+pCarb2+"g"+
+            "</div>"+
+            "<div style='font-size:11px;color:var(--text2);margin-bottom:12px;'>Cargalo para comenzar el seguimiento del día. Podrás editar sin afectar el plan.</div>"+
+            "<button class='btn-sm btn-green btn-full' onclick='iniciarSeguimiento(\""+planHoy.id+"\")'>📋 Cargar menú y comenzar seguimiento</button>"+
+          "</div>";
 
-      planHoyEl.innerHTML =
-        "<div class='section-hdr' style='margin-top:12px;'>"+
-          "<span class='section-title'>Menú del día</span>"+
-        "</div>"+
-        "<div style='background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--r);padding:12px;margin-bottom:8px;'>"+
-          "<div style='font-size:12px;font-weight:600;margin-bottom:4px;'>Sin menú cargado para hoy</div>"+
-          "<div style='font-size:11px;color:var(--text2);margin-bottom:12px;'>Planificá tu menú en la tab <strong>Menús</strong> y volví acá para seguirlo, o cargá un preset directo:</div>"+
-          "<button class='btn-sm btn-blue btn-full' style='margin-bottom:8px;' onclick='goToMenusTab()'>📋 Ir a planificar en Menús</button>"+
-          "<div style='height:1px;background:var(--bord);margin:10px 0 8px;'></div>"+
-          presetListHtml+
-        "</div>";
+      } else if(planHoy && planHoy.items && planHoy.items.length && !planHoy.confirmed && !planHoy.itemsReal){
+        // Caso B: Plan en construcción, no confirmado
+        planHoyEl.innerHTML =
+          "<div class='section-hdr' style='margin-top:12px;'>"+
+            "<span class='section-title'>Menú del día</span>"+
+          "</div>"+
+          "<div style='background:var(--bg3);border:1px solid var(--amber);border-radius:var(--r);padding:14px;margin-bottom:8px;'>"+
+            "<div style='font-size:12px;font-weight:700;color:var(--amber);margin-bottom:4px;'>🔄 Menú en construcción</div>"+
+            "<div style='font-size:11px;color:var(--text2);margin-bottom:12px;'>Tenés "+planHoy.items.length+" alimentos en el plan de Menús. Confirmá el plan para poder cargarlo aquí.</div>"+
+            "<button class='btn-sm btn-full' style='background:var(--amber-d);color:var(--amber);border:1px solid var(--amber);' onclick='goToMenusTab()'>Ir a Menús → Confirmar plan</button>"+
+          "</div>";
+
+      } else {
+        // Caso C: Sin plan — comportamiento original con presets
+        var presetListHtml = "";
+        if(DB.menuPresets.length){
+          presetListHtml = "<div style='font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;'>Presets guardados:</div>"+
+            DB.menuPresets.map(function(m){
+              var tot = m.items.reduce(function(s,i){ return s+(i.cal||0); },0);
+              return "<div class='menu-row' style='margin-bottom:5px;'>"+
+                "<div><div class='menu-row-name'>"+esc(m.nombre)+"</div>"+
+                "<div class='menu-row-meta'>"+m.items.length+" alimentos · "+Math.round(tot)+" kcal</div></div>"+
+                "<button class='btn-xs btn-blue' onclick='cargarPresetEnHoy(\""+m.id+"\")'>Cargar</button>"+
+              "</div>";
+            }).join("");
+        } else {
+          presetListHtml = "<div style='font-size:11px;color:var(--text3);'>Aún no tenés presets. Creá uno en la tab <strong>Menús</strong>.</div>";
+        }
+        planHoyEl.innerHTML =
+          "<div class='section-hdr' style='margin-top:12px;'>"+
+            "<span class='section-title'>Menú del día</span>"+
+          "</div>"+
+          "<div style='background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--r);padding:12px;margin-bottom:8px;'>"+
+            "<div style='font-size:12px;font-weight:600;margin-bottom:4px;'>Sin menú cargado para hoy</div>"+
+            "<div style='font-size:11px;color:var(--text2);margin-bottom:12px;'>Planificá tu menú en la tab <strong>Menús</strong> y volví acá para seguirlo, o cargá un preset directo:</div>"+
+            "<button class='btn-sm btn-blue btn-full' style='margin-bottom:8px;' onclick='goToMenusTab()'>📋 Ir a planificar en Menús</button>"+
+            "<div style='height:1px;background:var(--bord);margin:10px 0 8px;'></div>"+
+            presetListHtml+
+          "</div>";
+      }
 
     } else {
       // Día pasado sin seguimiento — no mostrar nada
@@ -1967,14 +2468,15 @@ function renderSemana(){
   var today = todayStr();
   var days  = getWeekRange(today);
   var factor= parseFloat(DB.config.factorBase)||1.2;
-  var scen  = SCENARIOS[DB.config.escenario]||SCENARIOS.mantencion;
+  var todayScenKey = getScenarioForDate(today);
+  var scen  = SCENARIOS[todayScenKey]||SCENARIOS.mantencion;
 
   // Header: week range
   var d0 = new Date(days[0]+"T12:00:00"), d6 = new Date(days[6]+"T12:00:00");
   var todayBase = Math.round(getTMBForDate(today)*factor+scen.calAdj);
   document.getElementById("semana-header").innerHTML =
     "<div style='font-size:13px;font-weight:700;'>Semana "+d0.getDate()+" "+MESES[d0.getMonth()]+" — "+d6.getDate()+" "+MESES[d6.getMonth()]+"</div>"+
-    "<div style='font-size:11px;color:var(--text2);margin-top:2px;'>Objetivo base hoy: "+todayBase+" kcal/día · Escenario: "+SCENARIOS[DB.config.escenario].label+"</div>";
+    "<div style='font-size:11px;color:var(--text2);margin-top:2px;'>Objetivo base hoy: "+todayBase+" kcal/día · Escenario: "+scen.label+"</div>";
 
   // Weekly adjustment banner
   var adj = calcWeeklyAdjustment();
@@ -1987,8 +2489,12 @@ function renderSemana(){
     banSem.classList.remove("show");
   }
 
+  renderSugerenciasSemanales(adj, days, today);
+
   // Days
-  var html = ""; var totCal=0,totProt=0,totGras=0,totCarb=0,activeDays=0;
+  var html = "";
+  var totCal=0,totProt=0,totGras=0,totCarb=0,activeDays=0;
+  var totObjCal=0,totObjProt=0,totObjGras=0,totObjCarb=0;
   days.forEach(function(fecha){
     var d   = new Date(fecha+"T12:00:00");
     var regs= DB.registros.filter(function(r){ return r.fecha===fecha; });
@@ -1996,11 +2502,14 @@ function renderSemana(){
     regs.forEach(function(r){ cal+=r.cal||0;prot+=r.prot||0;gras+=r.gras||0;carb+=r.carb||0; });
     var actCal = getActCalForDate(fecha);
     var target = getDailyTarget(fecha); // uses per-day InBody
+    var macT   = getMacroTargets(fecha);
     var pct    = target>0 ? Math.min(100,cal/target*100) : 0;
     var bal    = Math.round(cal-target);
     var isTday = fecha===today;
     var isPast = fecha<today;
-    if(cal>0){ totCal+=cal;totProt+=prot;totGras+=gras;totCarb+=carb;activeDays++; }
+    if(cal>0 && isPast){ totCal+=cal;totProt+=prot;totGras+=gras;totCarb+=carb;
+      totObjCal+=macT.cal;totObjProt+=macT.prot;totObjGras+=macT.gras;totObjCarb+=macT.carb;
+      activeDays++; }
     html += "<div class='week-day"+(isTday?" today":"")+"'>"+
       "<div class='week-day-hdr'>"+
       "<span class='week-day-name'>"+DIAS[d.getDay()]+" "+d.getDate()+"</span>"+
@@ -2013,18 +2522,208 @@ function renderSemana(){
   });
   document.getElementById("semana-view").innerHTML = html;
 
-  // Macro averages
+  // Macro averages vs objectives
   if(activeDays>0){
+    var _avCal=Math.round(totCal/activeDays), _avProt=Math.round(totProt/activeDays);
+    var _avGras=Math.round(totGras/activeDays), _avCarb=Math.round(totCarb/activeDays);
+    var _obCal=Math.round(totObjCal/activeDays), _obProt=Math.round(totObjProt/activeDays);
+    var _obGras=Math.round(totObjGras/activeDays), _obCarb=Math.round(totObjCarb/activeDays);
+    var _pctFn=function(v,o){return o>0?Math.round(v/o*100):0;};
+    var _colFn=function(p){return p>=90&&p<=110?"var(--green)":p>=70?"var(--amber)":"var(--red)";};
+    function _semMacroCol(avg,obj,unit,label,color){
+      var p=_pctFn(avg,obj);
+      return "<div style='text-align:center;'>"+
+        "<div style='font-size:15px;font-weight:700;color:"+color+";'>"+avg+unit+"</div>"+
+        "<div style='font-size:9px;color:var(--text2);'>obj."+obj+unit+"</div>"+
+        "<div style='font-size:11px;font-weight:700;color:"+_colFn(p)+";'>"+p+"%</div>"+
+        "<div style='font-size:10px;color:var(--text2);'>"+label+"</div></div>";
+    }
     document.getElementById("semana-macros").innerHTML =
-      "<div class='row4' style='text-align:center;'>"+
-      "<div><div style='font-size:16px;font-weight:700;color:var(--blue);'>"+Math.round(totCal/activeDays)+"</div><div style='font-size:10px;color:var(--text2);'>kcal/día</div></div>"+
-      "<div><div style='font-size:16px;font-weight:700;color:var(--green);'>"+Math.round(totProt/activeDays)+"g</div><div style='font-size:10px;color:var(--text2);'>Prot.</div></div>"+
-      "<div><div style='font-size:16px;font-weight:700;color:var(--amber);'>"+Math.round(totGras/activeDays)+"g</div><div style='font-size:10px;color:var(--text2);'>Grasas</div></div>"+
-      "<div><div style='font-size:16px;font-weight:700;color:var(--purple);'>"+Math.round(totCarb/activeDays)+"g</div><div style='font-size:10px;color:var(--text2);'>Carbos</div></div>"+
+      "<div style='font-size:10px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;'>Promedio días con registro ("+activeDays+" días)</div>"+
+      "<div class='row4'>"+
+      _semMacroCol(_avCal,_obCal,"","kcal","var(--blue)")+
+      _semMacroCol(_avProt,_obProt,"g","Prot.","var(--green)")+
+      _semMacroCol(_avGras,_obGras,"g","Grasas","var(--amber)")+
+      _semMacroCol(_avCarb,_obCarb,"g","Carbos","var(--purple)")+
       "</div>";
   } else {
-    document.getElementById("semana-macros").innerHTML = "<div class='empty-hint'>Sin datos esta semana</div>";
+    document.getElementById("semana-macros").innerHTML = "<div class='empty-hint'>Sin datos de días anteriores esta semana</div>";
   }
+}
+
+// ─────────── SUGERENCIAS SEMANALES ───────────
+function renderSugerenciasSemanales(adj, days, today){
+  var el = document.getElementById("semana-sugerencias");
+  if(!el) return;
+  if(!adj || adj.daysRemaining < 2 || Math.abs(adj.cumDiff) < 100){
+    el.innerHTML = "";
+    return;
+  }
+
+  var futureDays = days.filter(function(d){ return d > today; });
+  if(!futureDays.length){ el.innerHTML=""; return; }
+
+  var tgt = getMacroTargets(today);
+  var pastDays = days.filter(function(d){ return d <= today; });
+  var consumed = {cal:0, prot:0, gras:0, carb:0};
+  pastDays.forEach(function(d){
+    DB.registros.filter(function(r){ return r.fecha===d; }).forEach(function(r){
+      consumed.cal  += r.cal||0;
+      consumed.prot += r.prot||0;
+      consumed.gras += r.gras||0;
+      consumed.carb += r.carb||0;
+    });
+  });
+
+  var weekTarget = {
+    cal:  tgt.cal  * 7,
+    prot: tgt.prot * 7,
+    gras: tgt.gras * 7,
+    carb: tgt.carb * 7
+  };
+
+  var gapTotal = {
+    cal:  weekTarget.cal  - consumed.cal,
+    prot: weekTarget.prot - consumed.prot,
+    gras: weekTarget.gras - consumed.gras,
+    carb: weekTarget.carb - consumed.carb
+  };
+
+  var n = futureDays.length;
+  var gapPerDay = {
+    cal:  Math.round(gapTotal.cal  / n),
+    prot: Math.round(gapTotal.prot / n),
+    gras: Math.round(gapTotal.gras / n),
+    carb: Math.round(gapTotal.carb / n)
+  };
+
+  var allFoods = FOODS_DEFAULT.concat(DB.alimentos.filter(function(f){ return !FOODS_DEFAULT.find(function(fd){ return fd.id===f.id; }); }));
+  var ranked = allFoods.map(function(f){
+    if(!f.cal || f.cal<=0) return null;
+    var portion = gapPerDay.cal > 0 ? Math.min(300, Math.max(30, gapPerDay.cal * 0.2 / (f.cal/100))) : 100;
+    portion = Math.round(portion);
+    var fCal  = (f.cal  /100) * portion;
+    var fProt = (f.prot /100) * portion;
+    var fGras = (f.gras /100) * portion;
+    var fCarb = (f.carb /100) * portion;
+
+    var score = 0;
+    if(gapPerDay.prot > 0) score += (fProt / gapPerDay.prot) * 3;
+    if(gapPerDay.cal  > 0) score += (fCal  / gapPerDay.cal)  * 1;
+    if(gapPerDay.carb > 0) score += (fCarb / gapPerDay.carb) * 0.8;
+    if(gapPerDay.gras > 0) score += (fGras / gapPerDay.gras) * 0.5;
+
+    if(fCal  > gapPerDay.cal  * 0.5) score *= 0.7;
+    if(fProt > gapPerDay.prot * 1.5) score *= 0.8;
+
+    return { f:f, portion:portion, fCal:Math.round(fCal), fProt:Math.round(fProt), fGras:Math.round(fGras), fCarb:Math.round(fCarb), score:score };
+  }).filter(Boolean).sort(function(a,b){ return b.score - a.score; });
+
+  var top5 = ranked.slice(0, 6);
+
+  var dir = adj.cumDiff > 0 ? "exceso" : "déficit";
+  var dirColor = adj.cumDiff > 0 ? "var(--red)" : "var(--green)";
+
+  var html = "<div style='background:var(--bg3);border:1px solid var(--bord2);border-radius:var(--r);padding:12px;margin-bottom:8px;'>"+
+    "<div style='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;'>🍽️ Sugerencias para los próximos "+n+" días</div>"+
+    "<div style='font-size:11px;color:var(--text2);margin-bottom:10px;'>"+
+      "Gap por día restante: <strong style='color:"+dirColor+";'>"+gapPerDay.cal+" kcal</strong> · "+
+      "P:<strong>"+gapPerDay.prot+"g</strong> G:<strong>"+gapPerDay.gras+"g</strong> C:<strong>"+gapPerDay.carb+"g</strong>"+
+    "</div>"+
+    "<div style='font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;'>Top alimentos sugeridos</div>"+
+    top5.map(function(item){
+      var pLabel = item.f.pesoUnidad && item.f.unitNombre
+        ? Math.round(item.portion / item.f.pesoUnidad * 10)/10 + " " + item.f.unitNombre
+        : item.portion + "g";
+      return "<div style='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bord);'>"+
+        "<div style='flex:1;min-width:0;'>"+
+          "<div style='font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>"+esc(item.f.nombre)+"</div>"+
+          "<div style='font-size:10px;color:var(--text2);'>"+pLabel+" · "+item.fCal+" kcal · P:"+item.fProt+"g G:"+item.fGras+"g C:"+item.fCarb+"g</div>"+
+        "</div>"+
+      "</div>";
+    }).join("")+
+    "<div style='margin-top:10px;'>"+
+      "<button class='btn-sm btn-blue btn-full' onclick='generarMenuSugerido()'>✨ Generar menú sugerido para mañana</button>"+
+    "</div>"+
+  "</div>";
+
+  el.innerHTML = html;
+}
+
+function generarMenuSugerido(){
+  var today = todayStr();
+  var tomorrow = new Date(today+"T12:00:00");
+  tomorrow.setDate(tomorrow.getDate()+1);
+  var tomorrowStr = tomorrow.getFullYear()+"-"+pad2(tomorrow.getMonth()+1)+"-"+pad2(tomorrow.getDate());
+
+  var existing = DB.menusPropuestos.find(function(m){ return m.fecha===tomorrowStr; });
+  if(existing && existing.items && existing.items.length){
+    if(!confirm("Ya hay un plan para mañana ("+existing.items.length+" alimentos). ¿Reemplazar con el menú sugerido?")) return;
+    existing.items = [];
+    existing.confirmed = false;
+    if(existing.itemsReal) delete existing.itemsReal;
+  }
+
+  var tgt = getMacroTargets(tomorrowStr);
+  var allFoods = FOODS_DEFAULT.concat(DB.alimentos.filter(function(f){ return !FOODS_DEFAULT.find(function(fd){ return fd.id===f.id; }); }));
+
+  var comidaDist = [
+    {key:"desayuno",  label:"Desayuno",  pct:0.25},
+    {key:"almuerzo",  label:"Almuerzo",  pct:0.35},
+    {key:"once",      label:"Once",      pct:0.15},
+    {key:"cena",      label:"Cena",      pct:0.25}
+  ];
+
+  var generatedItems = [];
+  comidaDist.forEach(function(comida){
+    var calTarget  = tgt.cal  * comida.pct;
+    var protTarget = tgt.prot * comida.pct;
+
+    var scored = allFoods.map(function(f){
+      if(!f.cal || f.cal<=0) return null;
+      var portion = Math.min(300, Math.max(30, calTarget / (f.cal/100)));
+      portion = Math.round(portion);
+      var fCal  = Math.round((f.cal  /100)*portion);
+      var fProt = Math.round((f.prot /100)*portion);
+      var fGras = Math.round((f.gras /100)*portion);
+      var fCarb = Math.round((f.carb /100)*portion);
+      var score = (fProt/Math.max(1,protTarget))*3 + (fCal/Math.max(1,calTarget))*1;
+      if(fCal > calTarget*1.3) score *= 0.5;
+      return {f:f, portion:portion, fCal:fCal, fProt:fProt, fGras:fGras, fCarb:fCarb, score:score};
+    }).filter(Boolean).sort(function(a,b){ return b.score-a.score; });
+
+    var pick = scored[0];
+    if(!pick) return;
+
+    var pLabel = pick.f.pesoUnidad && pick.f.unitNombre
+      ? Math.round(pick.portion / pick.f.pesoUnidad * 10)/10 + " " + pick.f.unitNombre
+      : null;
+
+    generatedItems.push({
+      id: "pi"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
+      nombre: pick.f.nombre,
+      cal: pick.fCal, prot: pick.fProt, gras: pick.fGras, carb: pick.fCarb,
+      cantidad: pLabel ? null : pick.portion,
+      cantUnidades: pLabel ? Math.round(pick.portion / (pick.f.pesoUnidad||100)*10)/10 : null,
+      unitNombre: pick.f.unitNombre || null,
+      dbId: pick.f.id || null,
+      comida: comida.key
+    });
+  });
+
+  var plan = _getOrCreatePlan(tomorrowStr);
+  plan.items = generatedItems;
+  plan.confirmed = false;
+  saveDB();
+
+  _menuDate = tomorrowStr;
+  var btn = document.querySelector('.tab-btn[onclick*="menus"]');
+  if(btn) showTab('menus', btn);
+  renderMenuPropuesto();
+
+  setTimeout(function(){
+    alert("Menú sugerido generado para mañana. Podés editarlo y confirmarlo cuando estés listo.");
+  }, 300);
 }
 
 // ─────────── RENDER FOOD DB ───────────
@@ -2172,6 +2871,10 @@ function renderMenuPropuesto(){
   var planTotals = _sumPlanTotals(fecha);
   var plan = planTotals.plan;
 
+  // Show/hide "Vaciar" button based on whether plan has items
+  var btnClear = document.getElementById("btn-clear-plan");
+  if(btnClear) btnClear.style.display = (plan && plan.items && plan.items.length) ? "inline-flex" : "none";
+
   // ── Macro objectives + plan comparison — pass pre-calculated totals ──
   _renderPlanMacrosBar(fecha, planTotals);
 
@@ -2202,6 +2905,8 @@ function renderMenuPropuesto(){
     });
     listEl.innerHTML = emptyHtml;
     if(summEl) summEl.style.display = "none";
+    var confirmSec = document.getElementById("plan-confirm-section");
+    if(confirmSec) confirmSec.innerHTML = "";
     return;  // macros-bar stays visible (shows objectives with 0 plan values)
   }
 
@@ -2254,6 +2959,24 @@ function renderMenuPropuesto(){
     "</div>";
   });
   listEl.innerHTML = html;
+
+  // ── Sección de confirmación del plan ──
+  var confirmSec = document.getElementById("plan-confirm-section");
+  if(confirmSec){
+    if(plan.confirmed){
+      confirmSec.innerHTML =
+        "<div style='margin-top:12px;padding:10px 12px;background:var(--bg3);border:1px solid var(--green);border-radius:var(--rsm);display:flex;align-items:center;justify-content:space-between;'>"+
+          "<span style='font-size:12px;color:var(--green);font-weight:700;'>✅ Plan confirmado</span>"+
+          "<button class='btn-xs' style='color:var(--text3);font-size:10px;' onclick='desconfirmarPlan(_menuDate)'>Editar</button>"+
+        "</div>";
+    } else {
+      confirmSec.innerHTML =
+        "<div style='margin-top:12px;padding:10px 12px;background:var(--bg3);border:1px dashed var(--green);border-radius:var(--rsm);'>"+
+          "<div style='font-size:11px;color:var(--text2);margin-bottom:8px;'>Cuando termines de planificar, confirmá el menú para poder cargarlo en <strong>Hoy</strong>.</div>"+
+          "<button class='btn-sm btn-green btn-full' onclick='confirmPlan(_menuDate)'>✅ Confirmar plan del día</button>"+
+        "</div>";
+    }
+  }
 }
 
 // ─────────── RENDER METAS ───────────
@@ -2265,6 +2988,7 @@ function renderMetas(){
   if(hdr) hdr.innerHTML = "<div style='font-size:13px;font-weight:700;'>Semana "+d0.getDate()+" "+MESES[d0.getMonth()]+" — "+d6.getDate()+" "+MESES[d6.getMonth()]+"</div>";
 
   var macroSums = {cal:0,prot:0,gras:0,carb:0};
+  var objSums   = {cal:0,prot:0,gras:0,carb:0}; // objetivo acumulado por día con datos
   var daysWithData = 0;
   var cumBal = 0;
   var cumPoints = [];
@@ -2284,10 +3008,12 @@ function renderMetas(){
     if(hasCal) cumBal += Math.round(con.cal - tgt);
     cumPoints.push({fecha:fecha, bal:cumBal, consumed:con.cal, target:tgt, hasCal:hasCal, isToday:isToday});
 
-    // Only count fully past days in the average (not today, not future)
+    // Solo días pasados finalizados (no hoy, no futuro)
     if(hasCal && fecha < today){
       macroSums.cal += con.cal; macroSums.prot += con.prot;
       macroSums.gras += con.gras; macroSums.carb += con.carb;
+      objSums.cal += macT.cal; objSums.prot += macT.prot;
+      objSums.gras += macT.gras; objSums.carb += macT.carb;
       daysWithData++;
     }
 
@@ -2302,8 +3028,11 @@ function renderMetas(){
         "<div class='meta-bar'><div class='meta-bar-fill' style='width:"+calPct+"%;background:"+calColor+";'></div></div>"+
         "<div class='meta-bar-sm'><div class='meta-bar-fill' style='width:"+protPct+"%;background:"+protColor+";'></div></div>"+
       "</div>"+
-      "<div class='meta-val'>"+
-        (hasCal ? "<span style='color:"+calColor+";font-weight:700;'>"+Math.round(con.cal)+"</span><span style='color:var(--text2);'> / "+tgt+"</span>" : "<span style='color:var(--text3);'>—</span>")+
+      "<div class='meta-val' style='display:flex;flex-direction:column;align-items:flex-end;gap:1px;'>"+
+        (hasCal
+          ? "<span style='font-size:11px;color:"+calColor+";font-weight:700;'>"+Math.round(con.cal)+"<span style='color:var(--text2);font-weight:400;'>/"+tgt+"</span></span>"+
+            "<span style='font-size:10px;color:"+protColor+";'>P:"+Math.round(con.prot)+"<span style='color:var(--text2);'>/"+macT.prot+"g</span></span>"
+          : "<span style='color:var(--text3);'>—</span>")+
       "</div>"+
       "</div>";
   });
@@ -2317,25 +3046,31 @@ function renderMetas(){
   var macrosEl = document.getElementById("metas-macros");
   if(!macrosEl) return;
   if(daysWithData > 0){
-    var tgt2 = getMacroTargets(today);
+    // Objetivo promedio real de los días con datos (respeta el escenario de cada día)
     var avgCal  = Math.round(macroSums.cal/daysWithData);
     var avgProt = Math.round(macroSums.prot/daysWithData);
     var avgGras = Math.round(macroSums.gras/daysWithData);
     var avgCarb = Math.round(macroSums.carb/daysWithData);
+    var obCal   = Math.round(objSums.cal/daysWithData);
+    var obProt  = Math.round(objSums.prot/daysWithData);
+    var obGras  = Math.round(objSums.gras/daysWithData);
+    var obCarb  = Math.round(objSums.carb/daysWithData);
     var pctFn   = function(v,t){ return t>0 ? Math.round(v/t*100) : 0; };
-    var colorFn = function(p){ return p>=95&&p<=110?"var(--green)":p>=80?"var(--amber)":"var(--red)"; };
+    var colorFn = function(p){ return p>=90&&p<=110?"var(--green)":p>=70?"var(--amber)":"var(--red)"; };
     macrosEl.innerHTML =
       "<div class='row4' style='text-align:center;margin-bottom:12px;'>"+
-      _macroCol(avgCal, "kcal", tgt2.cal, "var(--blue)")+
-      _macroCol(avgProt+"g","Prot",tgt2.prot+"g","var(--green)")+
-      _macroCol(avgGras+"g","Grasas",tgt2.gras+"g","var(--amber)")+
-      _macroCol(avgCarb+"g","Carbos",tgt2.carb+"g","var(--purple)")+
+      _macroCol(avgCal,  "kcal",   obCal,       "var(--blue)")+
+      _macroCol(avgProt+"g","Prot",  obProt+"g",  "var(--green)")+
+      _macroCol(avgGras+"g","Grasas",obGras+"g",  "var(--amber)")+
+      _macroCol(avgCarb+"g","Carbos",obCarb+"g",  "var(--purple)")+
       "</div>"+
       "<div style='display:grid;grid-template-columns:1fr 1fr;gap:6px;'>"+
-      _adherenceBadge("Calorías", pctFn(avgCal,tgt2.cal), colorFn(pctFn(avgCal,tgt2.cal)))+
-      _adherenceBadge("Proteína", pctFn(avgProt,tgt2.prot), colorFn(pctFn(avgProt,tgt2.prot)))+
+      _adherenceBadge("Calorías", pctFn(avgCal,obCal),   colorFn(pctFn(avgCal,obCal)))+
+      _adherenceBadge("Proteína", pctFn(avgProt,obProt),  colorFn(pctFn(avgProt,obProt)))+
+      _adherenceBadge("Grasas",   pctFn(avgGras,obGras),  colorFn(pctFn(avgGras,obGras)))+
+      _adherenceBadge("Carbos",   pctFn(avgCarb,obCarb),  colorFn(pctFn(avgCarb,obCarb)))+
       "</div>"+
-      "<div style='font-size:11px;color:var(--text2);text-align:center;margin-top:8px;'>Promedio de "+daysWithData+" día(s) finalizados esta semana (excluye hoy)</div>";
+      "<div style='font-size:11px;color:var(--text2);text-align:center;margin-top:8px;'>Promedio de "+daysWithData+" día(s) finalizados (excluye hoy y días sin registros)</div>";
   } else {
     macrosEl.innerHTML = "<div class='empty-hint'>Sin días finalizados esta semana aún</div>";
   }
@@ -2428,14 +3163,35 @@ function _renderCumChart(points){
 function renderConfig(){
   // Scenarios
   var sg = document.getElementById("scenario-group");
+  var todayScenKey = getScenarioForDate(todayStr());
   sg.innerHTML = Object.keys(SCENARIOS).map(function(key){
     var s = SCENARIOS[key];
-    var sel = DB.config.escenario===key;
+    var sel = todayScenKey===key;
     return "<div class='scenario-opt"+(sel?" selected":"")+"' onclick='selectScenario(\""+key+"\")'>"+
       "<div class='scenario-dot'></div>"+
       "<div><div class='scenario-name' style='color:"+(sel?s.color:"var(--text)")+"'>"+s.label+"</div><div class='scenario-desc'>"+s.desc+"</div></div>"+
       "</div>";
   }).join("");
+
+  // Scenario history display
+  var histEl = document.getElementById("scenario-history");
+  if(histEl){
+    var hist = (DB.config.scenarioHistory||[]).slice().sort(function(a,b){ return b.desde.localeCompare(a.desde); });
+    if(hist.length > 1){
+      histEl.innerHTML = "<div style='font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;'>Historial de escenarios</div>"+
+        hist.map(function(e, i){
+          var s = SCENARIOS[e.escenario]||{label:e.escenario, color:"var(--text2)"};
+          var hasta = i===0 ? "hoy" : hist[i-1].desde;
+          return "<div style='display:flex;align-items:center;gap:8px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bord);'>"+
+            "<span style='color:"+s.color+";font-weight:700;min-width:80px;'>"+s.label+"</span>"+
+            "<span style='color:var(--text2);'>desde "+e.desde+" → "+hasta+"</span>"+
+            "</div>";
+        }).join("");
+      histEl.style.display = "block";
+    } else {
+      histEl.style.display = "none";
+    }
+  }
 
   // Config inputs
   var cfg = DB.config;
@@ -2921,9 +3677,15 @@ function openModalActividad(editId){
   var opts = METS_PRESETS.map(function(m){ return "<option value='"+m.key+"'>"+m.label+" (MET "+m.met+")</option>"; }).join("");
   document.getElementById("act-tipo").innerHTML = "<option value=''>— seleccionar —</option>"+opts;
 
-  // Add custom presets as options
-  if(DB.actPresets.length){
-    var presOpts = DB.actPresets.map(function(p){ return "<option value='preset:"+p.id+"'>★ "+esc(p.nombre)+"</option>"; }).join("");
+  // Add custom presets + built-in defaults not already in DB.actPresets
+  var mergedPresets = DB.actPresets.slice();
+  ACT_PRESETS_DEFAULT.forEach(function(p){
+    if(!mergedPresets.find(function(dp){ return dp.id === p.id; })){
+      mergedPresets.push(p);
+    }
+  });
+  if(mergedPresets.length){
+    var presOpts = mergedPresets.map(function(p){ return "<option value='preset:"+p.id+"'>★ "+esc(p.nombre)+"</option>"; }).join("");
     document.getElementById("act-tipo").innerHTML += "<optgroup label='Mis presets'>"+presOpts+"</optgroup>";
   }
 
@@ -2960,7 +3722,8 @@ function onActTipoChange(){
   var pKm = 0, pRitmo = 0, pDur = 0;
   if(tipoVal.startsWith("preset:")){
     var pId = tipoVal.replace("preset:","");
-    var prs = DB.actPresets.find(function(p){ return p.id===pId; });
+    var prs = DB.actPresets.find(function(p){ return p.id===pId; }) ||
+              ACT_PRESETS_DEFAULT.find(function(p){ return p.id===pId; });
     if(prs){ tipoKey=prs.tipo; pKm=prs.km||0; pRitmo=prs.ritmo||0; pDur=prs.duracion||0; }
   }
   var isTrote = (tipoKey==="trote");
@@ -2988,7 +3751,8 @@ function updateActPreview(){
   var tipoKey = tipoVal, diaKey = null;
   if(tipoVal.startsWith("preset:")){
     var pId = tipoVal.replace("preset:","");
-    var prs = DB.actPresets.find(function(p){ return p.id===pId; });
+    var prs = DB.actPresets.find(function(p){ return p.id===pId; }) ||
+              ACT_PRESETS_DEFAULT.find(function(p){ return p.id===pId; });
     if(prs){ tipoKey = prs.tipo; diaKey = prs.diaKey||null; }
   }
   var peso = getWeight();
@@ -3027,7 +3791,8 @@ function saveActividad(){
   var tipoKey = tipoVal, diaKey = null;
   if(tipoVal.startsWith("preset:")){
     var pId = tipoVal.replace("preset:","");
-    var prs = DB.actPresets.find(function(p){ return p.id===pId; });
+    var prs = DB.actPresets.find(function(p){ return p.id===pId; }) ||
+              ACT_PRESETS_DEFAULT.find(function(p){ return p.id===pId; });
     if(prs){ tipoKey = prs.tipo; diaKey = prs.diaKey||null; }
   }
   var peso = getWeight();
@@ -3224,23 +3989,30 @@ function cargarPresetEnHoy(presetId){
   if(!m) return;
   var fecha = _viewDate;
   var planExist = DB.menusPropuestos.find(function(p){ return p.fecha===fecha; });
-  if(planExist && planExist.itemsReal && planExist.itemsReal.length){
-    if(!confirm("¿Reemplazar el menú actual de hoy con el preset \""+m.nombre+"\"?\n(Los alimentos ya confirmados quedan en el diario)")) return;
-    planExist.itemsReal = null;
+  // Si ya hay un plan con items (plan o seguimiento), pedir confirmación
+  var tieneItems = planExist && planExist.items && planExist.items.length;
+  var tieneReal  = planExist && planExist.itemsReal && planExist.itemsReal.length;
+  if(tieneItems || tieneReal){
+    if(!confirm("¿Reemplazar el menú actual de "+fecha+" con el preset \""+m.nombre+"\"?\n(Los registros ya guardados en el diario quedan intactos)")) return;
   }
-  // Crear plan desde preset si no hay uno aún
+  // ── Siempre reemplazar plan.items completo con el preset ──
   var plan = _getOrCreatePlan(fecha);
-  if(!plan.items.length){
-    m.items.forEach(function(item){
-      plan.items.push({
-        id:"pi"+Date.now()+"_"+Math.random().toString(36).slice(2,5),
-        nombre:item.nombre, cal:item.cal||0, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
-        cantidad:item.cantidad||null, cantUnidades:item.cantUnidades||null, unitNombre:item.unitNombre||null,
-        dbId:item.dbId||null, consumido:false, registroId:null, comida:item.comida||null
-      });
+  // Limpiar registros vinculados y huérfanos del plan antes de reemplazar
+  if(plan.itemsReal) plan.itemsReal.forEach(function(i){
+    if(i.registroId) DB.registros = DB.registros.filter(function(r){ return r.id!==i.registroId; });
+  });
+  _limpiarRegistrosPlan(fecha);
+  plan.items = [];
+  plan.itemsReal = null;
+  m.items.forEach(function(item){
+    plan.items.push({
+      id:"pi"+Date.now()+"_"+Math.random().toString(36).slice(2,5),
+      nombre:item.nombre, cal:item.cal||0, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
+      cantidad:item.cantidad||null, cantUnidades:item.cantUnidades||null, unitNombre:item.unitNombre||null,
+      dbId:item.dbId||null, consumido:false, registroId:null, comida:item.comida||null
     });
-  }
-  // Auto-iniciar seguimiento desde el plan
+  });
+  // Auto-iniciar seguimiento desde el plan recién cargado
   plan.itemsReal = plan.items.map(function(i){
     return {id:"ri"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
       nombre:i.nombre, cal:i.cal, prot:i.prot||0, gras:i.gras||0, carb:i.carb||0,
@@ -3256,6 +4028,41 @@ function _getOrCreatePlan(fecha){
   var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
   if(!plan){ plan={id:"mp"+Date.now(),fecha:fecha,items:[]}; DB.menusPropuestos.push(plan); }
   return plan;
+}
+
+function confirmPlan(fecha){
+  fecha = fecha || _menuDate;
+  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  if(!plan || !plan.items || !plan.items.length) return;
+  plan.confirmed = true;
+  saveDB();
+  renderMenuPropuesto();
+}
+
+function desconfirmarPlan(fecha){
+  fecha = fecha || _menuDate;
+  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  if(!plan) return;
+  plan.confirmed = false;
+  saveDB();
+  renderMenuPropuesto();
+}
+
+function iniciarSeguimiento(planId){
+  var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
+  if(!plan || !plan.items || !plan.items.length) return;
+  plan.itemsReal = plan.items.map(function(i){
+    return {
+      id: "ri"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
+      nombre: i.nombre, cal: i.cal,
+      prot: i.prot||0, gras: i.gras||0, carb: i.carb||0,
+      cantidad: i.cantidad||null, cantUnidades: i.cantUnidades||null,
+      unitNombre: i.unitNombre||null, dbId: i.dbId||null,
+      comida: i.comida||null, consumido: false, registroId: null
+    };
+  });
+  saveDB();
+  renderHoy();
 }
 
 function togglePlanItem(planId, itemId){
@@ -3295,6 +4102,20 @@ function deletePlanItem(planId, itemId){
   saveDB(); renderMenuPropuesto(); renderHoy();
 }
 
+function clearDayPlan(fecha){
+  if(!confirm("¿Vaciar todo el plan del día? Se eliminarán todos los alimentos planificados.")) return;
+  var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
+  if(!plan) return;
+  // Remove any linked registros from consumed items
+  plan.items.forEach(function(item){
+    if(item.consumido && item.registroId)
+      DB.registros = DB.registros.filter(function(r){ return r.id!==item.registroId; });
+  });
+  plan.items = [];
+  plan.confirmed = false;
+  saveDB(); renderMenuPropuesto(); renderHoy();
+}
+
 // ─────────── SEGUIMIENTO REAL (Hoy tab) ───────────
 function _sumRealTotals(fecha, onlyConsumed){
   var plan = DB.menusPropuestos.find(function(m){ return m.fecha===fecha; });
@@ -3322,14 +4143,23 @@ function initRealItems(planId){
   saveDB(); renderHoy();
 }
 
+// Elimina registros generados por el plan (id termina en "_r") para una fecha dada.
+// Los registros manuales (id solo numérico) no se tocan.
+function _limpiarRegistrosPlan(fecha){
+  DB.registros = DB.registros.filter(function(r){
+    return !(r.fecha===fecha && String(r.id).indexOf("_r")!==-1);
+  });
+}
+
 function resetRealItems(planId){
   if(!confirm("¿Reiniciar el seguimiento de hoy desde el plan original? Se perderán los cambios de hoy.")) return;
   var plan = DB.menusPropuestos.find(function(m){ return m.id===planId; });
   if(!plan) return;
-  // Remove registros linked to real items
+  // Limpiar registros vinculados (por registroId) y huérfanos del plan (por sufijo _r)
   if(plan.itemsReal) plan.itemsReal.forEach(function(i){
     if(i.registroId) DB.registros = DB.registros.filter(function(r){ return r.id!==i.registroId; });
   });
+  _limpiarRegistrosPlan(plan.fecha);
   plan.itemsReal = null;
   saveDB(); renderHoy();
 }
@@ -3344,7 +4174,7 @@ function toggleRealItem(planId, itemId){
     var reg = { id:Date.now()+"_r", fecha:plan.fecha,
       hora:pad2(now.getHours())+":"+pad2(now.getMinutes()),
       nombre:item.nombre, cal:item.cal, prot:item.prot||0, gras:item.gras||0, carb:item.carb||0,
-      cantidad:item.cantidad||null, dbId:item.dbId||null };
+      cantidad:item.cantidad||null, dbId:item.dbId||null, comida:item.comida||null };
     DB.registros.push(reg);
     item.consumido = true; item.registroId = reg.id;
   } else {
@@ -3413,6 +4243,11 @@ function openModalEditPlanItem(planId, itemId, useReal){
     ? plan.itemsReal.find(function(i){ return i.id===itemId; })
     : plan.items.find(function(i){ return i.id===itemId; });
   if(!item) return;
+  // ── BUG FIX: resetear porciones a 1 para que el recálculo de preview no
+  //    herede el factor de la última operación "Agregar" (causaba macros dobles)
+  _planPorciones = 1;
+  var _lbl = document.getElementById("plan-porciones-lbl");
+  if(_lbl) _lbl.textContent = "1 porción";
   // Reset first
   document.getElementById("plan-search-input").value = "";
   document.getElementById("plan-food-results").classList.remove("show");
@@ -3660,6 +4495,18 @@ function applyPresetToPlan(presetId){
   var m = DB.menuPresets.find(function(m){ return m.id===presetId; });
   if(!m) return;
   var plan = _getOrCreatePlan(_menuDate);
+  var tieneItems = plan.items && plan.items.length;
+  var tieneReal  = plan.itemsReal && plan.itemsReal.length;
+  if(tieneItems || tieneReal){
+    if(!confirm("¿Reemplazar el plan actual con el preset \""+m.nombre+"\"?")) return;
+  }
+  // Limpiar registros vinculados y huérfanos del plan antes de reemplazar
+  if(plan.itemsReal) plan.itemsReal.forEach(function(i){
+    if(i.registroId) DB.registros = DB.registros.filter(function(r){ return r.id!==i.registroId; });
+  });
+  _limpiarRegistrosPlan(_menuDate);
+  plan.items = [];
+  plan.itemsReal = null;
   m.items.forEach(function(item){
     plan.items.push({
       id:"pi"+Date.now()+"_"+Math.random().toString(36).slice(2,5),
@@ -3667,6 +4514,15 @@ function applyPresetToPlan(presetId){
       cantidad:item.cantidad||null, cantUnidades:item.cantUnidades||null, unitNombre:item.unitNombre||null,
       dbId:item.dbId||null, consumido:false, registroId:null, comida:item.comida||null
     });
+  });
+  // Regenerar itemsReal desde los nuevos items
+  plan.itemsReal = plan.items.map(function(i){
+    return {
+      id:"ri"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
+      nombre:i.nombre, cal:i.cal, prot:i.prot||0, gras:i.gras||0, carb:i.carb||0,
+      cantidad:i.cantidad||null, cantUnidades:i.cantUnidades||null, unitNombre:i.unitNombre||null,
+      dbId:i.dbId||null, comida:i.comida||null, consumido:false, registroId:null
+    };
   });
   saveDB(); closeModal("modal-preset-to-plan"); renderMenuPropuesto();
 }
@@ -3778,7 +4634,18 @@ function resetFoods(){
 }
 
 function selectScenario(key){
+  var today = todayStr();
   DB.config.escenario = key;
+  // Record in history — update entry for today if exists, else push new
+  if(!DB.config.scenarioHistory) DB.config.scenarioHistory = [];
+  var existing = DB.config.scenarioHistory.find(function(e){ return e.desde === today; });
+  if(existing){
+    existing.escenario = key;
+  } else {
+    DB.config.scenarioHistory.push({desde: today, escenario: key});
+  }
+  // Keep sorted ascending
+  DB.config.scenarioHistory.sort(function(a,b){ return a.desde.localeCompare(b.desde); });
   saveDB(); renderConfig(); renderHoy(); renderSemana();
 }
 
@@ -3888,8 +4755,13 @@ function renderProgreso(){
     {label:"Carbos",   cons:carbCons,obj:carbObj,color:"var(--purple)",unit:"g"}
   ];
   macros.forEach(function(m){
-    var avgCons = Math.round(m.cons.reduce(function(s,v){return s+v;},0)/m.cons.length);
-    var avgObj  = Math.round(m.obj.reduce(function(s,v){return s+v;},0)/m.obj.length);
+    // Solo promediar días con registros (calCons[i] > 0)
+    var validIdx = calCons.map(function(c,i){return i;}).filter(function(i){return calCons[i]>0;});
+    var sumCons = validIdx.reduce(function(s,i){return s+m.cons[i];},0);
+    var sumObj  = validIdx.reduce(function(s,i){return s+m.obj[i];},0);
+    var n = validIdx.length || 1;
+    var avgCons = Math.round(sumCons/n);
+    var avgObj  = Math.round(sumObj/n);
     var pct = avgObj>0?Math.min(100,Math.round(avgCons/avgObj*100)):0;
     var pctColor = pct>=90&&pct<=110?"var(--green)":pct>=70?"var(--amber)":"var(--red)";
     macroHtml += "<div style='margin-bottom:10px;'>"+
@@ -3904,29 +4776,30 @@ function renderProgreso(){
   var mbEl = document.getElementById("prog-macro-bars");
   if(mbEl) mbEl.innerHTML = "<div style='font-size:10px;color:var(--text2);margin-bottom:8px;'>Promedio del período seleccionado</div>"+macroHtml;
 
-  // Tabla
+  // Tabla — % cumplimiento por macro
+  var _pc=function(c,o){return (c>0&&o>0)?Math.round(c/o*100):null;};
+  var _cc=function(p){return p===null?"var(--text3)":p>=90&&p<=110?"var(--green)":p>=70?"var(--amber)":"var(--red)";};
+  var _pv=function(p){return p===null?"—":p+"%";};
   var tbl = "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;font-size:11px;'>"+
     "<tr style='color:var(--text2);font-size:9px;text-transform:uppercase;letter-spacing:.06em;'>"+
     "<th style='text-align:left;padding:5px 6px;'>Día</th>"+
-    "<th style='text-align:center;padding:5px 4px;'>Kcal</th>"+
-    "<th style='text-align:center;padding:5px 4px;'>%</th>"+
-    "<th style='text-align:center;padding:5px 4px;'>Prot</th>"+
-    "<th style='text-align:center;padding:5px 4px;'>Gras</th>"+
-    "<th style='text-align:center;padding:5px 4px;'>Carb</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>Cal%</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>Prot%</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>Gras%</th>"+
+    "<th style='text-align:center;padding:5px 4px;'>Carb%</th>"+
     "</tr>";
   for(var i=days.length-1;i>=0;i--){
-    var pct2 = calObj[i]>0?Math.round(calCons[i]/calObj[i]*100):0;
-    var pctC2 = pct2>=90&&pct2<=110?"var(--green)":pct2>=70?"var(--amber)":"var(--red)";
+    var pCal=_pc(calCons[i],calObj[i]), pProt=_pc(protCons[i],protObj[i]);
+    var pGras=_pc(grasCons[i],grasObj[i]), pCarb=_pc(carbCons[i],carbObj[i]);
     var isHoy = days[i]===today;
     var d2 = new Date(days[i]+"T12:00:00");
     var dlbl = isHoy?"Hoy":DIAS[d2.getDay()]+" "+d2.getDate();
     tbl += "<tr style='border-top:1px solid var(--bord);"+(isHoy?"background:var(--bg3);":"")+"'>"+
       "<td style='padding:5px 6px;color:"+(isHoy?"var(--blue)":"var(--text2)")+";font-weight:"+(isHoy?"700":"400")+"'>"+dlbl+"</td>"+
-      "<td style='text-align:center;padding:5px 4px;'>"+(calCons[i]>0?calCons[i]:"—")+"<span style='color:var(--text3);font-size:9px;'>/"+calObj[i]+"</span></td>"+
-      "<td style='text-align:center;padding:5px 4px;color:"+pctC2+";font-weight:700;'>"+(calCons[i]>0?pct2+"%":"—")+"</td>"+
-      "<td style='text-align:center;padding:5px 4px;'>"+(protCons[i]>0?protCons[i]+"g":"—")+"</td>"+
-      "<td style='text-align:center;padding:5px 4px;'>"+(grasCons[i]>0?grasCons[i]+"g":"—")+"</td>"+
-      "<td style='text-align:center;padding:5px 4px;'>"+(carbCons[i]>0?carbCons[i]+"g":"—")+"</td>"+
+      "<td style='text-align:center;padding:5px 4px;font-weight:700;color:"+_cc(pCal)+";'>"+_pv(pCal)+"</td>"+
+      "<td style='text-align:center;padding:5px 4px;font-weight:700;color:"+_cc(pProt)+";'>"+_pv(pProt)+"</td>"+
+      "<td style='text-align:center;padding:5px 4px;font-weight:700;color:"+_cc(pGras)+";'>"+_pv(pGras)+"</td>"+
+      "<td style='text-align:center;padding:5px 4px;font-weight:700;color:"+_cc(pCarb)+";'>"+_pv(pCarb)+"</td>"+
     "</tr>";
   }
   tbl += "</table></div>";
@@ -3945,8 +4818,9 @@ function showTab(name, btn){
   if(name==="metas")    renderMetas();
   if(name==="alimentos") renderFoodDB();
   if(name==="menus"){ _menuDate = _viewDate; renderMenus(); }
-  if(name==="compras")  renderPlanSemanal();
-  if(name==="config")   renderConfig();
+  if(name==="compras")     renderPlanSemanal();
+  if(name==="seguimiento") renderSeguimiento();
+  if(name==="config")      renderConfig();
 }
 
 // ─────────── UTILS ───────────
@@ -4314,6 +5188,677 @@ function isoWeekAlim(fecha){
   var thu=new Date(d);thu.setDate(d.getDate()-((d.getDay()+6)%7)+3);
   var jan4=new Date(thu.getFullYear(),0,4);
   return 1+Math.round(((thu-jan4)/86400000-3+(jan4.getDay()+6)%7)/7);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SEGUIMIENTO TAB — complete implementation
+// ═══════════════════════════════════════════════════════════
+
+var _chSegInbody = null, _chSegGym = null, _chSegAdh = null, _chSegWell = null;
+
+// ─── MAIN RENDER ───
+function renderSeguimiento(){
+  if(!document.getElementById("tab-seguimiento")) return;
+  renderSegAlertas();
+  renderSegInbody();
+  renderGymPerfChart();
+  renderSegAdherencia();
+  renderSegWellness();
+}
+
+// ─── ALERTAS ───
+function renderSegAlertas(){
+  var box = document.getElementById("seg-alertas-box");
+  if(!box) return;
+  var alertas = checkAlertas();
+  if(!alertas.length){ box.style.display="none"; return; }
+  box.style.display="block";
+  var html = alertas.map(function(a){
+    var bg = a.nivel==="rojo" ? "var(--red-d)" : a.nivel==="ambar" ? "rgba(245,166,35,0.15)" : "rgba(62,207,142,0.1)";
+    var bc = a.nivel==="rojo" ? "var(--red)"   : a.nivel==="ambar" ? "var(--amber)" : "var(--green)";
+    var ic = a.nivel==="rojo" ? "🚨" : a.nivel==="ambar" ? "⚠️" : "ℹ️";
+    return '<div style="background:'+bg+';border:1px solid '+bc+';border-radius:var(--rsm);padding:10px 12px;margin-bottom:8px;">'
+      +'<div style="font-weight:700;font-size:12px;color:'+bc+';margin-bottom:4px;">'+ic+' '+esc(a.titulo)+'</div>'
+      +'<div style="font-size:11px;color:var(--text1);">'+esc(a.mensaje)+'</div>'
+      +(a.accion?'<div style="font-size:10px;color:var(--text2);margin-top:4px;font-style:italic;">💡 '+esc(a.accion)+'</div>':'')
+      +'</div>';
+  }).join("");
+  box.innerHTML = html;
+}
+
+function checkAlertas(){
+  var alertas = [];
+  var ib = INBODY_DATA_ALL.slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+
+  // — InBody alerts —
+  if(ib.length >= 2){
+    var prev = ib[ib.length-2], last = ib[ib.length-1];
+    var deltaMusculo = (last.musculo||0) - (prev.musculo||0);
+    var deltaGrasa   = (last.grasa||0)   - (prev.grasa||0);
+    var daysBetween  = Math.round((new Date(last.fecha+"T12:00:00") - new Date(prev.fecha+"T12:00:00"))/(1000*86400));
+    var monthFactor  = daysBetween > 0 ? 30/daysBetween : 1;
+    var deltaMusMes  = deltaMusculo * monthFactor;
+    var deltaGraMes  = deltaGrasa   * monthFactor;
+
+    if(deltaMusMes < -0.3){
+      alertas.push({nivel:"rojo", titulo:"Pérdida de músculo acelerada",
+        mensaje:"Perdiste ~"+Math.abs(deltaMusMes).toFixed(1)+"kg/mes de músculo (umbral: 0.3kg/mes). Riesgo de pérdida de masa magra.",
+        accion:"Subí calorías a mantención por 2 semanas. Revisá aporte proteico (objetivo: ≥165g/día). Asegurate de dormir 7-8h."});
+    }
+    if(deltaGraMes > 0.5 && deltaMusMes < 0){
+      alertas.push({nivel:"rojo", titulo:"Composición en retroceso",
+        mensaje:"Grasa +"+deltaGraMes.toFixed(1)+"kg/mes y músculo −"+Math.abs(deltaMusMes).toFixed(1)+"kg/mes simultáneamente.",
+        accion:"Auditá registros de alimentación. ¿Estás registrando todo? Revisá escenario calórico y adherencia real."});
+    }
+    if(deltaGraMes > 1.0){
+      alertas.push({nivel:"ambar", titulo:"Grasa aumentando rápido",
+        mensaje:"Grasa corporal +"+deltaGraMes.toFixed(1)+"kg/mes. En volumen se esperan máx ~0.5kg/mes.",
+        accion:"Revisá exceso calórico. ¿Muchas comidas sin registrar? ¿Alcoholes/extras no contabilizados?"});
+    }
+  }
+
+  // — Grasa estancada 3+ semanas (no changing) —
+  var today = todayStr();
+  var d30 = new Date(today+"T12:00:00"); d30.setDate(d30.getDate()-21);
+  var d30Str = d30.getFullYear()+"-"+pad2(d30.getMonth()+1)+"-"+pad2(d30.getDate());
+  var ibRecent = ib.filter(function(r){return r.fecha>=d30Str;});
+  if(ibRecent.length >= 2){
+    var grasas = ibRecent.map(function(r){return r.grasa||0;});
+    var maxG = Math.max.apply(null,grasas), minG = Math.min.apply(null,grasas);
+    if((maxG - minG) < 0.3 && (DB.config.escenario==="deficit")){
+      alertas.push({nivel:"ambar", titulo:"Grasa estancada en déficit",
+        mensaje:"Grasa sin cambio significativo en 3 semanas (±"+((maxG-minG)*10/10).toFixed(1)+"kg). El cuerpo puede haberse adaptado.",
+        accion:"Revisá adherencia nutricional. ¿Estás en déficit real? Considera una semana de mantención (diet break) para resetear hormonas."});
+    }
+  }
+
+  // — Adherencia baja —
+  var adh7 = calcAdherencia(7);
+  if(adh7 < 60){
+    alertas.push({nivel:"rojo", titulo:"Adherencia nutricional muy baja",
+      mensaje:"Solo "+adh7+"% de los días de los últimos 7 cumpliste el objetivo calórico (±10%).",
+      accion:"Simplificá la planificación. ¿El plan es muy restrictivo? ¿Faltan snacks accesibles? Revisá los menús propuestos."});
+  } else if(adh7 < 75){
+    alertas.push({nivel:"ambar", titulo:"Adherencia nutricional baja",
+      mensaje:adh7+"% cumplimiento últimos 7 días. El objetivo es ≥80%.",
+      accion:"Identificá qué días fallás más (fines de semana, días de viaje). Preparación de comidas el domingo ayuda."});
+  }
+
+  // — Wellness baja energía sostenida —
+  var wellRecent = (DB.wellnessRecords||[]).slice().sort(function(a,b){return b.fecha.localeCompare(a.fecha);}).slice(0,5);
+  if(wellRecent.length >= 3){
+    var avgEnergia = wellRecent.reduce(function(s,r){return s+(r.energia||5);},0)/wellRecent.length;
+    if(avgEnergia < 5){
+      alertas.push({nivel:"rojo", titulo:"Energía deportiva crítica",
+        mensaje:"Promedio de energía: "+avgEnergia.toFixed(1)+"/10 en últimas "+wellRecent.length+" sesiones.",
+        accion:"Revisá nutrición pre-actividad. ¿Estás en mucho déficit? Considera mover a mantención. Dormir más, reducir estrés."});
+    } else if(avgEnergia < 6.5){
+      alertas.push({nivel:"ambar", titulo:"Energía deportiva baja",
+        mensaje:"Promedio de energía: "+avgEnergia.toFixed(1)+"/10 en últimas sesiones. Objetivo: ≥7/10.",
+        accion:"Asegurate de comer carbos 1-2h antes de entrenar. Hidratación correcta. Revisá calidad de sueño."});
+    }
+  }
+
+  // — Gym performance drop —
+  var gp = DB.gymPerformance||[];
+  if(gp.length >= 4){
+    var ejercicios = {};
+    gp.forEach(function(r){
+      if(!ejercicios[r.ejercicio]) ejercicios[r.ejercicio]=[];
+      ejercicios[r.ejercicio].push(r);
+    });
+    Object.keys(ejercicios).forEach(function(ej){
+      var recs = ejercicios[ej].slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+      if(recs.length < 3) return;
+      var last2 = recs.slice(-2);
+      var maxPrev = Math.max.apply(null, recs.slice(0,-2).map(function(r){return r.peso_kg||0;}));
+      var lastMax  = Math.max.apply(null, last2.map(function(r){return r.peso_kg||0;}));
+      if(maxPrev > 0 && (maxPrev - lastMax) >= 5){
+        alertas.push({nivel:"ambar", titulo:"Regresión en "+ej,
+          mensaje:"Bajaste ≥5kg en "+ej+" (antes: "+maxPrev+"kg, ahora: "+lastMax+"kg).",
+          accion:"Si la regresión es sostenida 2+ semanas, pasá a mantención calórica para proteger rendimiento."});
+      }
+    });
+  }
+
+  return alertas;
+}
+
+// ─── INBODY CHART & TABLE ───
+function renderSegInbody(){
+  var ib = INBODY_DATA_ALL.slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+  if(!ib.length) return;
+  var last = ib[ib.length-1];
+
+  // KPIs
+  var elPeso = document.getElementById("seg-ib-peso");
+  var elMus  = document.getElementById("seg-ib-musculo");
+  var elGra  = document.getElementById("seg-ib-grasa");
+  var elTmb  = document.getElementById("seg-ib-tmb");
+  if(elPeso) elPeso.textContent = (last.peso||"—");
+  if(elMus)  elMus.textContent  = (last.musculo||"—");
+  if(elGra)  elGra.textContent  = (last.pctGrasa?last.pctGrasa+"%":"—");
+  if(elTmb)  elTmb.textContent  = (last.tmb||"—");
+
+  // Chart
+  var labels  = ib.map(function(r){ var d=new Date(r.fecha+"T12:00:00"); return ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][d.getMonth()]+" "+d.getDate(); });
+  var pesos   = ib.map(function(r){return r.peso||null;});
+  var musculos= ib.map(function(r){return r.musculo||null;});
+  var grasas  = ib.map(function(r){return r.grasa||null;});
+
+  if(_chSegInbody) _chSegInbody.destroy();
+  var ctx = document.getElementById("ch-seg-inbody");
+  if(ctx){
+    _chSegInbody = new Chart(ctx.getContext("2d"),{
+      type:"line",
+      data:{
+        labels:labels,
+        datasets:[
+          {label:"Peso (kg)",data:pesos,borderColor:"#4a90e2",backgroundColor:"rgba(74,144,226,0.1)",tension:0.3,pointRadius:4,pointBackgroundColor:"#4a90e2",fill:false,yAxisID:"y1"},
+          {label:"Músculo (kg)",data:musculos,borderColor:"#3ecf8e",backgroundColor:"rgba(62,207,142,0.1)",tension:0.3,pointRadius:4,pointBackgroundColor:"#3ecf8e",fill:false,yAxisID:"y2"},
+          {label:"Grasa (kg)",data:grasas,borderColor:"#f5a623",backgroundColor:"rgba(245,166,35,0.1)",tension:0.3,pointRadius:4,pointBackgroundColor:"#f5a623",fill:false,yAxisID:"y2"}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:"#888",font:{size:9},boxWidth:12}},tooltip:{mode:"index",intersect:false}},
+        scales:{
+          x:{grid:{display:false},ticks:{color:"#888",font:{size:9}}},
+          y1:{type:"linear",position:"left",grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#4a90e2",font:{size:9}},title:{display:false}},
+          y2:{type:"linear",position:"right",grid:{display:false},ticks:{color:"#f5a623",font:{size:9}},title:{display:false}}
+        }
+      }
+    });
+  }
+
+  // Table
+  var tbl = document.getElementById("seg-inbody-table");
+  if(tbl){
+    var rows = ib.slice().reverse().map(function(r,i,arr){
+      var prev = arr[i+1];
+      function delta(val, pval, dec){
+        if(val==null||pval==null) return "";
+        var d=((val-pval)*(dec?10:1)|0)/(dec?10:1);
+        return d>0?"<span style='color:var(--green);font-size:9px;'>+"+d+"</span>"
+              :d<0?"<span style='color:var(--red);font-size:9px;'>"+d+"</span>":"";
+      }
+      return '<div style="display:grid;grid-template-columns:1fr 70px 70px 60px 50px;gap:4px;padding:6px 0;border-bottom:1px solid var(--bord2);font-size:11px;align-items:center;">'
+        +'<span style="color:var(--text2);">'+r.fecha+'</span>'
+        +'<span style="text-align:right;">'+(r.peso||"—")+'kg '+delta(r.peso,prev&&prev.peso,true)+'</span>'
+        +'<span style="text-align:right;color:var(--green);">'+(r.musculo||"—")+'kg '+delta(r.musculo,prev&&prev.musculo,true)+'</span>'
+        +'<span style="text-align:right;color:var(--amber);">'+(r.pctGrasa||"—")+'% '+delta(r.pctGrasa,prev&&prev.pctGrasa,true)+'</span>'
+        +'<span style="text-align:right;color:var(--purple);">'+(r.tmb||"—")+'</span>'
+        +'</div>';
+    }).join("");
+    var hdr='<div style="display:grid;grid-template-columns:1fr 70px 70px 60px 50px;gap:4px;padding:0 0 4px;border-bottom:1px solid var(--bord);font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;">'
+      +'<span>Fecha</span><span style="text-align:right;">Peso</span><span style="text-align:right;">Músculo</span><span style="text-align:right;">%Grasa</span><span style="text-align:right;">TMB</span></div>';
+    tbl.innerHTML = hdr + rows;
+  }
+
+  // Proyecciones
+  renderSegProyecciones(ib);
+}
+
+function renderSegProyecciones(ib){
+  var box = document.getElementById("seg-proyecciones");
+  var body = document.getElementById("seg-proj-body");
+  if(!box||!body||ib.length<2) return;
+  box.style.display="block";
+  var last = ib[ib.length-1], prev = ib[ib.length-2];
+  var daysBetween = Math.round((new Date(last.fecha+"T12:00:00")-new Date(prev.fecha+"T12:00:00"))/(86400000));
+  if(daysBetween<1) return;
+  var factor = 30/daysBetween;
+  var dMusMes = ((last.musculo||0)-(prev.musculo||0))*factor;
+  var dGraMes = ((last.grasa||0)-(prev.grasa||0))*factor;
+  var scen = DB.config.escenario||"mantencion";
+  var expMusMes = scen==="volumen"?0.5:scen==="deficit"?-0.2:0.1;
+  var expGraMes = scen==="volumen"?0.3:scen==="deficit"?-0.5:0.0;
+
+  function proj(base, rate, months){
+    return Math.round((base + rate*months)*10)/10;
+  }
+  var rows = [
+    {label:"Músculo kg", actual:last.musculo, rate:dMusMes, expected:expMusMes, color:"var(--green)"},
+    {label:"Grasa kg",   actual:last.grasa,   rate:dGraMes, expected:expGraMes, color:"var(--amber)"}
+  ];
+  body.innerHTML = rows.map(function(r){
+    var p1=proj(r.actual,r.rate,1), p2=proj(r.actual,r.rate,2), p3=proj(r.actual,r.rate,3);
+    var rateCol = (r.label==="Músculo kg") ? (r.rate>=0?"var(--green)":"var(--red)") : (r.rate<=0?"var(--green)":"var(--red)");
+    return '<div style="margin-bottom:8px;">'
+      +'<div style="font-size:10px;font-weight:700;color:'+r.color+';margin-bottom:3px;">'+r.label
+      +' — ritmo actual: <span style="color:'+rateCol+';">'+(r.rate>=0?"+":"")+r.rate.toFixed(2)+'kg/mes</span>'
+      +' (esperado: '+(r.expected>=0?"+":"")+r.expected.toFixed(1)+')</div>'
+      +'<div style="display:flex;gap:8px;font-size:11px;">'
+      +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+1m: <b>'+p1+'</b></span>'
+      +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+2m: <b>'+p2+'</b></span>'
+      +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+3m: <b>'+p3+'</b></span>'
+      +'</div></div>';
+  }).join("");
+}
+
+// ─── GYM PERFORMANCE ───
+function renderGymPerfChart(){
+  var sel = document.getElementById("seg-gym-ejercicio-sel");
+  if(!sel) return;
+  var gp = (DB.gymPerformance||[]);
+
+  // Populate ejercicio selector
+  var ejercicios = {};
+  gp.forEach(function(r){ ejercicios[r.ejercicio]=true; });
+  var ejList = Object.keys(ejercicios).sort();
+  var currentVal = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar ejercicio —</option>'
+    + ejList.map(function(e){ return '<option value="'+esc(e)+'">'+esc(e)+'</option>'; }).join("");
+  if(currentVal && ejercicios[currentVal]) sel.value = currentVal;
+  else if(ejList.length) sel.value = ejList[0];
+
+  var chosen = sel.value;
+  var recs = gp.filter(function(r){return r.ejercicio===chosen;})
+               .sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+
+  // Chart
+  if(_chSegGym) _chSegGym.destroy();
+  var ctx = document.getElementById("ch-seg-gym");
+  if(!ctx) return;
+  if(!chosen||!recs.length){
+    ctx.getContext("2d").clearRect(0,0,ctx.width,ctx.height);
+    var tbl=document.getElementById("seg-gym-table"); if(tbl)tbl.innerHTML='<div style="font-size:12px;color:var(--text2);text-align:center;padding:16px 0;">Sin datos. Agregá registros con + Registro.</div>';
+    return;
+  }
+  var labels = recs.map(function(r){var d=new Date(r.fecha+"T12:00:00");return pad2(d.getDate())+"/"+pad2(d.getMonth()+1);});
+  var pesos  = recs.map(function(r){return r.peso_kg||0;});
+  var vol    = recs.map(function(r){return (r.peso_kg||0)*(r.reps||0)*(r.series||1);});
+  _chSegGym = new Chart(ctx.getContext("2d"),{
+    type:"bar",
+    data:{
+      labels:labels,
+      datasets:[
+        {label:"Peso (kg)",data:pesos,backgroundColor:"rgba(74,144,226,0.7)",borderRadius:3,order:2,yAxisID:"y1"},
+        {label:"Volumen (kg×rep)",data:vol,type:"line",borderColor:"#3ecf8e",borderWidth:2,pointRadius:3,fill:false,tension:0.2,order:1,yAxisID:"y2"}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:"#888",font:{size:9},boxWidth:12}},tooltip:{mode:"index",intersect:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:"#888",font:{size:9}}},
+        y1:{type:"linear",position:"left",grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#4a90e2",font:{size:9}}},
+        y2:{type:"linear",position:"right",grid:{display:false},ticks:{color:"#3ecf8e",font:{size:9}}}
+      }
+    }
+  });
+
+  // Table
+  var gymTbl = document.getElementById("seg-gym-table");
+  if(gymTbl){
+    var hdr='<div style="display:grid;grid-template-columns:80px 60px 50px 50px 1fr;gap:4px;padding:0 0 4px;border-bottom:1px solid var(--bord);font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;">'
+      +'<span>Fecha</span><span style="text-align:right;">Peso kg</span><span style="text-align:right;">Reps</span><span style="text-align:right;">Series</span><span style="text-align:right;">Notas</span></div>';
+    var rows = recs.slice().reverse().slice(0,10).map(function(r){
+      return '<div style="display:grid;grid-template-columns:80px 60px 50px 50px 1fr;gap:4px;padding:5px 0;border-bottom:1px solid var(--bord2);font-size:11px;align-items:center;">'
+        +'<span style="color:var(--text2);">'+r.fecha+'</span>'
+        +'<span style="text-align:right;font-weight:700;color:var(--blue);">'+(r.peso_kg||"—")+'</span>'
+        +'<span style="text-align:right;">'+(r.reps||"—")+'</span>'
+        +'<span style="text-align:right;">'+(r.series||1)+'</span>'
+        +'<span style="color:var(--text2);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.notas||"")+'</span>'
+        +'</div>';
+    }).join("");
+    gymTbl.innerHTML = hdr + rows;
+  }
+}
+
+// ─── NUTRITION ADHERENCE ───
+function calcAdherencia(days){
+  var today = todayStr();
+  var count = 0, ok = 0;
+  for(var i=0;i<days;i++){
+    var d = new Date(today+"T12:00:00");
+    d.setDate(d.getDate()-i);
+    var fecha = d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+    var regs = DB.registros.filter(function(r){return r.fecha===fecha;});
+    if(!regs.length) continue;
+    count++;
+    var cal = regs.reduce(function(s,r){return s+(r.cal||0);},0);
+    var tgt = getMacroTargets(fecha);
+    if(tgt.cal > 0 && (cal/tgt.cal) >= 0.85 && (cal/tgt.cal) <= 1.15) ok++;
+  }
+  return count > 0 ? Math.round(ok/count*100) : 0;
+}
+
+function renderSegAdherencia(){
+  var today = todayStr();
+  function adhColor(pct){ return pct>=80?"var(--green)":pct>=60?"var(--amber)":"var(--red)"; }
+  var a7=calcAdherencia(7), a14=calcAdherencia(14), a30=calcAdherencia(30);
+  var el7=document.getElementById("seg-adh-7d"), el14=document.getElementById("seg-adh-14d"), el30=document.getElementById("seg-adh-30d");
+  if(el7){  el7.textContent  = a7+"%";  el7.style.color  = adhColor(a7);  }
+  if(el14){ el14.textContent = a14+"%"; el14.style.color = adhColor(a14); }
+  if(el30){ el30.textContent = a30+"%"; el30.style.color = adhColor(a30); }
+
+  // Chart — last 14 days compliance bars
+  var days=[], labels=[], calCons=[], calObj=[], barCols=[];
+  for(var i=13;i>=0;i--){
+    var d=new Date(today+"T12:00:00"); d.setDate(d.getDate()-i);
+    var fecha=d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+    var regs=DB.registros.filter(function(r){return r.fecha===fecha;});
+    var cal=regs.reduce(function(s,r){return s+(r.cal||0);},0);
+    var tgt=getMacroTargets(fecha);
+    var pct=tgt.cal>0?(cal/tgt.cal):0;
+    labels.push(["D","L","M","M","J","V","S"][d.getDay()]+" "+d.getDate());
+    calCons.push(Math.round(cal));
+    calObj.push(tgt.cal||0);
+    barCols.push(cal===0?"rgba(255,255,255,0.06)":pct>=0.85&&pct<=1.15?"#3ecf8e":pct>=0.7?"#f5a623":"#f76f6f");
+  }
+  if(_chSegAdh) _chSegAdh.destroy();
+  var ctx=document.getElementById("ch-seg-adh");
+  if(ctx){
+    _chSegAdh=new Chart(ctx.getContext("2d"),{
+      type:"bar",
+      data:{labels:labels,datasets:[
+        {label:"Consumido",data:calCons,backgroundColor:barCols,borderRadius:3,order:2},
+        {label:"Objetivo",data:calObj,type:"line",borderColor:"#f5a623",borderWidth:2,pointRadius:2,fill:false,tension:0,order:1}
+      ]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.dataset.label+": "+c.parsed.y+" kcal";}}}},
+        scales:{
+          x:{grid:{display:false},ticks:{color:"#888",font:{size:9},maxRotation:45}},
+          y:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#888",font:{size:9}}}
+        }
+      }
+    });
+  }
+
+  // Detail text
+  var det=document.getElementById("seg-adh-detail");
+  if(det){
+    var daysWithData=0, daysOk=0, totalCal=0, totalTgt=0;
+    for(var j=0;j<30;j++){
+      var dd=new Date(today+"T12:00:00"); dd.setDate(dd.getDate()-j);
+      var ff=dd.getFullYear()+"-"+pad2(dd.getMonth()+1)+"-"+pad2(dd.getDate());
+      var rr=DB.registros.filter(function(r){return r.fecha===ff;});
+      if(!rr.length) continue;
+      daysWithData++;
+      var cc=rr.reduce(function(s,r){return s+(r.cal||0);},0);
+      var tt=getMacroTargets(ff);
+      totalCal+=cc; totalTgt+=tt.cal||0;
+      if(tt.cal>0&&(cc/tt.cal)>=0.85&&(cc/tt.cal)<=1.15) daysOk++;
+    }
+    var avgCal=daysWithData?Math.round(totalCal/daysWithData):0;
+    var avgTgt=daysWithData?Math.round(totalTgt/daysWithData):0;
+    det.textContent="Últimos 30 días: "+daysWithData+" días registrados · Promedio "+avgCal+" kcal (obj: "+avgTgt+" kcal) · "+daysOk+" días en rango.";
+  }
+}
+
+// ─── WELLNESS ───
+function renderSegWellness(){
+  var wr = (DB.wellnessRecords||[]).slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);}).slice(-20);
+  if(_chSegWell) _chSegWell.destroy();
+  var ctx = document.getElementById("ch-seg-well");
+  if(!ctx) return;
+  if(!wr.length){
+    document.getElementById("seg-well-table").innerHTML='<div style="font-size:12px;color:var(--text2);text-align:center;padding:16px 0;">Sin registros. Usá + Registro para anotar cómo te sentiste post-actividad.</div>';
+    return;
+  }
+  var labels   = wr.map(function(r){var d=new Date(r.fecha+"T12:00:00");return pad2(d.getDate())+"/"+pad2(d.getMonth()+1);});
+  var energias = wr.map(function(r){return r.energia||0;});
+  var mots     = wr.map(function(r){return r.motivacion||0;});
+  _chSegWell = new Chart(ctx.getContext("2d"),{
+    type:"line",
+    data:{labels:labels,datasets:[
+      {label:"Energía /10",data:energias,borderColor:"#f5a623",backgroundColor:"rgba(245,166,35,0.1)",tension:0.3,pointRadius:4,fill:true},
+      {label:"Motivación /10",data:mots,borderColor:"#a855f7",backgroundColor:"rgba(168,85,247,0.05)",tension:0.3,pointRadius:4,fill:false}
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:"#888",font:{size:9},boxWidth:12}}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:"#888",font:{size:9},maxRotation:45}},
+        y:{min:0,max:10,grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#888",font:{size:9}}}
+      }
+    }
+  });
+
+  // Table
+  var wellTbl = document.getElementById("seg-well-table");
+  if(wellTbl){
+    var hdr='<div style="display:grid;grid-template-columns:80px 55px 60px 1fr;gap:4px;padding:0 0 4px;border-bottom:1px solid var(--bord);font-size:9px;font-weight:700;color:var(--text2);text-transform:uppercase;">'
+      +'<span>Fecha</span><span style="text-align:right;">Energía</span><span style="text-align:right;">Motivac.</span><span>Notas</span></div>';
+    var rows = wr.slice().reverse().slice(0,8).map(function(r){
+      var eCol=r.energia>=7?"var(--green)":r.energia>=5?"var(--amber)":"var(--red)";
+      return '<div style="display:grid;grid-template-columns:80px 55px 60px 1fr;gap:4px;padding:5px 0;border-bottom:1px solid var(--bord2);font-size:11px;align-items:center;">'
+        +'<span style="color:var(--text2);">'+r.fecha+'</span>'
+        +'<span style="text-align:right;font-weight:700;color:'+eCol+';">'+(r.energia||"—")+'/10</span>'
+        +'<span style="text-align:right;color:var(--purple);">'+(r.motivacion||"—")+'/10</span>'
+        +'<span style="color:var(--text2);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.actividad||"")+' '+esc(r.notas||"")+'</span>'
+        +'</div>';
+    }).join("");
+    wellTbl.innerHTML = hdr + rows;
+  }
+}
+
+// ─── MODALS — OPEN ───
+function openModalInBody(){
+  var today = todayStr();
+  document.getElementById("ib-fecha").value   = today;
+  document.getElementById("ib-peso").value    = "";
+  document.getElementById("ib-musculo").value = "";
+  document.getElementById("ib-grasa").value   = "";
+  document.getElementById("ib-pctGrasa").value= "";
+  document.getElementById("ib-tmb").value     = "";
+  document.getElementById("ib-notas").value   = "";
+  openModal("modal-inbody");
+}
+function saveInBodyRecord(){
+  var fecha    = document.getElementById("ib-fecha").value;
+  var peso     = parseFloat(document.getElementById("ib-peso").value)||null;
+  var musculo  = parseFloat(document.getElementById("ib-musculo").value)||null;
+  var grasa    = parseFloat(document.getElementById("ib-grasa").value)||null;
+  var pctGrasa = parseFloat(document.getElementById("ib-pctGrasa").value)||null;
+  var tmb      = parseFloat(document.getElementById("ib-tmb").value)||null;
+  var notas    = document.getElementById("ib-notas").value.trim();
+  if(!fecha){ alert("Ingresá la fecha"); return; }
+  // Add to INBODY_DATA_ALL (local visual only — training app manages true InBody)
+  var newRec = {id:Date.now(), fecha:fecha, peso:peso, musculo:musculo, grasa:grasa, pctGrasa:pctGrasa, tmb:tmb||1800, notas:notas};
+  // Remove existing same-date entry and push new
+  INBODY_DATA_ALL = INBODY_DATA_ALL.filter(function(r){return r.fecha!==fecha;});
+  INBODY_DATA_ALL.push(newRec);
+  INBODY_DATA_ALL.sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+  INBODY_DATA = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1];
+  closeModal("modal-inbody");
+  renderSegInbody();
+  renderSegAlertas();
+  alert("Registro InBody guardado localmente. Para que persista, registralo también en la app de Entrenamiento (sección InBody).");
+}
+
+function openModalGymPerf(){
+  var today = todayStr();
+  document.getElementById("gp-fecha").value    = today;
+  document.getElementById("gp-ejercicio").value= "";
+  document.getElementById("gp-peso").value     = "";
+  document.getElementById("gp-reps").value     = "";
+  document.getElementById("gp-series").value   = "3";
+  document.getElementById("gp-notas").value    = "";
+  // Populate autocomplete list
+  var gp = DB.gymPerformance||[];
+  var ejercicios = {};
+  gp.forEach(function(r){ejercicios[r.ejercicio]=true;});
+  var dl = document.getElementById("gp-ejercicios-list");
+  if(dl) dl.innerHTML = Object.keys(ejercicios).sort().map(function(e){return '<option value="'+esc(e)+'">';}).join("");
+  openModal("modal-gymperf");
+}
+function saveGymPerf(){
+  var fecha     = document.getElementById("gp-fecha").value;
+  var ejercicio = document.getElementById("gp-ejercicio").value.trim();
+  var peso_kg   = parseFloat(document.getElementById("gp-peso").value)||0;
+  var reps      = parseInt(document.getElementById("gp-reps").value)||0;
+  var series    = parseInt(document.getElementById("gp-series").value)||3;
+  var notas     = document.getElementById("gp-notas").value.trim();
+  if(!fecha||!ejercicio||!peso_kg||!reps){ alert("Completá fecha, ejercicio, peso y reps"); return; }
+  if(!DB.gymPerformance) DB.gymPerformance=[];
+  DB.gymPerformance.push({id:Date.now()+"gp", fecha:fecha, ejercicio:ejercicio, peso_kg:peso_kg, reps:reps, series:series, notas:notas});
+  saveDB(); closeModal("modal-gymperf"); renderGymPerfChart(); renderSegAlertas();
+}
+
+function openModalWellness(){
+  var today = todayStr();
+  document.getElementById("wl-fecha").value    = today;
+  document.getElementById("wl-energia").value  = "7";
+  document.getElementById("wl-motiv").value    = "7";
+  document.getElementById("wl-actividad").value= "";
+  document.getElementById("wl-notas").value    = "";
+  openModal("modal-wellness");
+}
+function saveWellness(){
+  var fecha      = document.getElementById("wl-fecha").value;
+  var energia    = parseInt(document.getElementById("wl-energia").value)||5;
+  var motivacion = parseInt(document.getElementById("wl-motiv").value)||5;
+  var actividad  = document.getElementById("wl-actividad").value.trim();
+  var notas      = document.getElementById("wl-notas").value.trim();
+  if(!fecha){ alert("Ingresá la fecha"); return; }
+  if(!DB.wellnessRecords) DB.wellnessRecords=[];
+  DB.wellnessRecords.push({id:Date.now()+"wl", fecha:fecha, energia:energia, motivacion:motivacion, actividad:actividad, notas:notas});
+  saveDB(); closeModal("modal-wellness"); renderSegWellness(); renderSegAlertas();
+}
+</script>
+
+<!-- ===== MODAL: InBody Manual ===== -->
+<div class="overlay" id="modal-inbody">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title">Registro InBody</span>
+      <button class="modal-close" onclick="closeModal('modal-inbody')">✕</button>
+    </div>
+    <div style="font-size:11px;color:var(--amber);margin-bottom:10px;">⚠ Para registros oficiales usá la app de Entrenamiento. Esto es solo visual local.</div>
+    <div class="field">
+      <label class="label">Fecha</label>
+      <input type="date" id="ib-fecha"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="field">
+        <label class="label">Peso corporal (kg)</label>
+        <input type="number" id="ib-peso" placeholder="ej. 87.5" step="0.1" min="40" max="200"/>
+      </div>
+      <div class="field">
+        <label class="label">Masa muscular (kg)</label>
+        <input type="number" id="ib-musculo" placeholder="ej. 40.8" step="0.1"/>
+      </div>
+      <div class="field">
+        <label class="label">Grasa corporal (kg)</label>
+        <input type="number" id="ib-grasa" placeholder="ej. 17.5" step="0.1"/>
+      </div>
+      <div class="field">
+        <label class="label">% Grasa</label>
+        <input type="number" id="ib-pctGrasa" placeholder="ej. 19.7" step="0.1"/>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">TMB (kcal)</label>
+      <input type="number" id="ib-tmb" placeholder="ej. 1904" min="1000" max="4000"/>
+    </div>
+    <div class="field">
+      <label class="label">Notas (contexto: ayunas, hidratación, etc.)</label>
+      <input type="text" id="ib-notas" placeholder="ej. Ayunas, mañana"/>
+    </div>
+    <button class="btn-green btn-full" onclick="saveInBodyRecord()">Guardar registro</button>
+  </div>
+</div>
+
+<!-- ===== MODAL: Gym Performance ===== -->
+<div class="overlay" id="modal-gymperf">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title">Registro de rendimiento gym</span>
+      <button class="modal-close" onclick="closeModal('modal-gymperf')">✕</button>
+    </div>
+    <div class="field">
+      <label class="label">Fecha</label>
+      <input type="date" id="gp-fecha"/>
+    </div>
+    <div class="field">
+      <label class="label">Ejercicio</label>
+      <input type="text" id="gp-ejercicio" list="gp-ejercicios-list" placeholder="ej. Sentadilla, Press banca..."/>
+      <datalist id="gp-ejercicios-list"></datalist>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+      <div class="field">
+        <label class="label">Peso (kg)</label>
+        <input type="number" id="gp-peso" placeholder="ej. 90" step="2.5" min="0"/>
+      </div>
+      <div class="field">
+        <label class="label">Reps</label>
+        <input type="number" id="gp-reps" placeholder="ej. 5" min="1" max="100"/>
+      </div>
+      <div class="field">
+        <label class="label">Series</label>
+        <input type="number" id="gp-series" placeholder="3" min="1" max="20" value="3"/>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Notas (RPE, fatiga, variante)</label>
+      <input type="text" id="gp-notas" placeholder="ej. RPE 8, pausa 3min"/>
+    </div>
+    <button class="btn-green btn-full" onclick="saveGymPerf()">Guardar</button>
+  </div>
+</div>
+
+<!-- ===== MODAL: Wellness / Bienestar ===== -->
+<div class="overlay" id="modal-wellness">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title">Registro de bienestar deportivo</span>
+      <button class="modal-close" onclick="closeModal('modal-wellness')">✕</button>
+    </div>
+    <div class="field">
+      <label class="label">Fecha</label>
+      <input type="date" id="wl-fecha"/>
+    </div>
+    <div class="field">
+      <label class="label">Actividad del día</label>
+      <input type="text" id="wl-actividad" placeholder="ej. Gym Lower A, Futbolito, Fútbol Sáb"/>
+    </div>
+    <div class="field">
+      <label class="label">Energía durante la actividad (1–10)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="range" id="wl-energia" min="1" max="10" value="7" step="1" oninput="document.getElementById('wl-energia-lbl').textContent=this.value" style="flex:1;"/>
+        <span id="wl-energia-lbl" style="font-size:18px;font-weight:700;color:var(--amber);min-width:24px;text-align:center;">7</span>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Motivación (1–10)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="range" id="wl-motiv" min="1" max="10" value="7" step="1" oninput="document.getElementById('wl-motiv-lbl').textContent=this.value" style="flex:1;"/>
+        <span id="wl-motiv-lbl" style="font-size:18px;font-weight:700;color:var(--purple);min-width:24px;text-align:center;">7</span>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Notas (dolores, molestias, observaciones)</label>
+      <input type="text" id="wl-notas" placeholder="ej. Rodilla izq molesta, buen ritmo en trote"/>
+    </div>
+    <button class="btn-green btn-full" onclick="saveWellness()">Guardar</button>
+  </div>
+</div>
+
+<script>
+// Registro del Service Worker para actualizaciones automáticas de la PWA
+if ('serviceWorker' in navigator) {
+  // controllerchange dispara cuando el nuevo SW hace clients.claim()
+  // Es el evento más confiable para detectar que hay una versión nueva activa
+  var _swReloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (_swReloading) return;
+    _swReloading = true;
+    window.location.reload();
+  });
+
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw-alimentacion.js', {
+      updateViaCache: 'none'   // ← el browser NUNCA usa su HTTP cache para el archivo .js del SW
+    }).then(function(reg) {
+      // Forzar chequeo inmediato de nueva versión
+      reg.update();
+    }).catch(function(err) {
+      console.warn('SW registro fallido:', err);
+    });
+  });
 }
 </script>
 </body>
