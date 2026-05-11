@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build:2026-05-10-v22 -->
+<!-- build:2026-05-10-v24 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -11,7 +11,7 @@
 // Si el número de build almacenado no coincide con el actual, limpia todos
 // los cachés del SW y recarga forzado. Resuelve updates pegados en Safari iOS.
 (function(){
-  var BUILD = '2026-05-10-v23';
+  var BUILD = '2026-05-10-v24';
   var stored = localStorage.getItem('nm-alim-build');
   if(stored !== BUILD){
     localStorage.setItem('nm-alim-build', BUILD);
@@ -1048,7 +1048,7 @@ var FIREBASE_CONFIG = {
 
 // ─────────── PRELOADED FOODS ───────────
 // Incrementar FOODS_VERSION cada vez que se actualice la lista por defecto
-var FOODS_VERSION = 2;
+var FOODS_VERSION = 3;
 // Todos los valores son por 100g o 100ml · nota = info de porción típica
 var FOODS_DEFAULT = [
   // ── LÁCTEOS / PROTEICOS ──────────────────────────────────────────────────
@@ -1061,10 +1061,10 @@ var FOODS_DEFAULT = [
   {id:"fd6", nombre:"Wild Protein Lemon Pie 14g",       cal:356, prot:31,  gras:11,  carb:40,  unit:"g",  pesoUnidad:45,  unitNombre:"barra",   nota:"Por barra 45g ≈ 160 kcal · 14g prot · sin azúcar añadida"},
   {id:"fd7", nombre:"Wild Protein Pro Cookies&Cream 21g",cal:387,prot:35,  gras:12,  carb:37,  unit:"g",  pesoUnidad:60,  unitNombre:"barra",   nota:"Por barra 60g ≈ 232 kcal · 21g prot · sin azúcar añadida"},
   // ── TORTILLAS ────────────────────────────────────────────────────────────
-  {id:"fd8", nombre:"Fajita Pancho Villa Integral XL",  cal:275, prot:9,   gras:6.8, carb:45,  unit:"g",  pesoUnidad:44,  unitNombre:"tortilla",nota:"Por tortilla 44g ≈ 121 kcal · 8 unidades x paquete"},
+  {id:"fd8", nombre:"Fajita Pancho Villa Integral XL",  cal:320, prot:10.8,gras:6.8, carb:55,  unit:"g",  pesoUnidad:40,  unitNombre:"tortilla",nota:"Etiqueta real · 1 tortilla 40g ≈ 128 kcal · 8 unidades x paquete"},
   // ── AVES ─────────────────────────────────────────────────────────────────
   {id:"fd9", nombre:"Pollo pechuga cocida (Ariztia)",   cal:165, prot:31,  gras:3.6, carb:0,   unit:"g",  nota:""},
-  {id:"fd10",nombre:"Pollo molido Ariztia",             cal:113, prot:23,  gras:2,   carb:0,   unit:"g",  nota:""},
+  {id:"fd10",nombre:"Pollo molido Ariztia",             cal:113, prot:20.2,gras:3.6, carb:0,   unit:"g",  nota:"Etiqueta real Ariztia · peso cocido"},
   {id:"fd11",nombre:"Pechuga de pavo cocida",           cal:165, prot:30,  gras:4,   carb:0,   unit:"g",  nota:""},
   {id:"fd12",nombre:"Molida pechuga de pavo Ariztia",   cal:105, prot:22,  gras:1.8, carb:0,   unit:"g",  nota:""},
   // ── CARNES ───────────────────────────────────────────────────────────────
@@ -1073,12 +1073,12 @@ var FOODS_DEFAULT = [
   {id:"fd15",nombre:"Asado de vacuno",                  cal:250, prot:26,  gras:16,  carb:0,   unit:"g",  nota:""},
   {id:"fd16",nombre:"Bife / filete de vacuno",          cal:200, prot:28,  gras:10,  carb:0,   unit:"g",  nota:""},
   // ── PESCADOS ─────────────────────────────────────────────────────────────
-  {id:"fd17",nombre:"Atún en tarro al agua (escurrido)",cal:110, prot:25,  gras:1,   carb:0,   unit:"g",  pesoUnidad:80,  unitNombre:"tarro",   nota:"Tarro 150g escurrido ≈ 80g neto"},
+  {id:"fd17",nombre:"Atún Van Camps al agua (escurrido)",cal:107, prot:25, gras:0.2, carb:1.3, unit:"g",  pesoUnidad:80,  unitNombre:"tarro",   nota:"Etiqueta real Van Camps · tarro 150g escurrido ≈ 80g neto"},
   {id:"fd18",nombre:"Jurel en tarro (escurrido)",       cal:130, prot:18,  gras:6,   carb:0,   unit:"g",  pesoUnidad:100, unitNombre:"tarro",   nota:"Tarro 190g escurrido ≈ 100g neto"},
   {id:"fd19",nombre:"Jurel fresco",                     cal:150, prot:21,  gras:7,   carb:0,   unit:"g",  nota:""},
   {id:"fd20",nombre:"Reineta",                          cal:105, prot:18,  gras:3.5, carb:0,   unit:"g",  nota:""},
   // ── HUEVOS ───────────────────────────────────────────────────────────────
-  {id:"fd21",nombre:"Huevo entero",                     cal:155, prot:13,  gras:11,  carb:1.1, unit:"g",  pesoUnidad:60,  unitNombre:"huevo",   nota:"1 huevo grande ≈ 60g = 93 kcal"},
+  {id:"fd21",nombre:"Huevo Lider XL",                   cal:149, prot:11.9,gras:9.8, carb:2.5, unit:"g",  pesoUnidad:57,  unitNombre:"huevo",   nota:"Etiqueta real Lider XL · 1 huevo 57g ≈ 85 kcal"},
   {id:"fd22",nombre:"Clara de huevo",                   cal:52,  prot:11,  gras:0.2, carb:0.7, unit:"g",  pesoUnidad:35,  unitNombre:"clara",   nota:"1 clara ≈ 35g = 18 kcal"},
   {id:"fd23",nombre:"Huevos revueltos (2 h. + aceite)", cal:184, prot:12.5,gras:14.6,carb:1,   unit:"g",  pesoUnidad:125, unitNombre:"porción", nota:"Porción típica 125g ≈ 230 kcal"},
   // ── PAN Y CEREALES ────────────────────────────────────────────────────────
@@ -1087,7 +1087,7 @@ var FOODS_DEFAULT = [
   {id:"fd26",nombre:"Pan integral con 2 huevos",         cal:164, prot:10.7,gras:7,   carb:14.8,unit:"g",  pesoUnidad:180, unitNombre:"porción", nota:"2 rebanadas + 2 huevos · porción típica 180g ≈ 295 kcal"},
   {id:"fd27",nombre:"Arroz cocido",                      cal:130, prot:2.7, gras:0.3, carb:28.2,unit:"g",  nota:""},
   {id:"fd28",nombre:"Fideos cocidos",                    cal:158, prot:5.8, gras:0.9, carb:31,  unit:"g",  nota:""},
-  {id:"fd29",nombre:"Avena",                             cal:389, prot:16.9,gras:6.9, carb:66,  unit:"g",  nota:""},
+  {id:"fd29",nombre:"Avena instantánea",                 cal:403, prot:13.1,gras:8.3, carb:66.3,unit:"g",  nota:"Etiqueta real · peso seco"},
   {id:"fd30",nombre:"Lenteja cocida",                    cal:116, prot:9,   gras:0.4, carb:20,  unit:"g",  nota:""},
   // ── VERDURAS ─────────────────────────────────────────────────────────────
   {id:"fd31",nombre:"Tomate",                            cal:18,  prot:0.9, gras:0.2, carb:3.9, unit:"g",  nota:""},
@@ -1106,7 +1106,9 @@ var FOODS_DEFAULT = [
   {id:"fd43",nombre:"Naranja",                           cal:47,  prot:0.9, gras:0.1, carb:12,  unit:"g",  pesoUnidad:180, unitNombre:"naranja",  nota:"1 naranja mediana ≈ 180g = 85 kcal"},
   // ── ACEITES Y OTROS ───────────────────────────────────────────────────────
   {id:"fd44",nombre:"Aceite de oliva",                   cal:884, prot:0,   gras:100, carb:0,   unit:"ml", nota:"1 cda ≈ 10ml = 88 kcal"},
-  {id:"fd45",nombre:"Whey protein (genérico)",           cal:400, prot:80,  gras:5,   carb:8,   unit:"g",  pesoUnidad:30,  unitNombre:"scoop",   nota:"1 scoop ≈ 30g = 120 kcal · 24g prot"}
+  {id:"fd45",nombre:"Whey scoop Nico",                   cal:380, prot:76.7,gras:6.3, carb:6,   unit:"g",  pesoUnidad:30,  unitNombre:"scoop",   nota:"Etiqueta real · 1 scoop 30g ≈ 114 kcal · 23g prot"},
+  {id:"fd46",nombre:"Yogur Nestlé Goodness Protein",     cal:81,  prot:7.4, gras:1.9, carb:8.8, unit:"g",  pesoUnidad:140, unitNombre:"envase",  nota:"Etiqueta real · 1 envase 140g ≈ 113 kcal · 10g prot · 3 envases = 420g (combo)"},
+  {id:"fd47",nombre:"Almendras",                         cal:579, prot:21,  gras:50,  carb:22,  unit:"g",  pesoUnidad:30,  unitNombre:"porción", nota:"Porción típica 30g ≈ 174 kcal"}
 ];
 
 // ─────────── MET PRESETS ───────────
@@ -1159,292 +1161,153 @@ var ACT_PRESETS_DEFAULT = [
 
 // ─────────── MENU PRESETS DEFAULT ───────────
 // Incrementar MENU_PRESETS_VERSION para forzar reinserción en próximo deploy
-// v3: rediseño completo — fajitas+pollo molido+palta en cena, más proteína (185-210g), 14 presets (7 déficit + 7 mantención)
-var MENU_PRESETS_VERSION = 3;
+// v4 (2026-05): periodización deportiva — 1 preset por día de la semana (7 presets déficit),
+//     cena fija fajitas+pollo molido+palta, combo PM congelado (3 yogur Nestlé + whey)
+//     en Lun/Mar/Mié/Sáb/Dom, sin combo en Jue/Vie (pre-fútbol y descanso),
+//     etiquetas reales de productos consumidos por el usuario.
+var MENU_PRESETS_VERSION = 4;
 var MENU_PRESETS_DEFAULT = [
-  // ══════════════════════════ DÉFICIT ══════════════════════════════════════════
-  // ── 1. GYM 19h — DÉFICIT ────────────────────────────────────────────────────
-  {id:"mp_gym19_def", nombre:"🏋️ Gym 19h — Déficit",
-   desc:"Gym 19h • ~2355 kcal · P ~191g · G ~70g · C ~237g",
+  // ══════════════════════════ DÉFICIT — 7 días/semana ══════════════════════════
+  // ── LUN — GYM + COMBO ───────────────────────────────────────────────────────
+  {id:"mp_lun_gym_combo_def", nombre:"🏋️ Lun — Gym + Combo",
+   desc:"Gym noche · ~2428 kcal · P ~202g · G ~63g · C ~267g",
    items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz cocido 180g",     cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Avena 40g pre-gym",     cal:156, prot:7,  gras:3,  carb:26, cantidad:40,  comida:"colacion2"},
-    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+    {nombre:"Avena instantánea 60g",     cal:242, prot:8,  gras:5,  carb:40, cantidad:60,  comida:"desayuno"},
+    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
+    {nombre:"Plátano",                   cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 200g",cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
+    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
+    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
+    {nombre:"Pollo molido Ariztia 180g", cal:203, prot:36, gras:6,  carb:0,  cantidad:180, comida:"cena"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── 2. GYM 21h — DÉFICIT ────────────────────────────────────────────────────
-  {id:"mp_gym21_def", nombre:"🏋️ Gym 21h — Déficit",
-   desc:"Gym 21h • ~2432 kcal · P ~194g · G ~71g · C ~251g",
+  // ── MAR — GYM + COMBO ───────────────────────────────────────────────────────
+  {id:"mp_mar_gym_combo_def", nombre:"🏋️ Mar — Gym + Combo",
+   desc:"Gym noche · ~2392 kcal · P ~206g · G ~71g · C ~239g",
    items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz cocido 180g",     cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Avena 60g pre-gym",     cal:233, prot:10, gras:4,  carb:40, cantidad:60,  comida:"colacion2"},
-    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+    {nombre:"Pan integral ×3 reb",       cal:210, prot:9,  gras:3,  carb:38, cantidad:90,  comida:"desayuno"},
+    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"desayuno"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"desayuno"},
+    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"colacion1"},
+    {nombre:"Avena instantánea 25g",     cal:101, prot:3,  gras:2,  carb:17, cantidad:25,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 200g",cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
+    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
+    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
+    {nombre:"Pollo molido Ariztia 180g", cal:203, prot:36, gras:6,  carb:0,  cantidad:180, comida:"cena"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── 3. FUTBOLITO JUE 21h — DÉFICIT ──────────────────────────────────────────
-  {id:"mp_futbol_jue", nombre:"⚽ Futbolito Jue 21h — Déficit",
-   desc:"Futbolito 21h • ~2435 kcal · P ~187g · G ~70g · C ~263g",
+  // ── MIÉ — GYM + COMBO (atún en almuerzo) ────────────────────────────────────
+  {id:"mp_mie_gym_combo_def", nombre:"🏋️ Mié — Gym + Combo",
+   desc:"Gym noche · ~2368 kcal · P ~200g · G ~58g · C ~270g",
    items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 150g",   cal:248, prot:47, gras:5,  carb:0,  cantidad:150, comida:"almuerzo"},
-    {nombre:"Arroz cocido 220g",     cal:286, prot:6,  gras:1,  carb:62, cantidad:220, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Avena 60g pre-futbol",  cal:233, prot:10, gras:4,  carb:40, cantidad:60,  comida:"colacion2"},
-    {nombre:"Plátano pre-futbol",    cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+    {nombre:"Avena instantánea 60g",     cal:242, prot:8,  gras:5,  carb:40, cantidad:60,  comida:"desayuno"},
+    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
+    {nombre:"Plátano",                   cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
+    {nombre:"Atún Van Camps al agua",    cal:214, prot:50, gras:0,  carb:3,  cantidad:200, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 200g",cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
+    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
+    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
+    {nombre:"Pollo molido Ariztia 200g", cal:226, prot:40, gras:7,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── 4. FÚTBOL SÁB 9:30h — DÉFICIT + CARGA CARBOS ───────────────────────────
-  {id:"mp_futbol_sab", nombre:"⚽ Fútbol Sáb 9:30h — Carga Carbos",
-   desc:"Partido mañana • ~2236 kcal · P ~176g · G ~52g · C ~267g",
+  // ── JUE — FUTBOLITO 21h (sin combo, carga carbos) ───────────────────────────
+  {id:"mp_jue_futbol_def", nombre:"⚽ Jue — Futbolito 21h",
+   desc:"Futbolito noche · ~2650 kcal · P ~194g · G ~60g · C ~346g · SIN combo (pre-partido)",
    items:[
-    {nombre:"Plátano ×2 pre-partido",cal:214, prot:3,  gras:1,  carb:54, cantidad:240, comida:"desayuno"},
-    {nombre:"Pan integral ×3 taj",   cal:210, prot:9,  gras:3,  carb:38, cantidad:90,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Yogur Nestlé ×3 (PW)",  cal:340, prot:30, gras:6,  carb:39, cantidad:300, comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz cocido 200g",     cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"}
+    {nombre:"Avena instantánea 60g",     cal:242, prot:8,  gras:5,  carb:40, cantidad:60,  comida:"desayuno"},
+    {nombre:"Yogur Nestlé Protein 250g", cal:203, prot:19, gras:5,  carb:22, cantidad:250, comida:"desayuno"},
+    {nombre:"Plátano",                   cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
+    {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 280g (carga)",cal:364, prot:8, gras:1, carb:79, cantidad:280, comida:"almuerzo"},
+    {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"almuerzo"},
+    {nombre:"Palta 30g",                 cal:48,  prot:1,  gras:5,  carb:3,  cantidad:30,  comida:"almuerzo"},
+    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
+    {nombre:"Plátano pre-fútbol",        cal:134, prot:2,  gras:0,  carb:35, cantidad:150, comida:"colacion2"},
+    {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"colacion2"},
+    {nombre:"Miel 15g",                  cal:46,  prot:0,  gras:0,  carb:12, cantidad:15,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
+    {nombre:"Pollo molido Ariztia 200g", cal:226, prot:40, gras:7,  carb:0,  cantidad:200, comida:"cena"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"},
+    {nombre:"Whey scoop post-partido",   cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"cena"}
   ]},
-  // ── 5. GYM DOM 12h — DÉFICIT ────────────────────────────────────────────────
-  {id:"mp_gym_dom", nombre:"🏋️ Gym Dom 12h — Déficit",
-   desc:"Gym mediodía • ~2344 kcal · P ~184g · G ~69g · C ~242g",
+  // ── VIE — DESCANSO TOTAL (sin combo, carbos reducidos) ──────────────────────
+  {id:"mp_vie_descanso_def", nombre:"😴 Vie — Descanso",
+   desc:"Sin actividad · ~2177 kcal · P ~186g · G ~67g · C ~215g · SIN combo (pre-Sáb)",
    items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Avena 60g pre-gym",     cal:233, prot:10, gras:4,  carb:40, cantidad:60,  comida:"colacion1"},
-    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"almuerzo"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"almuerzo"},
-    {nombre:"Pechuga cocida 150g",   cal:248, prot:47, gras:5,  carb:0,  cantidad:150, comida:"almuerzo"},
-    {nombre:"Arroz cocido 150g",     cal:195, prot:4,  gras:0,  carb:42, cantidad:150, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"}
+    {nombre:"Yogur Nestlé Protein 250g", cal:203, prot:19, gras:5,  carb:22, cantidad:250, comida:"desayuno"},
+    {nombre:"Avena instantánea 35g",     cal:141, prot:5,  gras:3,  carb:23, cantidad:35,  comida:"desayuno"},
+    {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"desayuno"},
+    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
+    {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"colacion1"},
+    {nombre:"Palta 30g",                 cal:48,  prot:1,  gras:5,  carb:3,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 200g",       cal:330, prot:62, gras:7,  carb:0,  cantidad:200, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 150g",cal:195, prot:4,  gras:0,  carb:42, cantidad:150, comida:"almuerzo"},
+    {nombre:"Verduras salteadas 200g",   cal:100, prot:4,  gras:3,  carb:18, cantidad:200, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
+    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"colacion2"},
+    {nombre:"Whey scoop ½",              cal:57,  prot:12, gras:1,  carb:1,  cantidad:15,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
+    {nombre:"Pollo molido Ariztia 180g", cal:203, prot:36, gras:6,  carb:0,  cantidad:180, comida:"cena"},
+    {nombre:"Palta ½",                   cal:120, prot:2,  gras:11, carb:7,  cantidad:75,  comida:"cena"}
   ]},
-  // ── 6. DESCANSO — DÉFICIT ───────────────────────────────────────────────────
-  {id:"mp_descanso_def", nombre:"😴 Descanso — Déficit",
-   desc:"Sin actividad • ~1919 kcal · P ~156g · G ~73g · C ~157g",
+  // ── SÁB — FÚTBOL 9:30 + COMBO PM ────────────────────────────────────────────
+  {id:"mp_sab_futbol_combo_def", nombre:"⚽ Sáb — Fútbol 9:30 + Combo",
+   desc:"Partido mañana + Combo PM · ~2602 kcal · P ~225g · G ~70g · C ~280g",
    items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 130g",   cal:215, prot:40, gras:5,  carb:0,  cantidad:130, comida:"almuerzo"},
-    {nombre:"Arroz cocido 130g",     cal:169, prot:4,  gras:0,  carb:37, cantidad:130, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
-    {nombre:"Yogur Nestlé ×1",       cal:113, prot:10, gras:2,  carb:13, cantidad:100, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g",     cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"}
+    {nombre:"Plátano pre-partido",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"desayuno"},
+    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
+    {nombre:"Avena instantánea 25g",     cal:101, prot:3,  gras:2,  carb:17, cantidad:25,  comida:"desayuno"},
+    {nombre:"Plátano ventana dorada",    cal:134, prot:2,  gras:0,  carb:35, cantidad:150, comida:"colacion1"},
+    {nombre:"Whey scoop post-partido",   cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 200g",       cal:330, prot:62, gras:7,  carb:0,  cantidad:200, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 250g",cal:325, prot:7,  gras:1,  carb:71, cantidad:250, comida:"almuerzo"},
+    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"almuerzo"},
+    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
+    {nombre:"Pollo molido Ariztia 150g (cena liviana)",cal:170, prot:30, gras:5, carb:0, cantidad:150, comida:"cena"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── 7. VIERNES — CARGA CARBOS (pre-Sáb) — DÉFICIT ──────────────────────────
-  {id:"mp_vie_carbload", nombre:"🍝 Viernes — Carga Carbos (pre-Sáb)",
-   desc:"Gym + carga pre-partido • ~2295 kcal · P ~175g · G ~49g · C ~288g",
+  // ── DOM — GYM 12h + COMBO ───────────────────────────────────────────────────
+  {id:"mp_dom_gym_combo_def", nombre:"🏋️ Dom — Gym 12h + Combo",
+   desc:"Gym mediodía + Combo PM · ~2383 kcal · P ~204g · G ~59g · C ~264g",
    items:[
-    {nombre:"Avena 70g",             cal:272, prot:12, gras:5,  carb:46, cantidad:70,  comida:"desayuno"},
-    {nombre:"Plátano",               cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"colacion1"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Fideos cocidos 200g",   cal:316, prot:12, gras:2,  carb:62, cantidad:200, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
-    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 150g",     cal:170, prot:35, gras:3,  carb:0,  cantidad:150, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
-  ]},
-  // ══════════════════════════ MANTENCIÓN ═══════════════════════════════════════
-  // ── 8. GYM 19h — MANTENCIÓN ─────────────────────────────────────────────────
-  {id:"mp_gym19_mant", nombre:"🏋️ Gym 19h — Mantención",
-   desc:"Gym 19h • ~2618 kcal · P ~198g · G ~78g · C ~278g",
-   items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz cocido 230g",     cal:299, prot:6,  gras:1,  carb:65, cantidad:230, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
-    {nombre:"Avena 60g pre-gym",     cal:233, prot:10, gras:4,  carb:40, cantidad:60,  comida:"colacion2"},
-    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
-  ]},
-  // ── 9. GYM 21h — MANTENCIÓN ─────────────────────────────────────────────────
-  {id:"mp_gym21_mant", nombre:"🏋️ Gym 21h — Mantención",
-   desc:"Gym 21h • ~2695 kcal · P ~201g · G ~79g · C ~292g",
-   items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz cocido 230g",     cal:299, prot:6,  gras:1,  carb:65, cantidad:230, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
-    {nombre:"Avena 70g pre-gym",     cal:272, prot:12, gras:5,  carb:46, cantidad:70,  comida:"colacion2"},
-    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
-  ]},
-  // ── 10. FUTBOLITO JUE 21h — MANTENCIÓN ──────────────────────────────────────
-  {id:"mp_futbol_jue_mant", nombre:"⚽ Futbolito Jue 21h — Mantención",
-   desc:"Futbolito 21h • ~2698 kcal · P ~197g · G ~79g · C ~307g",
-   items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 150g",   cal:248, prot:47, gras:5,  carb:0,  cantidad:150, comida:"almuerzo"},
-    {nombre:"Arroz cocido 260g",     cal:338, prot:7,  gras:1,  carb:73, cantidad:260, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
-    {nombre:"Avena 70g pre-futbol",  cal:272, prot:12, gras:5,  carb:46, cantidad:70,  comida:"colacion2"},
-    {nombre:"Plátano pre-futbol",    cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
-  ]},
-  // ── 11. FÚTBOL SÁB 9:30h — MANTENCIÓN + CARGA CARBOS ───────────────────────
-  {id:"mp_futbol_sab_mant", nombre:"⚽ Fútbol Sáb 9:30h — Mantención",
-   desc:"Partido mañana • ~2599 kcal · P ~197g · G ~62g · C ~307g",
-   items:[
-    {nombre:"Plátano ×2 pre-partido",cal:214, prot:3,  gras:1,  carb:54, cantidad:240, comida:"desayuno"},
-    {nombre:"Pan integral ×3 taj",   cal:210, prot:9,  gras:3,  carb:38, cantidad:90,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Yogur Nestlé ×3 (PW)",  cal:340, prot:30, gras:6,  carb:39, cantidad:300, comida:"colacion1"},
-    {nombre:"Pechuga cocida 200g",   cal:330, prot:62, gras:7,  carb:0,  cantidad:200, comida:"almuerzo"},
-    {nombre:"Arroz cocido 230g",     cal:299, prot:6,  gras:1,  carb:65, cantidad:230, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×1",       cal:113, prot:10, gras:2,  carb:13, cantidad:100, comida:"cena"}
-  ]},
-  // ── 12. GYM DOM 12h — MANTENCIÓN ────────────────────────────────────────────
-  {id:"mp_gym_dom_mant", nombre:"🏋️ Gym Dom 12h — Mantención",
-   desc:"Gym mediodía • ~2707 kcal · P ~204g · G ~79g · C ~283g",
-   items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Avena 70g pre-gym",     cal:272, prot:12, gras:5,  carb:46, cantidad:70,  comida:"colacion1"},
-    {nombre:"Plátano pre-gym",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"almuerzo"},
-    {nombre:"Yogur Nestlé ×3 (PW)",  cal:340, prot:30, gras:6,  carb:39, cantidad:300, comida:"almuerzo"},
-    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz cocido 180g",     cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×1",       cal:113, prot:10, gras:2,  carb:13, cantidad:100, comida:"cena"}
-  ]},
-  // ── 13. DESCANSO — MANTENCIÓN ───────────────────────────────────────────────
-  {id:"mp_descanso_mant", nombre:"😴 Descanso — Mantención",
-   desc:"Sin actividad • ~2282 kcal · P ~177g · G ~83g · C ~199g",
-   items:[
-    {nombre:"Huevos revueltos ×3",   cal:279, prot:23, gras:19, carb:2,  cantidad:180, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",   cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz cocido 180g",     cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
-    {nombre:"Yogur Nestlé ×2",       cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g",     cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×1 (cena)",cal:113, prot:10, gras:2,  carb:13, cantidad:100, comida:"cena"}
-  ]},
-  // ── 14. VIERNES — CARGA CARBOS — MANTENCIÓN ─────────────────────────────────
-  {id:"mp_vie_carbload_mant", nombre:"🍝 Viernes — Carga Carbos — Mantención",
-   desc:"Gym + carga pre-partido • ~2758 kcal · P ~196g · G ~59g · C ~351g",
-   items:[
-    {nombre:"Avena 80g",             cal:311, prot:14, gras:6,  carb:53, cantidad:80,  comida:"desayuno"},
-    {nombre:"Plátano",               cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
-    {nombre:"Café solo",             cal:5,   prot:0,  gras:0,  carb:1,  cantidad:200, comida:"desayuno"},
-    {nombre:"Pan integral ×2 taj",   cal:140, prot:6,  gras:2,  carb:25, cantidad:60,  comida:"colacion1"},
-    {nombre:"Manzana",               cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Almendras 30g",         cal:174, prot:6,  gras:15, carb:5,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 200g",   cal:330, prot:62, gras:7,  carb:0,  cantidad:200, comida:"almuerzo"},
-    {nombre:"Fideos cocidos 250g",   cal:395, prot:15, gras:3,  carb:77, cantidad:250, comida:"almuerzo"},
-    {nombre:"Ensalada verde",        cal:25,  prot:1,  gras:0,  carb:4,  cantidad:100, comida:"almuerzo"},
-    {nombre:"Aceite oliva 1 cda",    cal:88,  prot:0,  gras:10, carb:0,  cantidad:10,  comida:"almuerzo"},
-    {nombre:"Plátano ×2 pre-gym",    cal:214, prot:2,  gras:0,  carb:54, cantidad:240, comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa ×2",cal:242, prot:8,  gras:6,  carb:40, cantidad:88,  comida:"cena"},
-    {nombre:"Pollo molido 200g",     cal:226, prot:46, gras:4,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta ½",               cal:107, prot:1,  gras:10, carb:6,  cantidad:75,  comida:"cena"},
-    {nombre:"Scop proteína 30g (PW)",cal:114, prot:22, gras:1,  carb:3,  cantidad:30,  comida:"cena"},
-    {nombre:"Yogur Nestlé ×2 (PW)",  cal:227, prot:20, gras:4,  carb:26, cantidad:200, comida:"cena"}
+    {nombre:"Avena instantánea 50g",     cal:201, prot:7,  gras:4,  carb:33, cantidad:50,  comida:"desayuno"},
+    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
+    {nombre:"Plátano",                   cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Huevo Lider XL ×1",         cal:85,  prot:7,  gras:6,  carb:1,  cantidad:57,  comida:"desayuno"},
+    {nombre:"Pan integral ×1 reb (pre-gym)",cal:70, prot:3, gras:1, carb:13, cantidad:30,  comida:"colacion1"},
+    {nombre:"Miel 10g",                  cal:30,  prot:0,  gras:0,  carb:8,  cantidad:10,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 220g (post-WO)",cal:363, prot:68, gras:8, carb:0, cantidad:220, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 220g",cal:286, prot:6,  gras:1,  carb:62, cantidad:220, comida:"almuerzo"},
+    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
+    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
+    {nombre:"Pollo molido Ariztia 150g (cena liviana)",cal:170, prot:30, gras:5, carb:0, cantidad:150, comida:"cena"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]}
 ];
 
@@ -1490,7 +1353,7 @@ function _initScenarioHistory(){
 
 // ─────────── DB ───────────
 var DB = {
-  config:          {escenario:"mantencion", factorBase:1.2, tmbManual:null, pesoManual:null, scenCalDef:-450, scenCalVol:300, scenProtDef:2.2, scenProtMant:2.0, scenProtVol:2.2, scenarioHistory:[]},
+  config:          {escenario:"deficit", factorBase:1.2, tmbManual:null, pesoManual:null, scenCalDef:-450, scenCalVol:300, scenProtDef:2.2, scenProtMant:2.0, scenProtVol:2.2, scenarioHistory:[]},
   alimentos:       [],   // food database
   registros:       [],   // [{id, fecha, hora, nombre, cal, prot, gras, carb, dbId, cantidad}]
   actividades:     [],   // [{id, fecha, tipo, duracion, calExtra, notas, km, ritmo}]
@@ -1619,7 +1482,7 @@ function loadDB(){
       if(doc.exists){
         var d = doc.data();
         if(!freshSave){
-        DB.config          = Object.assign({escenario:"mantencion",factorBase:1.2,tmbManual:null,pesoManual:null,scenCalDef:-450,scenCalVol:300,scenProtDef:2.2,scenProtMant:2.0,scenProtVol:2.2,scenarioHistory:[]}, d.config||{});
+        DB.config          = Object.assign({escenario:"deficit",factorBase:1.2,tmbManual:null,pesoManual:null,scenCalDef:-450,scenCalVol:300,scenProtDef:2.2,scenProtMant:2.0,scenProtVol:2.2,scenarioHistory:[]}, d.config||{});
         SCENARIOS.deficit.calAdj        = typeof DB.config.scenCalDef==="number"  ? DB.config.scenCalDef  : -450;
         SCENARIOS.volumen.calAdj        = typeof DB.config.scenCalVol==="number"  ? DB.config.scenCalVol  : 300;
         SCENARIOS.deficit.protFactor    = typeof DB.config.scenProtDef==="number" ? DB.config.scenProtDef : 2.2;
