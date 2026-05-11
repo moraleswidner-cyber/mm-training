@@ -1,0 +1,41 @@
+# === Credenciales y secretos — NUNCA versionar ===
+sa.json
+firebase_auth.txt
+*.pem
+*.key
+.env
+.env.*
+
+# === Cache y artefactos de herramientas ===
+node_modules/
+.firebase/
+*.log
+firebase-debug.log
+firestore-debug.log
+
+# === Config local de Claude Code (no del proyecto) ===
+.claude/
+
+# === Archivos temporales de Office (lock files) ===
+~$*
+
+# === Archivos del sistema operativo ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Exports JSON de Firestore (datos personales — backup aparte) ===
+firestore_raw.json
+firestore_data.json
+firestore_alim.json
+nm_export.json
+nm_alimentacion_export.json
+training_raw.json
+nutrition_raw.json
+menu_abril20.json
+
+# === Archivos generados por scripts (regenerables) ===
+alimentos_verificacion.csv
+alimentos_verificacion.xlsx
+menus_macros.xlsx
+calendario_nutricional.pdf
