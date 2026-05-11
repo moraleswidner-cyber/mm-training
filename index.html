@@ -248,11 +248,14 @@ button:active{opacity:.7;transform:scale(.98);}
           <span class="label">Día de entrenamiento</span>
           <select id="r-dia" onchange="onDiaChange()">
             <option value="">Seleccionar...</option>
-            <option value="d1">Día 1 — Torso</option>
-            <option value="d2">Día 2 — Pierna</option>
-            <option value="d4">Día 4 — Torso</option>
-            <option value="d5">Día 5 — Pierna</option>
           </select>
+        </div>
+        <div id="rutina-config-bar" style="background:var(--bg3);border:1px solid var(--bord);border-radius:var(--rsm);padding:8px 10px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Rutina activa</div>
+            <div id="rutina-nombre-lbl" style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+          </div>
+          <button class="btn-xs" onclick="openRutinaConfig()" style="flex-shrink:0;">⚙️ Configurar</button>
         </div>
         <div class="row3">
           <div class="field" style="margin:0;"><span class="label">Energía /10</span><input type="number" id="r-energia" min="1" max="10" placeholder="7" oninput="saveDraft()"/></div>
@@ -262,6 +265,7 @@ button:active{opacity:.7;transform:scale(.98);}
         <div class="field" style="margin-top:8px;margin-bottom:0;"><span class="label">Dolor / molestias</span><input type="text" id="r-dolor" placeholder="Ej: hombro izq. leve" oninput="saveDraft()"/></div>
       </div>
 
+      <div id="calentamiento-block"></div>
       <div id="plan-info" style="display:none;" class="alert alert-amber"></div>
 
       <div class="card">
@@ -284,6 +288,26 @@ button:active{opacity:.7;transform:scale(.98);}
         <button onclick="clearForm()">Limpiar</button>
       </div>
       <div id="r-alert"></div>
+
+      <!-- MODAL RUTINA -->
+      <div id="modal-rutina" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);overflow-y:auto;padding:20px 12px;">
+        <div style="background:var(--bg2);border:1px solid var(--bord2);border-radius:var(--r);padding:16px;max-width:500px;margin:0 auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-size:14px;font-weight:700;">Configurar Rutina Semanal</div>
+            <button class="btn-xs" onclick="closeRutinaConfig()">✕</button>
+          </div>
+          <div class="field">
+            <span class="label">Nombre de la rutina</span>
+            <input type="text" id="rut-nombre" placeholder="Ej: Plan Full Body HIT"/>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;">Días de la semana (Slot A → D)</div>
+          <div id="rut-slots"></div>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn-blue btn-sm" style="flex:1;" onclick="saveRutinaConfig()">Guardar rutina</button>
+            <button class="btn-sm" onclick="closeRutinaConfig()">Cancelar</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- HISTORIAL -->
@@ -291,8 +315,18 @@ button:active{opacity:.7;transform:scale(.98);}
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
         <select id="h-dia" onchange="renderHistorial()" style="flex:1;font-size:12px;padding:7px 10px;">
           <option value="">Todos los días</option>
-          <option value="d1">Día 1 — Torso</option><option value="d2">Día 2 — Pierna</option>
-          <option value="d4">Día 4 — Torso</option><option value="d5">Día 5 — Pierna</option>
+          <option value="d1">Día 1 — Torso (v1)</option>
+          <option value="d2">Día 2 — Pierna (v1)</option>
+          <option value="d4">Día 4 — Torso (v1)</option>
+          <option value="d5">Día 5 — Pierna (v1)</option>
+          <option value="d1b">Día 1 — Full Body A (v2)</option>
+          <option value="d2b">Día 2 — Pierna HIT A (v2)</option>
+          <option value="d4b">Día 4 — Full Body B (v2)</option>
+          <option value="d5b">Día 5 — Pierna HIT B (v2)</option>
+          <option value="d1c">Día 1 — Lower A (v3)</option>
+          <option value="d2c">Día 2 — Upper A (v3)</option>
+          <option value="d4c">Día 4 — Lower B (v3)</option>
+          <option value="d5c">Día 5 — Upper B (v3)</option>
         </select>
         <select id="h-mes" onchange="renderHistorial()" style="flex:1;font-size:12px;padding:7px 10px;">
           <option value="">Todos los meses</option>
@@ -330,14 +364,25 @@ button:active{opacity:.7;transform:scale(.98);}
       </div>
 
       <!-- Training day tabs -->
-      <div class="day-tab-bar">
-        <button class="day-tab-btn active" onclick="showProgDia('d1',this)">Torso A</button>
-        <button class="day-tab-btn" onclick="showProgDia('d2',this)">Pierna A</button>
-        <button class="day-tab-btn" onclick="showProgDia('d4',this)">Torso B</button>
-        <button class="day-tab-btn" onclick="showProgDia('d5',this)">Pierna B</button>
+      <div class="day-tab-bar" style="flex-wrap:wrap;">
+        <button class="day-tab-btn active" onclick="showProgDia('d1',this)">D1 Torso</button>
+        <button class="day-tab-btn" onclick="showProgDia('d2',this)">D2 Pierna</button>
+        <button class="day-tab-btn" onclick="showProgDia('d4',this)">D4 Torso</button>
+        <button class="day-tab-btn" onclick="showProgDia('d5',this)">D5 Pierna</button>
+        <button class="day-tab-btn" onclick="showProgDia('d1b',this)" style="border-color:var(--blue);color:var(--blue);">D1 FB-A ✦</button>
+        <button class="day-tab-btn" onclick="showProgDia('d2b',this)" style="border-color:var(--green);color:var(--green);">D2 FB-B ✦</button>
+        <button class="day-tab-btn" onclick="showProgDia('d4b',this)" style="border-color:var(--blue);color:var(--blue);">D4 FB-C ✦</button>
+        <button class="day-tab-btn" onclick="showProgDia('d5b',this)" style="border-color:var(--green);color:var(--green);">D5 FB-D ✦</button>
+        <button class="day-tab-btn" onclick="showProgDia('d1c',this)" style="border-color:var(--blue);color:var(--blue);">D1 Low-A ◆</button>
+        <button class="day-tab-btn" onclick="showProgDia('d2c',this)" style="border-color:var(--green);color:var(--green);">D2 Upp-A ◆</button>
+        <button class="day-tab-btn" onclick="showProgDia('d4c',this)" style="border-color:var(--blue);color:var(--blue);">D4 Low-B ◆</button>
+        <button class="day-tab-btn" onclick="showProgDia('d5c',this)" style="border-color:var(--green);color:var(--green);">D5 Upp-B ◆</button>
       </div>
       <div id="prog-dia-content"></div>
-      <button class="btn-blue" style="width:100%;margin-top:8px;" onclick="saveProgresion()">Guardar progresión</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn-blue" style="flex:1;" onclick="saveProgresion()">Guardar progresión</button>
+        <button class="btn-xs" style="background:var(--amber-d);color:var(--amber);border:1px solid var(--amber);padding:0 12px;" onclick="progRestaurarPlanDia()" title="Restaura los valores S1-S4 de este día desde el plan base">🔄 Restaurar base</button>
+      </div>
       <div id="prog-recs"></div>
     </div>
 
@@ -547,7 +592,364 @@ var PLAN = {
   ]},
 };
 
-var SEM_KEYS = ["S1","S2","S3","S4","S5"];
+var SEM_KEYS = ["S1","S2","S3","S4"];
+
+// ── PLAN v2 — P2 Full Body (sin push, sin HIT) / desde 2026-05-05 ──
+var PLAN_V2 = {
+  d1b:{
+    nombre:"Día 1 — Full Body A", subtitulo:"Glúteo · Cuad Potencia + Tracción + Brazos",
+    color:"blue", version:"v2", duracion:90,
+    exs:[
+      {n:"Hip Thrust",            tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"4x8", p:"20 kg",  nota:"🆕 Técnica primero — glúteo fresco, SIEMPRE al inicio"},
+       s2:{ser:"4x10",p:"40 kg"},
+       s3:{ser:"4x12",p:"50 kg"},
+       s4:{ser:"4x12",p:"60 kg",  adj:"pico"}},
+      {n:"Sentadilla · Potencia", tipo:"potencia",  descanso:"3 min",
+       s1:{ser:"3x4", p:"35 kg",  nota:"Concéntrico máx velocidad · baja 2 seg · NO subir carga si baja velocidad"},
+       s2:{ser:"3x4", p:"37.5 kg"},
+       s3:{ser:"3x5", p:"37.5 kg"},
+       s4:{ser:"3x5", p:"40 kg",  adj:"pico"}},
+      {n:"Prensa",                tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"3x10",p:"110 kg"},
+       s2:{ser:"3x11",p:"110 kg"},
+       s3:{ser:"3x12",p:"110 kg"},
+       s4:{ser:"3x12",p:"120 kg", adj:"pico"}},
+      {n:"Jalón Pecho Unilat.",   tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"3x10",p:"100 kg"},
+       s2:{ser:"3x11",p:"100 kg"},
+       s3:{ser:"3x12",p:"100 kg"},
+       s4:{ser:"3x12",p:"110 kg", adj:"pico"}},
+      {n:"Remo en Máquina",       tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"3x10",p:"65 kg"},
+       s2:{ser:"3x11",p:"65 kg"},
+       s3:{ser:"3x12",p:"65 kg"},
+       s4:{ser:"3x12",p:"70 kg",  adj:"pico"}},
+      {n:"Curl Bíceps Incl. 45°", tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"4x10",p:"10 kg",  nota:"⚠️ Pendiente clearance kinesiólogo"},
+       s2:{ser:"4x11",p:"10 kg"},
+       s3:{ser:"4x12",p:"10 kg"},
+       s4:{ser:"4x12",p:"12.5 kg",adj:"pico"}},
+      {n:"Ext. Tríceps cable",    tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"3x10",p:"90 kg",  nota:"⚠️ Pendiente clearance kinesiólogo"},
+       s2:{ser:"3x11",p:"90 kg"},
+       s3:{ser:"3x12",p:"90 kg"},
+       s4:{ser:"3x12",p:"95 kg",  adj:"pico"}},
+      {n:"Rueda Abdominal",       tipo:"core",      descanso:"60 seg",
+       s1:{ser:"4x14",p:"+30 kg"},
+       s2:{ser:"4x15",p:"+30 kg"},
+       s3:{ser:"4x15",p:"+30 kg"},
+       s4:{ser:"4x15",p:"+35 kg", adj:"pico"}}
+    ]
+  },
+  d2b:{
+    nombre:"Día 2 — Full Body B", subtitulo:"Tracción + Isquio · Cuad unilat. + Brazos + Gemelo",
+    color:"green", version:"v2", duracion:75,
+    exs:[
+      {n:"Jalón al Pecho",        tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"3x10",p:"100 kg", nota:"Mantener 100 kg — hombro"},
+       s2:{ser:"3x11",p:"100 kg"},
+       s3:{ser:"3x12",p:"100 kg"},
+       s4:{ser:"3x12",p:"100 kg", adj:"consolida"}},
+      {n:"Curl Isquios Unilat.",  tipo:"aislado",   descanso:"90 seg",
+       s1:{ser:"3x12",p:"25 kg"},
+       s2:{ser:"3x13",p:"25 kg"},
+       s3:{ser:"3x14",p:"25 kg"},
+       s4:{ser:"3x14",p:"27.5 kg",adj:"pico"}},
+      {n:"Ext. Cuád. Unilat.",    tipo:"aislado",   descanso:"90 seg",
+       s1:{ser:"3x10",p:"27.5 kg"},
+       s2:{ser:"3x11",p:"27.5 kg"},
+       s3:{ser:"3x12",p:"27.5 kg"},
+       s4:{ser:"3x12",p:"30 kg",  adj:"pico"}},
+      {n:"Curl Bíceps Manc. supin.",tipo:"aislado", descanso:"75 seg",
+       s1:{ser:"4x8", p:"12.5 kg",nota:"⚠️ Pendiente clearance kinesiólogo"},
+       s2:{ser:"4x10",p:"12.5 kg"},
+       s3:{ser:"4x11",p:"12.5 kg"},
+       s4:{ser:"4x12",p:"12.5 kg",adj:"pico"}},
+      {n:"Ext. Tríceps Tras-nuca Manc.",tipo:"aislado",descanso:"75 seg",
+       s1:{ser:"3x10",p:"25 kg",  nota:"⚠️ Pendiente clearance kinesiólogo"},
+       s2:{ser:"3x11",p:"25 kg"},
+       s3:{ser:"3x12",p:"25 kg"},
+       s4:{ser:"4x12",p:"25 kg",  adj:"pico"}},
+      {n:"Plancha Abdominal",     tipo:"core",      descanso:"60 seg",
+       s1:{ser:"3x14",p:"30 kg"},
+       s2:{ser:"3x15",p:"30 kg"},
+       s3:{ser:"3x15",p:"30 kg"},
+       s4:{ser:"3x15",p:"35 kg",  adj:"pico"}},
+      {n:"Gemelo en MPW",         tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"4x12",p:"87.5 kg"},
+       s2:{ser:"4x13",p:"87.5 kg"},
+       s3:{ser:"4x14",p:"87.5 kg"},
+       s4:{ser:"4x14",p:"90 kg",  adj:"pico"}}
+    ]
+  },
+  d4b:{
+    nombre:"Día 4 — Full Body C", subtitulo:"Rumano (Potencia+Hip) · Sentadilla + Tracción + Abductores/Aductores",
+    color:"blue", version:"v2", duracion:95,
+    exs:[
+      {n:"PM Rumano · Potencia",  tipo:"potencia",  descanso:"3 min",
+       s1:{ser:"3x4", p:"40 kg",  nota:"Excéntrico 3 seg · concéntrico explosivo · NO subir si baja velocidad"},
+       s2:{ser:"3x4", p:"42 kg"},
+       s3:{ser:"3x5", p:"42 kg"},
+       s4:{ser:"3x5", p:"45 kg",  adj:"pico"}},
+      {n:"PM Rumano Barra",       tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"3x10",p:"56.3 kg",nota:"80 lb + barra 20 kg · excéntrico 3 seg"},
+       s2:{ser:"3x11",p:"56.3 kg"},
+       s3:{ser:"3x12",p:"56.3 kg"},
+       s4:{ser:"3x12",p:"61.3 kg",adj:"pico"}},
+      {n:"Sentadilla Barra",      tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"3x8", p:"51.8 kg",nota:"70 lb + barra 20 kg · bajar 2 seg, subir explosivo"},
+       s2:{ser:"3x10",p:"51.8 kg"},
+       s3:{ser:"3x11",p:"51.8 kg"},
+       s4:{ser:"3x12",p:"51.8 kg",adj:"pico"}},
+      {n:"Prensa Unilateral",     tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"3x10",p:"50 kg"},
+       s2:{ser:"3x11",p:"50 kg"},
+       s3:{ser:"3x12",p:"50 kg"},
+       s4:{ser:"3x12",p:"55 kg",  adj:"pico"}},
+      {n:"Remo Máq. Unilateral",  tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"3x8", p:"52.5 kg",nota:"Jalar explosivo, volver lento 2 seg"},
+       s2:{ser:"3x10",p:"52.5 kg"},
+       s3:{ser:"3x11",p:"52.5 kg"},
+       s4:{ser:"3x12",p:"52.5 kg",adj:"pico"}},
+      {n:"Curl Barra Polea",      tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"3x10",p:"55 kg",  nota:"⚠️ Pendiente clearance kinesiólogo"},
+       s2:{ser:"3x11",p:"55 kg"},
+       s3:{ser:"3x12",p:"55 kg"},
+       s4:{ser:"3x12",p:"60 kg",  adj:"pico"}},
+      {n:"Ext. Tríceps Barra",    tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"4x8", p:"95 kg",  nota:"⚠️ Pendiente clearance kinesiólogo"},
+       s2:{ser:"4x10",p:"95 kg"},
+       s3:{ser:"4x11",p:"95 kg"},
+       s4:{ser:"4x12",p:"95 kg",  adj:"pico"}},
+      {n:"Abductores",            tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x12",p:"115 kg", nota:"POR SEPARADO — no biserie con aductores"},
+       s2:{ser:"3x13",p:"115 kg"},
+       s3:{ser:"3x14",p:"115 kg"},
+       s4:{ser:"3x14",p:"120 kg", adj:"pico"}},
+      {n:"Aductores",             tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x12",p:"115 kg"},
+       s2:{ser:"3x13",p:"115 kg"},
+       s3:{ser:"3x14",p:"115 kg"},
+       s4:{ser:"3x14",p:"120 kg", adj:"pico"}}
+    ]
+  },
+  d5b:{
+    nombre:"Día 5 — Full Body D", subtitulo:"Hip Thrust · Isquio + Cuad + Abductores + Core + Rehab",
+    color:"green", version:"v2", duracion:75,
+    exs:[
+      {n:"Hip Thrust",            tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"4x10",p:"25 kg",  nota:"Sesión volumen — ajustar según cómo estuvo D1"},
+       s2:{ser:"4x12",p:"40 kg"},
+       s3:{ser:"4x12",p:"50 kg"},
+       s4:{ser:"4x12",p:"60 kg",  adj:"pico"}},
+      {n:"Curl de Isquios",       tipo:"aislado",   descanso:"90 seg",
+       s1:{ser:"3x12",p:"47.5 kg"},
+       s2:{ser:"3x13",p:"47.5 kg"},
+       s3:{ser:"3x14",p:"47.5 kg"},
+       s4:{ser:"3x14",p:"50 kg",  adj:"pico"}},
+      {n:"Ext. de Cuádriceps",    tipo:"aislado",   descanso:"90 seg",
+       s1:{ser:"3x8", p:"60 kg"},
+       s2:{ser:"3x10",p:"60 kg"},
+       s3:{ser:"3x11",p:"60 kg"},
+       s4:{ser:"3x12",p:"60 kg",  adj:"pico"}},
+      {n:"Abductores",            tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x12",p:"115 kg", nota:"2ª sesión semanal — mayor frecuencia"},
+       s2:{ser:"3x13",p:"115 kg"},
+       s3:{ser:"3x14",p:"115 kg"},
+       s4:{ser:"3x14",p:"120 kg", adj:"pico"}},
+      {n:"Plancha Abdominal",     tipo:"core",      descanso:"60 seg",
+       s1:{ser:"3x14",p:"30 kg"},
+       s2:{ser:"3x15",p:"30 kg"},
+       s3:{ser:"3x15",p:"30 kg"},
+       s4:{ser:"3x15",p:"35 kg",  adj:"pico"}},
+      {n:"Gemelo en MPW",         tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"4x12",p:"87.5 kg"},
+       s2:{ser:"4x13",p:"87.5 kg"},
+       s3:{ser:"4x14",p:"87.5 kg"},
+       s4:{ser:"4x14",p:"90 kg",  adj:"pico"}},
+      {n:"Face Pull con Polea",   tipo:"rehab",     descanso:"45 seg",
+       s1:{ser:"3x15",p:"muy liviano",nota:"🔄 Rehab hombro — siempre ejecutar, carga mínima"},
+       s2:{ser:"3x15",p:"muy liviano"},
+       s3:{ser:"3x15",p:"muy liviano"},
+       s4:{ser:"3x15",p:"muy liviano",adj:"consolida"}},
+      {n:"Rotación Externa con Banda",tipo:"rehab", descanso:"45 seg",
+       s1:{ser:"3x15",p:"banda elástica",nota:"🔄 Rehab hombro — movimiento lento y controlado"},
+       s2:{ser:"3x15",p:"banda elástica"},
+       s3:{ser:"3x15",p:"banda elástica"},
+       s4:{ser:"3x15",p:"banda elástica",adj:"consolida"}}
+    ]
+  }
+};
+
+// Fusionar PLAN_V2 en PLAN para acceso unificado
+Object.keys(PLAN_V2).forEach(function(k){ PLAN[k] = PLAN_V2[k]; });
+
+// ── PLAN v3 — P3 Upper/Lower Potencia (Sport-focused) / desde 2026-05-12 ──
+var PLAN_V3 = {
+  d1c:{
+    nombre:"Día 1 — Lower A", subtitulo:"Squat Potencia + Glúteo · Fuerza · Aductores · Core",
+    color:"blue", version:"v3", duracion:80,
+    exs:[
+      {n:"Box Jump",              tipo:"potencia",  descanso:"2 min",
+       s1:{ser:"4x5", p:"BW",    nota:"EN CASA pre-gym · plataforma 40-60 cm · aterrizaje suave rodillas flexionadas · 10-20 min antes de llegar al gym (ventana PAP)"},
+       s2:{ser:"4x5", p:"BW"},
+       s3:{ser:"4x5", p:"BW"},
+       s4:{ser:"3x5", p:"BW",    adj:"consolida", nota:"Descarga — reducir 1 serie"}},
+      {n:"Sentadilla · Potencia", tipo:"potencia",  descanso:"3 min",
+       s1:{ser:"3x4", p:"29 kg", nota:"44% 1RM · barra + par 10lbs · concéntrico MÁXIMA velocidad · excéntrico 2 seg · PARA si baja velocidad"},
+       s2:{ser:"3x5", p:"29 kg", nota:"Mismo peso · +1 rep · barra + par 10lbs"},
+       s3:{ser:"3x4", p:"33.5 kg",nota:"51% 1RM · barra + par 15lbs · velocidad máxima"},
+       s4:{ser:"3x4", p:"29 kg", adj:"consolida",nota:"Descarga · barra + par 10lbs · foco técnica"}},
+      {n:"Sentadilla · Fuerza",   tipo:"compuesto", descanso:"3 min",
+       s1:{ser:"4x5", p:"42.75 kg",nota:"65% 1RM · barra + par 25lbs · semana entrada — dominar patrón · excéntrico 2 seg · subir EXPLOSIVO"},
+       s2:{ser:"4x5", p:"51.75 kg",nota:"79% 1RM · barra + par 35lbs"},
+       s3:{ser:"4x5", p:"56.25 kg",nota:"86% 1RM · barra + par 25lbs + par 15lbs · autorregula: si velocidad cae → stop"},
+       s4:{ser:"4x5", p:"42.75 kg",adj:"consolida",nota:"65% descarga · barra + par 25lbs · técnica perfecta"}},
+      {n:"Hip Thrust",            tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"3x8", p:"80 kg", nota:"Glúteo fresco después de sentadilla · aprieta glúteo arriba 1 seg"},
+       s2:{ser:"3x10",p:"85 kg"},
+       s3:{ser:"3x10",p:"90 kg"},
+       s4:{ser:"3x8", p:"75 kg", adj:"consolida"}},
+      {n:"Prensa Unilateral",     tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"3x10",p:"50 kg", nota:"Cada pierna por separado · controla excéntrico 2 seg · último peso real registrado"},
+       s2:{ser:"3x10",p:"55 kg"},
+       s3:{ser:"3x11",p:"60 kg"},
+       s4:{ser:"3x10",p:"45 kg", adj:"consolida"}},
+      {n:"Aductores",             tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x12",p:"115 kg",nota:"2× semana (D1c+D4c) — frecuencia para futbolito/fútbol · último peso real registrado"},
+       s2:{ser:"3x13",p:"120 kg"},
+       s3:{ser:"3x14",p:"125 kg"},
+       s4:{ser:"3x12",p:"105 kg",adj:"consolida"}},
+      {n:"Dead Bug",              tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x10",p:"BW",   nota:"Brazo+pierna opuestos · espalda baja en suelo · respiración · activar antes de fútbol"},
+       s2:{ser:"3x10",p:"BW"},
+       s3:{ser:"3x12",p:"BW"},
+       s4:{ser:"3x10",p:"BW",   adj:"consolida"}}
+    ]
+  },
+  d2c:{
+    nombre:"Día 2 — Upper A", subtitulo:"Tracción Bilateral · Rehab Hombro · Brazos",
+    color:"green", version:"v3", duracion:55,
+    exs:[
+      {n:"Jalón al Pecho",        tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"4x8", p:"100 kg",nota:"Hombro: mantener técnica · escápulas abajo y atrás · NO forzar ROM"},
+       s2:{ser:"4x8", p:"100 kg"},
+       s3:{ser:"4x10",p:"105 kg"},
+       s4:{ser:"4x8", p:"95 kg", adj:"consolida"}},
+      {n:"Remo en Máquina",       tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"4x8", p:"65 kg", nota:"Jalar explosivo, volver lento 2 seg · escápula full retracción"},
+       s2:{ser:"4x10",p:"70 kg"},
+       s3:{ser:"4x10",p:"72.5 kg"},
+       s4:{ser:"4x8", p:"62.5 kg",adj:"consolida"}},
+      {n:"Face Pull con Polea",   tipo:"rehab",     descanso:"45 seg",
+       s1:{ser:"3x15",p:"muy liviano",nota:"🔄 Rehab hombro — SIEMPRE ejecutar, carga mínima, movimiento lento"},
+       s2:{ser:"3x15",p:"muy liviano"},
+       s3:{ser:"3x15",p:"muy liviano"},
+       s4:{ser:"3x15",p:"muy liviano",adj:"consolida"}},
+      {n:"Rotación Externa con Banda",tipo:"rehab", descanso:"45 seg",
+       s1:{ser:"3x15",p:"banda elástica",nota:"🔄 Rehab hombro — movimiento lento y controlado"},
+       s2:{ser:"3x15",p:"banda elástica"},
+       s3:{ser:"3x15",p:"banda elástica"},
+       s4:{ser:"3x15",p:"banda elástica",adj:"consolida"}},
+      {n:"Ext. Tríceps cable",    tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"4x12",p:"90 kg", nota:"⚠️ Pendiente clearance kinesiólogo · si falla última serie → registra peso real logrado"},
+       s2:{ser:"4x12",p:"90 kg"},
+       s3:{ser:"4x12",p:"95 kg"},
+       s4:{ser:"4x12",p:"85 kg", adj:"consolida"}},
+      {n:"Curl Bíceps Incl. 45°", tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"3x10",p:"10 kg", nota:"⚠️ Pendiente clearance kinesiólogo"},
+       s2:{ser:"3x10",p:"10 kg"},
+       s3:{ser:"3x12",p:"10 kg"},
+       s4:{ser:"3x10",p:"10 kg", adj:"consolida"}}
+    ]
+  },
+  d4c:{
+    nombre:"Día 4 — Lower B", subtitulo:"Hinge Potencia · Posterior Chain · Gemelo · Abductores/Aductores",
+    color:"blue", version:"v3", duracion:75,
+    exs:[
+      {n:"Pogos / Bounds",        tipo:"potencia",  descanso:"90 seg",
+       s1:{ser:"3x10",p:"BW",    nota:"EN CASA pre-gym · contacto suelo mínimo · frecuencia alta · 10-20 min antes del gym (ventana PAP)"},
+       s2:{ser:"3x10",p:"BW"},
+       s3:{ser:"3x12",p:"BW"},
+       s4:{ser:"3x8", p:"BW",    adj:"consolida",nota:"Post-fútbol sábado: si piernas cargadas → omitir o reducir"}},
+      {n:"PM Rumano · Potencia",  tipo:"potencia",  descanso:"3 min",
+       s1:{ser:"3x4", p:"42.75 kg",nota:"~50% 1RM · barra + par 25lbs · excéntrico 3 seg · concéntrico EXPLOSIVO · PARA si baja velocidad"},
+       s2:{ser:"3x5", p:"42.75 kg",nota:"Mismo peso · +1 rep · barra + par 25lbs"},
+       s3:{ser:"3x5", p:"42.75 kg",nota:"Mismo peso · mantener velocidad máxima"},
+       s4:{ser:"3x4", p:"42.75 kg",adj:"consolida",nota:"Post-fútbol: -1 serie si piernas cargadas · barra + par 25lbs"}},
+      {n:"PM Rumano · Fuerza",    tipo:"compuesto", descanso:"3 min",
+       s1:{ser:"4x5", p:"65.4 kg", nota:"~77% 1RM · barra + par 35lbs + par 15lbs · excéntrico 3 seg · espalda NEUTRA · usar straps si agarre falla"},
+       s2:{ser:"4x5", p:"69.9 kg", nota:"~82% 1RM · barra + par 45lbs + par 10lbs"},
+       s3:{ser:"4x5", p:"74.4 kg", nota:"~87% 1RM · barra + par 45lbs + par 15lbs · autorregula: si forma cae → stop"},
+       s4:{ser:"4x5", p:"60.8 kg", adj:"consolida",nota:"~71% descarga · barra + par 45lbs"}},
+      {n:"Curl de Isquios",       tipo:"aislado",   descanso:"90 seg",
+       s1:{ser:"3x10",p:"47.5 kg",nota:"Control excéntrico 2 seg · si falla última serie → bajar a 45 kg"},
+       s2:{ser:"3x10",p:"50 kg"},
+       s3:{ser:"3x12",p:"52.5 kg"},
+       s4:{ser:"3x10",p:"45 kg", adj:"consolida"}},
+      {n:"Gemelo MPW",            tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"4x15",p:"87.5 kg",nota:"Punto de quiebre al final — completo ROM"},
+       s2:{ser:"4x15",p:"90 kg"},
+       s3:{ser:"4x15",p:"92.5 kg"},
+       s4:{ser:"4x12",p:"82.5 kg",adj:"consolida"}},
+      {n:"Aductores",             tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x12",p:"115 kg",nota:"último peso real registrado"},
+       s2:{ser:"3x13",p:"120 kg"},
+       s3:{ser:"3x14",p:"125 kg"},
+       s4:{ser:"3x12",p:"105 kg",adj:"consolida"}},
+      {n:"Abductores",            tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x12",p:"115 kg",nota:"POR SEPARADO — no biserie con aductores · último peso real registrado"},
+       s2:{ser:"3x13",p:"115 kg"},
+       s3:{ser:"3x14",p:"120 kg"},
+       s4:{ser:"3x12",p:"110 kg",adj:"consolida"}},
+      {n:"Plancha Abdominal",     tipo:"core",      descanso:"60 seg",
+       s1:{ser:"3x14",p:"30 kg"},
+       s2:{ser:"3x15",p:"30 kg"},
+       s3:{ser:"3x15",p:"35 kg"},
+       s4:{ser:"3x14",p:"20 kg", adj:"consolida"}}
+    ]
+  },
+  d5c:{
+    nombre:"Día 5 — Upper B", subtitulo:"Tracción Unilateral · Core · Hombro · Gemelo",
+    color:"green", version:"v3", duracion:55,
+    exs:[
+      {n:"Jalón Pecho Unilat.",   tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"4x10",p:"100 kg",nota:"Cada brazo por separado · escápula baja y atrás · ROM completo"},
+       s2:{ser:"4x10",p:"105 kg"},
+       s3:{ser:"4x10",p:"110 kg"},
+       s4:{ser:"4x10",p:"95 kg", adj:"consolida"}},
+      {n:"Remo Máq. Unilateral",  tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"4x10",p:"52.5 kg",nota:"Jalar explosivo, volver lento 2 seg · peso real registrado (estancado 2× seguidas)"},
+       s2:{ser:"4x10",p:"55 kg"},
+       s3:{ser:"4x10",p:"57.5 kg"},
+       s4:{ser:"4x10",p:"50 kg", adj:"consolida"}},
+      {n:"Elev. Lat. Polea Unil.",tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x15",p:"25 kg", nota:"⚠️ Hombro — carga conservadora, ROM controlado"},
+       s2:{ser:"3x15",p:"27.5 kg"},
+       s3:{ser:"3x15",p:"27.5 kg"},
+       s4:{ser:"3x15",p:"25 kg", adj:"consolida"}},
+      {n:"Ext. Tríceps polea V",  tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"4x12",p:"80 kg", nota:"⚠️ Pendiente clearance kinesiólogo · polea con agarre V · codos fijos al cuerpo"},
+       s2:{ser:"4x12",p:"85 kg"},
+       s3:{ser:"4x12",p:"90 kg"},
+       s4:{ser:"4x12",p:"75 kg", adj:"consolida"}},
+      {n:"Gemelo MPW",            tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x15",p:"85 kg", nota:"2ª sesión semanal gemelo — menor volumen que D4c"},
+       s2:{ser:"3x15",p:"87.5 kg"},
+       s3:{ser:"3x15",p:"90 kg"},
+       s4:{ser:"3x12",p:"80 kg", adj:"consolida"}},
+      {n:"Pallof Press",          tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x10",p:"liviano",nota:"Anti-rotación · brazos al frente · core firme · 2 seg sostener · clave para fútbol"},
+       s2:{ser:"3x10",p:"liviano"},
+       s3:{ser:"3x12",p:"liviano"},
+       s4:{ser:"3x10",p:"liviano",adj:"consolida"}}
+    ]
+  }
+};
+
+// Fusionar PLAN_V3 en PLAN para acceso unificado
+Object.keys(PLAN_V3).forEach(function(k){ PLAN[k] = PLAN_V3[k]; });
 
 // ═══════════════════ MUSCLE GROUPS ═══════════════════
 var MUSCULOS = {
@@ -585,9 +987,122 @@ var MUSCULOS = {
   "Aductores":["aductores"],
   "Plancha Abdominal":["core"],
   "Gemelo en MPW (d5)":["gemelo"],
+  // Plan v2
+  "Curl Isquios Unilat.":["isquios"],
+  "Plancha Abdominal":["core"],
+  "Face Pull con Polea":["hombro"],
+  "Rotación Externa con Banda":["hombro"],
+  "BISERIE: Curl Bíceps Manc.":["biceps"],
+  "BISERIE: Ext. Tríceps Tras-nuca":["triceps"],
+  "Ext. Tríceps Tras-nuca Manc.":["triceps"],
+  "Curl de Isquios":["isquios"],
+  "Ext. de Cuádriceps":["cuadriceps"],
+  // P2 Full Body — nuevos
+  "Sentadilla · Potencia":["cuadriceps","gluteo"],
+  "PM Rumano · Potencia":["isquios","gluteo"],
+  "Ext. Tríceps cable":["triceps"],
+  "Jalón al Pecho":["espalda","biceps"],
+  "Gemelo MPW":["gemelo"],
+  // P3 Upper/Lower Potencia — nuevos
+  "Sentadilla · Fuerza":["cuadriceps","gluteo"],
+  "PM Rumano · Fuerza":["isquios","gluteo"],
+  "Box Jump":["cuadriceps","gluteo"],
+  "Pogos / Bounds":["gemelo","cuadriceps"],
+  "Dead Bug":["core"],
+  "Pallof Press":["core"],
 };
 var MUSC_ORDER=["pecho","espalda","hombro","cuadriceps","isquios","gluteo","biceps","triceps","gemelo","core","aductores"];
 var MUSC_COLORS={"pecho":"#4f8ef7","espalda":"#3ecf8e","hombro":"#a78bfa","cuadriceps":"#f5a623","isquios":"#f76f6f","gluteo":"#f0b429","biceps":"#3ecf8e","triceps":"#4f8ef7","gemelo":"#9090a8","core":"#a78bfa","aductores":"#f5a623"};
+
+// ═══════════════════ RUTINA SEMANAL ═══════════════════
+var RUTINA_DEFAULT = {
+  nombre: "Plan v3 — Upper/Lower Potencia",
+  slots: ["d1c","d2c","d4c","d5c"]
+};
+
+function getRutina(){
+  try{ var r=JSON.parse(localStorage.getItem("nm_rutina_semanal")||"null"); return r||RUTINA_DEFAULT; }
+  catch(e){ return RUTINA_DEFAULT; }
+}
+
+function saveRutina(r){
+  localStorage.setItem("nm_rutina_semanal", JSON.stringify(r));
+}
+
+function getAllPlanKeys(){
+  return Object.keys(PLAN).sort();
+}
+
+function getPlanLabel(key){
+  return PLAN[key] ? PLAN[key].nombre : key;
+}
+
+// ═══════════════════ CALENTAMIENTO ═══════════════════
+var CALENTAMIENTO = {
+  general:[
+    {min:"0-2",  n:"Trote suave / bicicleta",      d:"50-55% FCmax — elevar temperatura"},
+    {min:"2-3",  n:"Rotaciones de cadera",          d:"10 cada lado — circunferencias amplias"},
+    {min:"3-5",  n:"Estocadas con rot. tronco",     d:"8 cada lado — rodilla 90°"},
+    {min:"5-6",  n:"Sentadilla BW lenta",           d:"10 reps — bajar 3 seg — activar patrón"},
+    {min:"6-7",  n:"Plancha frontal + lateral",     d:"20 seg + 15 seg cada lado"},
+    {min:"7-8",  n:"Rotaciones hombro + círculos",  d:"10 cada dirección — OBLIGATORIO tracción"},
+    {min:"8-9",  n:"Band pull-apart / remo liviano",d:"15 reps — activa manguito rotador"},
+    {min:"9-10", n:"Serie activación 50% carga",    d:"1x10 reps del primer ejercicio muy liviano"}
+  ],
+  pierna:[
+    {n:"Puente de glúteos",       d:"15 reps lentas — pre-activar antes de Hip Thrust o HIT"},
+    {n:"Curl excéntrico isquios", d:"8 reps — prepara isquios para Rumano y Curl"}
+  ],
+  hit:[
+    {n:"Sentadilla BW con salto suave",d:"2x8 reps — despertar fibras rápidas (D2)"},
+    {n:"Hip Thrust BW rápido",        d:"2x10 reps — activar glúteo explosivo (D2)"},
+    {n:"Saltos verticales suaves BW", d:"2x8 reps — aterrizaje controlado (D5)"},
+    {n:"Skipping rápido en el lugar", d:"3x15 seg — coordinación y frecuencia (D5)"}
+  ]
+};
+
+function renderCalentamiento(diaKey){
+  var isLeg = diaKey==="d2"||diaKey==="d4"||diaKey==="d5"||diaKey==="d2b"||diaKey==="d4b"||diaKey==="d5b"||diaKey==="d1c"||diaKey==="d4c";
+  var isHit = diaKey==="d2b"||diaKey==="d5b"||diaKey==="d1c"||diaKey==="d4c";
+  var calEl = document.getElementById("calentamiento-block");
+  if(!calEl) return;
+  var html = "<div style='background:var(--amber-d);border:1px solid var(--amber);border-radius:var(--rsm);margin-bottom:8px;overflow:hidden;'>";
+  html += "<button onclick='toggleCalentamiento()' style='width:100%;background:transparent;border:none;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;'>";
+  html += "<span style='font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;'>🔥 Calentamiento (10 min)</span>";
+  html += "<span id='cal-toggle-icon' style='color:var(--amber);font-size:12px;'>▼</span></button>";
+  html += "<div id='cal-body' style='display:none;padding:0 12px 10px;'>";
+  CALENTAMIENTO.general.forEach(function(e){
+    html += "<div style='display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(245,166,35,.15);'>";
+    html += "<span style='font-size:10px;color:var(--amber);font-weight:700;min-width:36px;'>"+e.min+"'</span>";
+    html += "<div><div style='font-size:11px;font-weight:600;'>"+e.n+"</div><div style='font-size:10px;color:var(--text2);'>"+e.d+"</div></div></div>";
+  });
+  if(isLeg){
+    html += "<div style='font-size:10px;font-weight:700;color:var(--amber);margin:8px 0 4px;text-transform:uppercase;'>+ Adicional pierna</div>";
+    CALENTAMIENTO.pierna.forEach(function(e){
+      html += "<div style='padding:4px 0;border-bottom:1px solid rgba(245,166,35,.15);'>";
+      html += "<div style='font-size:11px;font-weight:600;'>"+e.n+"</div><div style='font-size:10px;color:var(--text2);'>"+e.d+"</div></div>";
+    });
+  }
+  if(isHit){
+    html += "<div style='font-size:10px;font-weight:700;color:var(--amber);margin:8px 0 4px;text-transform:uppercase;'>+ Activación HIT</div>";
+    var hitCal = diaKey==="d2b" ? CALENTAMIENTO.hit.slice(0,2) : CALENTAMIENTO.hit.slice(2,4);
+    hitCal.forEach(function(e){
+      html += "<div style='padding:4px 0;border-bottom:1px solid rgba(245,166,35,.15);'>";
+      html += "<div style='font-size:11px;font-weight:600;'>"+e.n+"</div><div style='font-size:10px;color:var(--text2);'>"+e.d+"</div></div>";
+    });
+  }
+  html += "</div></div>";
+  calEl.innerHTML = html;
+}
+
+function toggleCalentamiento(){
+  var body = document.getElementById("cal-body");
+  var icon = document.getElementById("cal-toggle-icon");
+  if(!body) return;
+  var open = body.style.display==="block";
+  body.style.display = open?"none":"block";
+  if(icon) icon.textContent = open?"▼":"▲";
+}
 
 // ═══════════════════ DB ═══════════════════
 var DB = {sesiones:[], inbody:[], progresion:{periodos:[]}, prs:{}};
@@ -829,6 +1344,71 @@ function showTab(t,btn){
   if(t==="exportar") updateStorageInfo();
 }
 
+function openRutinaConfig(){
+  var r = getRutina();
+  document.getElementById("rut-nombre").value = r.nombre||"";
+  var allKeys = getAllPlanKeys();
+  var slotsHtml = "";
+  var labels = ["Slot A","Slot B","Slot C","Slot D"];
+  for(var i=0;i<4;i++){
+    var sel = "<select id='rut-slot-"+i+"' style='font-size:12px;padding:7px 10px;'>";
+    sel += "<option value=''>(ninguno)</option>";
+    allKeys.forEach(function(k){
+      var selected = (r.slots[i]===k) ? "selected" : "";
+      sel += "<option value='"+k+"' "+selected+">"+getPlanLabel(k)+"</option>";
+    });
+    sel += "</select>";
+    slotsHtml += "<div style='margin-bottom:6px;'><span class='label'>"+labels[i]+"</span>"+sel+"</div>";
+  }
+  document.getElementById("rut-slots").innerHTML = slotsHtml;
+  document.getElementById("modal-rutina").style.display = "block";
+}
+
+function closeRutinaConfig(){
+  document.getElementById("modal-rutina").style.display = "none";
+}
+
+function saveRutinaConfig(){
+  var slots = [];
+  for(var i=0;i<4;i++){
+    var v = (document.getElementById("rut-slot-"+i)||{value:""}).value;
+    if(v) slots.push(v);
+  }
+  var r = { nombre: document.getElementById("rut-nombre").value||"Mi rutina", slots: slots };
+  saveRutina(r);
+  closeRutinaConfig();
+  updateDiaSelector();
+}
+
+function updateDiaSelector(){
+  var r = getRutina();
+  var sel = document.getElementById("r-dia");
+  if(!sel) return;
+  // Header display
+  var lbl = document.getElementById("rutina-nombre-lbl");
+  if(lbl) lbl.textContent = r.nombre||"Sin configurar";
+  // Build options
+  var html = "<option value=''>Seleccionar...</option>";
+  // Rutina activa primero
+  if(r.slots && r.slots.length){
+    html += "<optgroup label='── Rutina activa: "+r.nombre+" ──'>";
+    r.slots.forEach(function(k){
+      if(!PLAN[k]) return;
+      var v2badge = PLAN[k].version==="v2"?" ✦":"";
+      html += "<option value='"+k+"'>"+PLAN[k].nombre+v2badge+"</option>";
+    });
+    html += "</optgroup>";
+  }
+  // Todos los planes disponibles
+  html += "<optgroup label='── Todos los planes ──'>";
+  getAllPlanKeys().forEach(function(k){
+    var v2badge = PLAN[k].version==="v2"?" ✦":"";
+    html += "<option value='"+k+"'>"+PLAN[k].nombre+v2badge+"</option>";
+  });
+  html += "</optgroup>";
+  sel.innerHTML = html;
+}
+
 // ═══════════════════ REGISTRO ═══════════════════
 function onDiaChange(){
   var dia=document.getElementById("r-dia").value;
@@ -863,14 +1443,51 @@ function onDiaChange(){
       serProg:sd.ser||"",
       pesoProg:sd.p||"",
       adj:baseSd.adj||"",
-      nota:baseSd.nota||"",
+      nota:baseSd.nota||sd.nota||"",
       skip:skip,
       _planIdx:i,
       _dia:dia,
       _sem:sem,
-      _exName:ex.n||ex.nombre||""
+      _exName:ex.n||ex.nombre||"",
+      _tipo:ex.tipo||"",
+      _descanso:ex.descanso||""
     });
   }
+
+  // Bloque HIT (solo planes v2 con campo hit)
+  var planData = PLAN[dia];
+  var hitEl = document.getElementById("hit-block");
+  if(!hitEl){
+    hitEl = document.createElement("div");
+    hitEl.id = "hit-block";
+    var exListEl = document.getElementById("ex-list");
+    exListEl.parentNode.insertBefore(hitEl, exListEl);
+  }
+  if(planData && planData.hit){
+    var sem2 = document.getElementById("r-semana").value||"S1";
+    var semNum = parseInt(sem2.replace("S",""))||1;
+    var isAdvanced = semNum >= 3;
+    var hitHtml = "<div style='background:var(--green-d);border:1px solid var(--green);border-radius:var(--rsm);padding:12px;margin-bottom:8px;'>";
+    hitHtml += "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'>";
+    hitHtml += "<div style='font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.06em;'>⚡ Bloque HIT — "+planData.hit.duracion+" min</div>";
+    hitHtml += "<div style='font-size:10px;color:var(--green);'>"+sem2+" · "+(isAdvanced?"Sem 3-4":"Sem 1-2")+"</div></div>";
+    hitHtml += "<div style='font-size:10px;color:var(--green);margin-bottom:8px;opacity:.8;'>📍 "+planData.hit.ubicacion+"</div>";
+    planData.hit.ejercicios.forEach(function(hEx){
+      var params = isAdvanced ? hEx.sem34 : hEx.sem12;
+      if(!params) return;
+      hitHtml += "<div style='background:rgba(0,0,0,.2);border-radius:var(--rxs);padding:8px 10px;margin-bottom:6px;'>";
+      hitHtml += "<div style='font-size:12px;font-weight:700;margin-bottom:4px;'>"+hEx.n+"</div>";
+      hitHtml += "<div style='font-size:11px;color:var(--green);margin-bottom:3px;'>"+params.series+" · "+params.carga+" · descanso: "+params.pausa+"</div>";
+      hitHtml += "<div style='font-size:10px;color:rgba(62,207,142,.7);'>🔑 "+hEx.clave+"</div>";
+      hitHtml += "</div>";
+    });
+    hitHtml += "</div>";
+    hitEl.innerHTML = hitHtml;
+  } else {
+    hitEl.innerHTML = "";
+  }
+
+  renderCalentamiento(dia);
 }
 
 function onSemChange(){
@@ -886,8 +1503,19 @@ function addExRow(data){
   var adjCls=data&&data.adj?"an-"+data.adj:"an-pico";
   var nota=data?data.nota:"";
   var numCls="en-blue";
-  if(data&&data._dia&&(data._dia==="d2"||data._dia==="d5")) numCls="en-green";
+  if(data&&data._dia&&(data._dia==="d2"||data._dia==="d5"||data._dia==="d2b"||data._dia==="d5b"||data._dia==="d2c"||data._dia==="d5c")) numCls="en-green";
   var exName=data?data._exName||data.nombre||"":"";
+
+  // Tipo badge
+  var tipoBadge = "";
+  if(data && data._tipo){
+    var tipoColors = {compuesto:"var(--blue)",aislado:"var(--text3)",biserie:"var(--purple)",core:"var(--amber)",rehab:"var(--red)"};
+    var tipoBg = {compuesto:"var(--blue-d)",aislado:"var(--bg4)",biserie:"var(--purple-d)",core:"var(--amber-d)",rehab:"var(--red-d)"};
+    var tc = tipoColors[data._tipo]||"var(--text3)";
+    var tb = tipoBg[data._tipo]||"var(--bg4)";
+    tipoBadge = "<span style='font-size:9px;padding:1px 6px;border-radius:99px;background:"+tb+";color:"+tc+";font-weight:700;margin-left:4px;'>"+data._tipo.toUpperCase()+"</span>";
+  }
+  var rehabNote = (data && data._tipo==="rehab") ? "<div style='font-size:10px;color:var(--red);background:var(--red-d);border-radius:var(--rxs);padding:3px 8px;margin-bottom:6px;'>⚠️ Rehab — carga mínima, movimiento controlado. No es ejercicio de hipertrofia.</div>" : "";
 
   // Previous session reference
   var prevHtml="";
@@ -931,19 +1559,23 @@ function addExRow(data){
     '<div class="ex-hdr">'
     +'<span class="ex-num '+numCls+'">'+id+'</span>'
     +'<input class="ex-name-inp" type="text" id="ex-n-'+id+'" placeholder="Ejercicio" oninput="saveDraft()"/>'
+    +tipoBadge
     +'<button class="btn-red btn-xs" onclick="document.getElementById(\'ex-'+id+'\').remove();updProg();saveDraft();">✕</button>'
     +'</div>'
     +prevHtml
     +refHtml
+    +rehabNote
     +noteHtml
     +(skip
       ?'<div style="font-size:12px;color:var(--text3);padding:4px 0;">Omitido esta semana — sin series.</div>'
       :'<div class="plan-display" id="ex-plan-'+id+'"></div>'
       +'<div class="series-hdr">'
       +'<span class="series-hdr-lbl">Series realizadas</span>'
-      +'<div style="display:flex;gap:5px;">'
+      +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
       +'<button class="btn-xs" onclick="addSerieRow('+id+',\'warmup\')" title="Agregar serie de calentamiento">+ Calent.</button>'
       +'<button class="btn-xs btn-blue" onclick="addSerieRow('+id+',\'work\')" title="Agregar serie de trabajo">+ Serie</button>'
+      +'<button class="btn-xs" style="background:var(--amber-d);color:var(--amber);border:1px solid var(--amber);" onclick="omitirEjercicio('+id+')" title="No realicé este ejercicio">🚫 Omitir</button>'
+      +'<button class="btn-xs" style="background:var(--green-d);color:var(--green);border:1px solid var(--green);" onclick="rehacerPlan('+id+')" title="Restaurar series del plan">↩ Plan</button>'
       +'</div>'
       +'</div>'
       +'<div class="series-wrap" id="series-wrap-'+id+'"></div>'
@@ -1006,12 +1638,57 @@ function addSerieRow(exId, tipo, reps, peso, silent){
     +'<span class="serie-at">@</span>'
     +'<input type="text" class="ex-inp serie-peso" placeholder="kg"'
     +' value="'+(peso||"")+'" oninput="saveDraft()">'
+    +'<button class="btn-xs" style="font-size:9px;padding:2px 5px;background:var(--bg4);color:var(--text2);border:1px solid var(--bord);flex-shrink:0;" onclick="convertLbs(this)" title="Placas lbs + barra 20kg → kg">lbs</button>'
     +'<button class="btn-red btn-xs" onclick="this.parentElement.remove();renumberSeries('+exId+');updProg();saveDraft();">✕</button>';
   wrap.appendChild(row);
   renumberSeries(exId);
   if(!silent){ updProg(); saveDraft(); }
 }
 
+// ── Omitir / Restablecer plan ──
+function omitirEjercicio(id){
+  var wrap=document.getElementById("series-wrap-"+id);
+  if(!wrap) return;
+  wrap.querySelectorAll(".serie-row").forEach(function(r){r.remove();});
+  var lbl=document.getElementById("omit-lbl-"+id);
+  if(!lbl){
+    lbl=document.createElement("div");
+    lbl.id="omit-lbl-"+id;
+    lbl.style.cssText="font-size:11px;color:var(--amber);padding:4px 0;";
+    wrap.parentElement.insertBefore(lbl,wrap);
+  }
+  lbl.textContent="🚫 Omitido — sin series registradas.";
+  updProg();saveDraft();
+}
+function rehacerPlan(id){
+  var lbl=document.getElementById("omit-lbl-"+id);
+  if(lbl) lbl.remove();
+  var wrap=document.getElementById("series-wrap-"+id);
+  if(!wrap) return;
+  wrap.innerHTML="";
+  var planEl=document.getElementById("ex-plan-"+id);
+  var planTxt=planEl?planEl.textContent.replace("Plan: ",""):"";
+  var parts=planTxt.split(" · ");
+  var sp=parts[0]||"";var pp=parts[1]||"";
+  var parsed=parseSerReps(sp);
+  var planSets=parsed?parsed.sets:3;
+  var planReps=parsed?parsed.reps:null;
+  var workKg=parseKg(pp);
+  var warmKg=workKg?Math.round(workKg*0.6*10)/10+" kg":"";
+  addSerieRow(id,"warmup",null,warmKg,true);
+  for(var i=0;i<planSets;i++) addSerieRow(id,"work",planReps,workKg?workKg+" kg":"",true);
+  updProg();saveDraft();
+}
+// ── Convertidor lbs → kg (incluye barra olímpica 20 kg) ──
+function convertLbs(btn){
+  var row=btn.closest(".serie-row");
+  if(!row) return;
+  var lbs=parseFloat(prompt("Peso de PLACAS en libras (lbs):\n(+ 20 kg de barra olímpica)"));
+  if(!lbs||isNaN(lbs)||lbs<=0) return;
+  var kg=Math.round((lbs*0.453592+20)*4)/4;
+  var pesoEl=row.querySelector(".serie-peso");
+  if(pesoEl){pesoEl.value=kg+" kg";saveDraft();}
+}
 function renumberSeries(exId){
   var wrap=document.getElementById("series-wrap-"+exId);
   if(!wrap) return;
@@ -1073,7 +1750,7 @@ function getExs(){
         var pesoEl=row.querySelector(".serie-peso");
         var reps=parseInt(repsEl?repsEl.value:0)||0;
         var peso=(pesoEl?pesoEl.value:"").trim();
-        if(reps||peso) series.push({tipo:tipo,reps:reps,peso:peso});
+        if(reps>0) series.push({tipo:tipo,reps:reps,peso:peso}); // reps=0 → no registra la serie
       });
     }
     // Generate sr/pr strings from work series (backward compat for calcs)
@@ -1258,6 +1935,8 @@ function clearForm(){
   document.getElementById("prog-wrap").style.display="none";
   document.getElementById("prog-lbl").style.display="none";
   document.getElementById("plan-info").style.display="none";
+  var hitEl=document.getElementById("hit-block"); if(hitEl) hitEl.innerHTML="";
+  var calEl=document.getElementById("calentamiento-block"); if(calEl) calEl.innerHTML="";
   exCount=0;
   clearDraft();
 }
@@ -1496,41 +2175,24 @@ function _progAddDays(dateStr, n) {
 function _progWeekEnd(monStr) { return _progAddDays(monStr, 6); }
 
 function _progSemActiva(cicloInicio) {
-  var semOrder = {S1:1,S2:2,S3:3,S4:4,S5:5};
-  var candidates = [];
-
-  // Candidato 1: calendario (basado en cicloInicio)
-  if (cicloInicio) {
-    var t = today();
-    for (var i = 0; i < 5; i++) {
-      var mon = _progAddDays(cicloInicio, i * 7);
-      var sun = _progWeekEnd(mon);
-      if (t >= mon && t <= sun) { candidates.push("S" + (i + 1)); break; }
-    }
+  if (!cicloInicio) return null;
+  var t = today();
+  // Antes de que empiece el período → S1 como próxima semana
+  if (t < cicloInicio) return "S1";
+  // Dentro del período → semana exacta por calendario
+  for (var i = 0; i < 4; i++) {
+    var mon = _progAddDays(cicloInicio, i * 7);
+    var sun = _progWeekEnd(mon);
+    if (t >= mon && t <= sun) return "S" + (i + 1);
   }
-
-  // Candidato 2: semana de la última sesión real registrada
-  var allS = allSessions();
-  if (allS.length) {
-    var maxOrd = 0, maxSem = null;
-    allS.forEach(function(s){
-      var ord = semOrder[s.semana] || 0;
-      if (ord > maxOrd) { maxOrd = ord; maxSem = s.semana; }
-    });
-    if (maxSem) candidates.push(maxSem);
-  }
-
-  if (!candidates.length) return null;
-  // Retorna la semana más avanzada entre calendario y sesiones reales
-  return candidates.reduce(function(best, s){
-    return (semOrder[s]||0) > (semOrder[best]||0) ? s : best;
-  });
+  // Después del período → completado, sin semana activa
+  return null;
 }
 
 function _progIsCurrent(p) {
   if (!p || !p.cicloInicio) return false;
   var t = today();
-  var end = _progAddDays(p.cicloInicio, 34);
+  var end = _progAddDays(p.cicloInicio, 27);
   return t >= p.cicloInicio && t <= end;
 }
 
@@ -1566,7 +2228,7 @@ function _initProgresionFromPlan() {
   _migrarProgresion();
   DB.progresion.periodos.forEach(function(p) {
     if (!p.plan) p.plan = {};
-    ["d1","d2","d4","d5"].forEach(function(dia) {
+    ["d1","d2","d4","d5","d1b","d2b","d4b","d5b","d1c","d2c","d4c","d5c"].forEach(function(dia) {
       if (!PLAN[dia]) return;
       if (!p.plan[dia]) {
         // Día sin plan: crear desde PLAN completo
@@ -1591,7 +2253,7 @@ function _periodoParaFecha(fecha) {
   for (var i = 0; i < ps.length; i++) {
     var p = ps[i];
     if (!p.cicloInicio) continue;
-    var end = _progAddDays(p.cicloInicio, 34);
+    var end = _progAddDays(p.cicloInicio, 27);
     if (fecha >= p.cicloInicio && fecha <= end) return p;
   }
   return ps[ps.length - 1] || null;
@@ -1601,8 +2263,8 @@ function _semCalLabels() {
   _migrarProgresion();
   var p = DB.progresion.periodos[_progPidx];
   var inicio = p ? p.cicloInicio : "";
-  if (!inicio) return ["S1","S2","S3","S4","S5"];
-  return ["S1","S2","S3","S4","S5"].map(function(s, i) {
+  if (!inicio) return ["S1","S2","S3","S4"];
+  return ["S1","S2","S3","S4"].map(function(s, i) {
     var d = new Date(inicio + "T12:00:00");
     d.setDate(d.getDate() + i * 7);
     var lbl = d.getDate() + " " + MESES[d.getMonth()];
@@ -1634,7 +2296,7 @@ function renderProgresion() {
   var calInfo = "";
   if (p.cicloInicio) {
     var todayDate = today();
-    calInfo = ["S1","S2","S3","S4","S5"].map(function(s, i) {
+    calInfo = ["S1","S2","S3","S4"].map(function(s, i) {
       var mon = _progAddDays(p.cicloInicio, i * 7);
       var sun = _progWeekEnd(mon);
       var isCurrent = todayDate >= mon && todayDate <= sun;
@@ -1672,11 +2334,11 @@ function progNuevoPeriodo() {
     var last = ps[ps.length - 1];
     if (confirm("¿Copiar ejercicios del " + last.nombre + " al nuevo período?")) {
       var planCopy = {};
-      ["d1","d2","d4","d5"].forEach(function(dia) {
+      ["d1","d2","d4","d5","d1b","d2b","d4b","d5b","d1c","d2c","d4c","d5c"].forEach(function(dia) {
         if (last.plan && last.plan[dia]) {
           planCopy[dia] = {exs: last.plan[dia].exs.map(function(ex) {
             var ec = {n: ex.n};
-            ["s1","s2","s3","s4","s5"].forEach(function(sk) {
+            ["s1","s2","s3","s4"].forEach(function(sk) {
               ec[sk] = ex[sk] ? {ser: ex[sk].ser, p: ex[sk].p} : {ser:"",p:""};
             });
             return ec;
@@ -1707,7 +2369,7 @@ function progEliminarPeriodo() {
 function _renderProgRecs() {
   _initProgresionFromPlan();
   var p = DB.progresion.periodos[_progPidx];
-  var diasKeys = ["d1","d2","d4","d5"];
+  var diasKeys = ["d1","d2","d4","d5","d1b","d2b","d4b","d5b"];
   var html = '<div class="card" style="margin-top:10px;">'
     + '<div class="card-title" style="margin-bottom:10px;">🎯 Recomendaciones de carga</div>';
   var anyRec = false;
@@ -1724,7 +2386,7 @@ function _renderProgRecs() {
       html += '<div class="prog-rec ' + cls + '">'
         + '<span class="tend-dot ' + dotCls + '" style="width:7px;height:7px;flex-shrink:0;"></span>'
         + '<b>' + ex.n + '</b>'
-        + '<span style="margin-left:auto;font-size:10px;opacity:.7;">' + PLAN[dia].nombre + '</span>'
+        + '<span style="margin-left:auto;font-size:10px;opacity:.7;">' + (PLAN[dia]?PLAN[dia].nombre:dia) + '</span>'
         + '</div>'
         + '<div style="font-size:10px;color:var(--text2);padding:2px 8px 8px;">' + rec.msg + '</div>';
     });
@@ -1741,7 +2403,7 @@ function showProgDia(dia, btn) {
   if (btn) btn.classList.add("active");
   else {
     document.querySelectorAll(".day-tab-btn").forEach(function(b, i) {
-      var dias = ["d1","d2","d4","d5"]; if (dias[i] === dia) b.classList.add("active");
+      var dias = ["d1","d2","d4","d5","d1b","d2b","d4b","d5b"]; if (dias[i] === dia) b.classList.add("active");
     });
   }
   _initProgresionFromPlan();
@@ -1753,14 +2415,14 @@ function showProgDia(dia, btn) {
   var html = '<div class="card" style="overflow-x:auto;">'
     + '<div class="card-title" style="margin-bottom:8px;">' + PLAN[dia].nombre + ' — Editar progresión</div>'
     + '<table class="prog-table"><tr><th>Ejercicio</th>'
-    + ["S1","S2","S3","S4","S5"].map(function(s, i) {
+    + ["S1","S2","S3","S4"].map(function(s, i) {
         var isActive = (s === semActiva);
         return '<th class="sem-col-hdr" style="'+(isActive?"background:rgba(79,142,247,0.12);color:var(--blue);border-bottom:2px solid var(--blue);":"")+'">'+semLabels[i]+(isActive?' <span style="font-size:8px;background:var(--blue);color:#fff;border-radius:99px;padding:1px 5px;vertical-align:middle;">HOY</span>':'')+'</th>';
       }).join("")
     + '</tr>';
   planDia.exs.forEach(function(ex, ei) {
     html += '<tr><td style="min-width:90px;font-size:11px;">' + ex.n + '</td>';
-    ["s1","s2","s3","s4","s5"].forEach(function(sk) {
+    ["s1","s2","s3","s4"].forEach(function(sk) {
       var val = ex[sk] || {ser:"",p:""};
       html += '<td><div class="prog-cell">'
         + '<span class="prog-inp-lbl">Series</span>'
@@ -1785,7 +2447,7 @@ function _saveCurrentPeriodEdits() {
   var planDia = p.plan[_progDia];
   if (!planDia) return;
   planDia.exs.forEach(function(ex, ei) {
-    ["s1","s2","s3","s4","s5"].forEach(function(sk) {
+    ["s1","s2","s3","s4"].forEach(function(sk) {
       var serEl = document.getElementById("pi-" + _progDia + "-" + ei + "-" + sk + "-ser");
       var pEl = document.getElementById("pi-" + _progDia + "-" + ei + "-" + sk + "-p");
       if (serEl) ex[sk] = {ser: serEl.value, p: pEl ? pEl.value : ""};
@@ -1798,6 +2460,18 @@ function saveProgresion() {
   _saveCurrentPeriodEdits();
   saveDB();
   renderProgresion();
+}
+
+function progRestaurarPlanDia() {
+  if (!confirm("¿Restaurar el plan base para este día? Se sobreescribirán los valores S1-S4 con los del plan template. No afecta registros pasados.")) return;
+  _migrarProgresion();
+  var p = DB.progresion.periodos[_progPidx];
+  if (!p || !PLAN[_progDia]) return;
+  // Forzar reinicialización completa del día desde PLAN
+  p.plan[_progDia] = {exs: PLAN[_progDia].exs.map(_exToPlanEntry)};
+  saveDB();
+  renderProgresion();
+  showProgDia(_progDia, null);
 }
 
 // ═══════════════════ GRÁFICOS ═══════════════════
@@ -1913,7 +2587,7 @@ function renderTendencias(){
   allSessions().forEach(function(s){s.ejercicios.forEach(function(e){if(e.n) names.add(e.n);});});
   if(!names.size){el.innerHTML='<div style="font-size:11px;color:var(--text2);">Sin datos suficientes.</div>';return;}
   var html="";
-  var diasKeys=["d1","d2","d4","d5"];
+  var diasKeys=["d1","d2","d4","d5","d1b","d2b","d4b","d5b"];
   diasKeys.forEach(function(dia){
     var diaExs=[];
     allSessions().filter(function(s){return s.dia===dia;}).forEach(function(s){
@@ -1921,7 +2595,7 @@ function renderTendencias(){
     });
     var uniq=[...new Set(diaExs)];
     if(!uniq.length) return;
-    html+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;margin:10px 0 5px;">'+PLAN[dia].nombre+'</div>';
+    html+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;margin:10px 0 5px;">'+(PLAN[dia]?PLAN[dia].nombre:dia)+'</div>';
     uniq.forEach(function(name){
       var t=tendencia(dia,name);
       var dotCls=t==="up"?"tend-up":t==="down"?"tend-down":"tend-flat";
@@ -2044,6 +2718,7 @@ function renderSeriesChart(){
 function renderCumplChart(){
   var groups={};
   allSessions().forEach(function(s){
+    if(s.semana==="S5") return; // semana de transición — no forma parte de ningún período
     var key=s.fecha.slice(0,7)+"-"+s.semana;
     if(!groups[key]) groups[key]={exs:[],fecha:s.fecha,semana:s.semana};
     groups[key].exs=groups[key].exs.concat(s.ejercicios);
@@ -2211,6 +2886,24 @@ document.getElementById("r-hora").value=nowT();
 document.getElementById("ib-fecha").value=today();
 loadDB();
 loadDraft();
+updateDiaSelector();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw-training.js').then(function(reg) {
+      reg.update();
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function() {
+          if (newWorker.state === 'activated') {
+            if (navigator.serviceWorker.controller) { window.location.reload(); }
+          }
+        });
+      });
+    }).catch(function(err) { console.warn('SW registro fallido:', err); });
+  });
+}
 </script>
 </body>
 </html>
