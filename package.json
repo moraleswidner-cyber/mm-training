@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "exceljs": "^4.4.0",
+    "firebase-admin": "^13.8.0"
+  },
+  "dependencies": {
+    "pdfkit": "^0.18.0"
+  }
+}
