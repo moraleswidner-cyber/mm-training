@@ -363,21 +363,8 @@ button:active{opacity:.7;transform:scale(.98);}
         <div id="prog-cal-info" style="font-size:11px;color:var(--text2);line-height:2;"></div>
       </div>
 
-      <!-- Training day tabs -->
-      <div class="day-tab-bar" style="flex-wrap:wrap;">
-        <button class="day-tab-btn active" onclick="showProgDia('d1',this)">D1 Torso</button>
-        <button class="day-tab-btn" onclick="showProgDia('d2',this)">D2 Pierna</button>
-        <button class="day-tab-btn" onclick="showProgDia('d4',this)">D4 Torso</button>
-        <button class="day-tab-btn" onclick="showProgDia('d5',this)">D5 Pierna</button>
-        <button class="day-tab-btn" onclick="showProgDia('d1b',this)" style="border-color:var(--blue);color:var(--blue);">D1 FB-A ✦</button>
-        <button class="day-tab-btn" onclick="showProgDia('d2b',this)" style="border-color:var(--green);color:var(--green);">D2 FB-B ✦</button>
-        <button class="day-tab-btn" onclick="showProgDia('d4b',this)" style="border-color:var(--blue);color:var(--blue);">D4 FB-C ✦</button>
-        <button class="day-tab-btn" onclick="showProgDia('d5b',this)" style="border-color:var(--green);color:var(--green);">D5 FB-D ✦</button>
-        <button class="day-tab-btn" onclick="showProgDia('d1c',this)" style="border-color:var(--blue);color:var(--blue);">D1 Low-A ◆</button>
-        <button class="day-tab-btn" onclick="showProgDia('d2c',this)" style="border-color:var(--green);color:var(--green);">D2 Upp-A ◆</button>
-        <button class="day-tab-btn" onclick="showProgDia('d4c',this)" style="border-color:var(--blue);color:var(--blue);">D4 Low-B ◆</button>
-        <button class="day-tab-btn" onclick="showProgDia('d5c',this)" style="border-color:var(--green);color:var(--green);">D5 Upp-B ◆</button>
-      </div>
+      <!-- Training day tabs (dynamic, rendered per active period's version) -->
+      <div class="day-tab-bar" id="prog-day-tabs" style="flex-wrap:wrap;"></div>
       <div id="prog-dia-content"></div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button class="btn-blue" style="flex:1;" onclick="saveProgresion()">Guardar progresión</button>
@@ -950,6 +937,34 @@ var PLAN_V3 = {
 
 // Fusionar PLAN_V3 en PLAN para acceso unificado
 Object.keys(PLAN_V3).forEach(function(k){ PLAN[k] = PLAN_V3[k]; });
+
+// ═══════════════════ VERSIONES DE PLAN ═══════════════════
+// Cada período de entrenamiento está asociado a UNA versión del plan.
+// Esto evita que la pestaña Progresión muestre días de todas las versiones
+// mezclados en cada período.
+var V1_KEYS = ["d1","d2","d4","d5"];     // P1 — Torso/Pierna
+var V2_KEYS = ["d1b","d2b","d4b","d5b"]; // P2 — Full Body
+var V3_KEYS = ["d1c","d2c","d4c","d5c"]; // P3 — Upper/Lower Potencia
+var ALL_VERSION_KEYS = V1_KEYS.concat(V2_KEYS, V3_KEYS);
+
+function _versionKeys(v){
+  if(v === "v3") return V3_KEYS;
+  if(v === "v2") return V2_KEYS;
+  return V1_KEYS;
+}
+function _versionLabel(v){
+  if(v === "v3") return "v3 — Upper/Lower Potencia";
+  if(v === "v2") return "v2 — Full Body";
+  return "v1 — Torso/Pierna";
+}
+// Detecta versión a partir del id del período como heurística estable
+// (P1=v1, P2=v2, P3+=v3). Solo se usa en migración inicial — luego
+// queda guardado p.version y prevalece eso.
+function _defaultVersionForId(id){
+  if(id === 1) return "v1";
+  if(id === 2) return "v2";
+  return "v3";
+}
 
 // ═══════════════════ MUSCLE GROUPS ═══════════════════
 var MUSCULOS = {
@@ -2227,8 +2242,14 @@ function _exToPlanEntry(ex){
 function _initProgresionFromPlan() {
   _migrarProgresion();
   DB.progresion.periodos.forEach(function(p) {
+    // Migración silenciosa: si el período no tiene version, asignar default por id.
+    // Los días "huérfanos" de otras versiones que pudieran existir en p.plan se
+    // conservan (no borramos data) pero quedan invisibles porque la UI sólo
+    // muestra los días de p.version.
+    if (!p.version) p.version = _defaultVersionForId(p.id);
     if (!p.plan) p.plan = {};
-    ["d1","d2","d4","d5","d1b","d2b","d4b","d5b","d1c","d2c","d4c","d5c"].forEach(function(dia) {
+    // Sólo inicializar los días de la versión propia del período.
+    _versionKeys(p.version).forEach(function(dia) {
       if (!PLAN[dia]) return;
       if (!p.plan[dia]) {
         // Día sin plan: crear desde PLAN completo
@@ -2288,7 +2309,9 @@ function renderProgresion() {
   // Active period card
   var p = ps[_progPidx];
   if (!p) return;
-  document.getElementById("prog-period-title").textContent = p.nombre;
+  // Título incluye la versión del plan para que sea claro qué generación es.
+  document.getElementById("prog-period-title").textContent =
+    p.nombre + " · " + _versionLabel(p.version || "v1");
   document.getElementById("prog-inicio").value = p.cicloInicio || "";
   var semActual = _progSemActiva(p.cicloInicio) || "—";
   document.getElementById("prog-sem-actual").textContent = semActual;
@@ -2305,6 +2328,26 @@ function renderProgresion() {
     }).join("  ·  ");
   }
   document.getElementById("prog-cal-info").innerHTML = calInfo;
+
+  // Renderizar tabs de días dinámicamente, sólo los de la versión de este período.
+  // Si el día activo (_progDia) no pertenece a esta versión, saltamos al primero.
+  var keys = _versionKeys(p.version || "v1");
+  if (keys.indexOf(_progDia) === -1) _progDia = keys[0];
+  var tabsHtml = keys.map(function(k){
+    var pl = PLAN[k];
+    if(!pl) return "";
+    var isBlue = pl.color === "blue";
+    var colorVar = isBlue ? "var(--blue)" : "var(--green)";
+    // Etiqueta corta: "D1 Torso" / "D1 FB-A ✦" / "D1 Low-A ◆"
+    var marker = (p.version === "v2") ? " ✦" : (p.version === "v3") ? " ◆" : "";
+    var shortNom = (pl.nombre || k).replace(/^Día\s*/, "D").replace(/\s*—\s*/, " ");
+    var style = (p.version === "v1")
+      ? "" // v1 usa estilo default sin override
+      : "border-color:" + colorVar + ";color:" + colorVar + ";";
+    var activeCls = (k === _progDia) ? " active" : "";
+    return "<button class='day-tab-btn" + activeCls + "' onclick='showProgDia(\"" + k + "\",this)' style='" + style + "'>" + shortNom + marker + "</button>";
+  }).filter(Boolean).join("");
+  document.getElementById("prog-day-tabs").innerHTML = tabsHtml;
 
   showProgDia(_progDia, null);
 }
@@ -2329,12 +2372,35 @@ function progNuevoPeriodo() {
   _initProgresionFromPlan();
   var ps = DB.progresion.periodos;
   var newId = ps.length ? (Math.max.apply(null, ps.map(function(p){return p.id||0;})) + 1) : 1;
-  var newP = {id: newId, nombre: "Período " + newId, cicloInicio: "", plan: {}};
+
+  // Preguntar versión del plan para este período. Default a la última versión
+  // disponible (v3) — el usuario puede cambiar a v1/v2 si está creando uno
+  // retrospectivo. Aceptamos sólo "v1"/"v2"/"v3".
+  var defaultVer = _defaultVersionForId(newId);
+  var verInput = prompt(
+    "¿Qué versión del plan tendrá este período?\n\n" +
+    "  v1 — Torso/Pierna\n" +
+    "  v2 — Full Body\n" +
+    "  v3 — Upper/Lower Potencia (P3)\n\n" +
+    "Escribí: v1, v2 o v3",
+    defaultVer
+  );
+  if (verInput === null) return; // canceló
+  verInput = (verInput || "").trim().toLowerCase();
+  if (["v1","v2","v3"].indexOf(verInput) === -1) {
+    alert("Versión inválida. Cancelado.");
+    return;
+  }
+
+  var newP = {id: newId, nombre: "Período " + newId, cicloInicio: "", plan: {}, version: verInput};
+
   if (ps.length > 0) {
     var last = ps[ps.length - 1];
-    if (confirm("¿Copiar ejercicios del " + last.nombre + " al nuevo período?")) {
+    if (confirm("¿Copiar ejercicios del " + last.nombre + " al nuevo período?\n\n" +
+                "(Sólo se copiarán los días de versión " + verInput + " si existen en " + last.nombre + ". " +
+                "Si el período anterior es de otra versión, se inicializará desde el plan base.)")) {
       var planCopy = {};
-      ["d1","d2","d4","d5","d1b","d2b","d4b","d5b","d1c","d2c","d4c","d5c"].forEach(function(dia) {
+      _versionKeys(verInput).forEach(function(dia) {
         if (last.plan && last.plan[dia]) {
           planCopy[dia] = {exs: last.plan[dia].exs.map(function(ex) {
             var ec = {n: ex.n};
@@ -2348,8 +2414,12 @@ function progNuevoPeriodo() {
       newP.plan = planCopy;
     }
   }
+
   ps.push(newP);
   _progPidx = ps.length - 1;
+  // Reset día activo al primero de la versión nueva, para que la UI no quede
+  // mostrando un tab de otra versión.
+  _progDia = _versionKeys(verInput)[0];
   saveDB();
   renderProgresion();
 }
