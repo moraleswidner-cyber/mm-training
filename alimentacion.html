@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build:2026-05-10-v24 -->
+<!-- build:2026-05-11-v25 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -11,7 +11,7 @@
 // Si el número de build almacenado no coincide con el actual, limpia todos
 // los cachés del SW y recarga forzado. Resuelve updates pegados en Safari iOS.
 (function(){
-  var BUILD = '2026-05-10-v24';
+  var BUILD = '2026-05-11-v25';
   var stored = localStorage.getItem('nm-alim-build');
   if(stored !== BUILD){
     localStorage.setItem('nm-alim-build', BUILD);
@@ -1730,11 +1730,27 @@ function _parseSR(str){
   if(totalSets > 0) return {sets:totalSets, reps:Math.round(totalReps/totalSets)};
   return {sets:0, reps:0};
 }
+// Grupos musculares por diaKey — reconoce v1/v2/v3.
+// Lower: piernas/glúteo dominante. Upper: torso/brazos dominante.
+var GYM_LOWER_KEYS = ["d2","d5","d2b","d5b","d1c","d4c"];
+var GYM_UPPER_KEYS = ["d1","d4","d1b","d4b","d2c","d5c"];
+function _isLowerDia(diaKey){ return GYM_LOWER_KEYS.indexOf(diaKey) !== -1; }
+
 function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
   // Compatibilidad P1/P2: d1↔d1b, d2↔d2b, d4↔d4b, d5↔d5b
   var diaKeyAlt = /b$/.test(diaKey) ? diaKey.replace(/b$/,'') : diaKey+'b';
   var sessions = SESSIONS_DATA.filter(function(s){ return s.dia===diaKey || s.dia===diaKeyAlt; });
-  if(!sessions.length) return null;
+  // Cross-day fallback: if no sessions for this exact dia, use most recent of same muscle group
+  // (e.g. Lower P3 d1c has no sessions yet → use most recent Lower from any version)
+  var crossGroupFallback = false;
+  if(!sessions.length){
+    var groupKeys = _isLowerDia(diaKey) ? GYM_LOWER_KEYS : GYM_UPPER_KEYS;
+    sessions = SESSIONS_DATA.filter(function(s){
+      return groupKeys.indexOf(s.dia) !== -1 && s.dia !== diaKey;
+    });
+    if(!sessions.length) return null;
+    crossGroupFallback = true;
+  }
   sessions.sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
 
   // Try exact date match first (real results)
@@ -1773,7 +1789,7 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
     }
   });
 
-  var isLower = (diaKey==="d2"||diaKey==="d5"||diaKey==="d2b"||diaKey==="d5b");
+  var isLower = _isLowerDia(diaKey);
   // Pure volume-based formula — no duration dependency
   // Lower body (large muscle groups): 0.020 kcal per kg·rep + 100 kcal base overhead
   // Upper body: 0.018 kcal per kg·rep + 100 kcal base overhead
@@ -1781,17 +1797,29 @@ function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
   var netKcal = Math.round((100 + totalVol * kvr) * (pesoKg / 80));
   // Estimate duration for informational display only (not used in kcal calc)
   var usedDur = (durMin && durMin >= 20) ? durMin : Math.max(40, Math.round(totalSets * (isLower ? 3.5 : 2.8)));
+  // source: "real" if exact-date match, "program80" if from same dia's most recent session,
+  // "groupProxy" if borrowed from another dia of same muscle group (no sessions for this dia yet).
+  var srcLabel = crossGroupFallback ? "groupProxy" : (isProg ? "program80" : "real");
   return {
     kcal: netKcal,
     volume: Math.round(totalVol),
     fecha: sess.fecha,
     nEx: (sess.ejercicios||[]).length,
-    source: isProg ? "program80" : "real",
-    durMin: usedDur
+    source: srcLabel,
+    durMin: usedDur,
+    proxyFrom: crossGroupFallback ? sess.dia : null
   };
 }
 
 // Infer diaKey from a stored activity (explicit field or notas string)
+// Display label for the source of a gym calorie estimate.
+function _sessSrcLbl(res){
+  if(!res) return "";
+  if(res.source==="real")       return "✓ datos reales";
+  if(res.source==="groupProxy") return "≈ proxy "+(res.proxyFrom||"")+" (sin sesiones aún)";
+  return "~ estimado 80% prog";
+}
+
 function _inferDiaKey(a){
   if(a.diaKey) return a.diaKey;
   if(!a.notas) return null;
@@ -1820,7 +1848,7 @@ function _recalcGymActividades(){
     if(sessRes){
       a.diaKey     = dk;
       a.calExtra   = sessRes.kcal;
-      a.sessionInfo= (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
+      a.sessionInfo= _sessSrcLbl(sessRes)+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
       updated = true;
     }
   });
@@ -2051,7 +2079,7 @@ function renderHoy(){
           var sr = calcGymCalFromSession(dk, getWeightForDate(fecha), a.duracion||60, a.fecha);
           if(sr){
             dispKcal = sr.kcal;
-            var srcLbl = sr.source==="real" ? "✓ datos reales" : "~ estimado 80%";
+            var srcLbl = _sessSrcLbl(sr);
             detalle = (a.duracion||"?")+" min · "+dispKcal+" kcal · "+srcLbl+" · vol. "+sr.volume+" kg·rep ("+sr.fecha+")";
           }
         }
@@ -2073,14 +2101,26 @@ function renderHoy(){
   if(gymEstEl){
     var gymActs = actsHoy.filter(function(a){ return a.tipo==="gym"; });
     if(!gymActs.length){
-      // Build deduplicated list of gym presets
+      // Build deduplicated list of gym presets — FILTERED to latest program version only.
+      // We detect the highest "P<n>" prefix among gym preset names ("P1 · D1...", "P2 · D1...",
+      // "P3 · D1..."), and keep only that version. Older programs remain available in the
+      // dropdown selectors / history; this card is for quick-add of the CURRENT program.
+      var maxProgN = 0;
+      DB.actPresets.concat(ACT_PRESETS_DEFAULT).forEach(function(p){
+        if(p.tipo==="gym" && p.nombre){
+          var m = p.nombre.match(/^P(\d+)\s*·/);
+          if(m){ var n = parseInt(m[1]); if(n > maxProgN) maxProgN = n; }
+        }
+      });
+      var maxPrefix = maxProgN ? ("P"+maxProgN+" ·") : null;
       var allGymPresets = [];
       var seenDk = {};
       DB.actPresets.concat(ACT_PRESETS_DEFAULT).forEach(function(p){
-        if(p.tipo==="gym" && p.diaKey && !seenDk[p.diaKey]){
-          seenDk[p.diaKey] = true;
-          allGymPresets.push(p);
-        }
+        if(p.tipo!=="gym" || !p.diaKey || seenDk[p.diaKey]) return;
+        // If we detected a max program version, keep only presets from that version.
+        if(maxPrefix && p.nombre && p.nombre.indexOf(maxPrefix) !== 0) return;
+        seenDk[p.diaKey] = true;
+        allGymPresets.push(p);
       });
       if(allGymPresets.length){
         var pesoEst = getWeightForDate(fecha);
@@ -3673,7 +3713,7 @@ function saveActividad(){
     if(sessRes){
       kcal = sessRes.kcal;
       dur = sessRes.durMin;
-      sessionInfo = (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
+      sessionInfo = _sessSrcLbl(sessRes)+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
     } else {
       if(!dur){ alert("Ingresá la duración"); return; }
       var metG = (METS_PRESETS.find(function(m){ return m.key===tipoKey; })||{met:4.5}).met;
@@ -4456,7 +4496,7 @@ function useActPreset(id){
     var sessRes = calcGymCalFromSession(p.diaKey, peso, p.duracion, _viewDate);
     record.duracion = sessRes ? sessRes.durMin : (p.duracion||60);
     record.calExtra = sessRes ? sessRes.kcal : Math.round((getMET("gym")-1)*peso*(record.duracion/60));
-    if(sessRes) record.sessionInfo = (sessRes.source==="real"?"✓ real":"~80% prog")+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
+    if(sessRes) record.sessionInfo = _sessSrcLbl(sessRes)+" · "+sessRes.fecha+" · "+sessRes.nEx+" ej. · "+sessRes.volume+" kg·rep · "+sessRes.durMin+"min";
   } else {
     var met = (METS_PRESETS.find(function(m){ return m.key===p.tipo; })||{met:4.5}).met;
     record.duracion = p.duracion;

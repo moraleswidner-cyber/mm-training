@@ -1,6 +1,6 @@
 // Service Worker — NM Alimentación
 // Incrementar CACHE_VERSION en cada deploy para forzar actualización en PWA
-var CACHE_VERSION = 'alim-v24';
+var CACHE_VERSION = 'alim-v25';
 var CACHE_NAME = 'nm-alim-' + CACHE_VERSION;
 var APP_SHELL = ['/alimentacion.html'];
 
