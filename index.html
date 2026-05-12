@@ -1942,7 +1942,10 @@ function clearForm(){
   document.getElementById("r-hora").value=nowT();
   // Default semana = semana activa real (máximo entre calendario y última sesión)
   var _activePeriod=_periodoParaFecha(today());
-  var semActiva=_activePeriod?(_progSemActiva(_activePeriod.cicloInicio)||"S4"):"S4";
+  // Fallback a S1 (no S4) si _progSemActiva no detecta semana — es más razonable
+  // como default: si la app no sabe en qué semana estás, asumí que estás
+  // empezando un período nuevo, no en descarga.
+  var semActiva=_activePeriod?(_progSemActiva(_activePeriod.cicloInicio)||"S1"):"S1";
   document.getElementById("r-semana").value=semActiva;
   document.getElementById("r-dia").value="";
   ["r-energia","r-dur","r-dolor","r-obs"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";});
@@ -2271,8 +2274,16 @@ function _initProgresionFromPlan() {
 function _periodoParaFecha(fecha) {
   _migrarProgresion();
   var ps = DB.progresion.periodos;
-  for (var i = 0; i < ps.length; i++) {
-    var p = ps[i];
+  // Si dos períodos cubren la misma fecha (overlap), gana el de cicloInicio
+  // más reciente — corresponde al plan más nuevo que el usuario decidió usar.
+  // Caso típico: P2 abandonado tras 1 semana y P3 arrancado con cicloInicio
+  // igual o posterior. Sin este sort, _periodoParaFecha devolvería P2 (primer
+  // match en orden de creación) y la sesión nueva agarraría el plan equivocado.
+  var sorted = ps.slice().sort(function(a, b){
+    return (b.cicloInicio || "").localeCompare(a.cicloInicio || "");
+  });
+  for (var i = 0; i < sorted.length; i++) {
+    var p = sorted[i];
     if (!p.cicloInicio) continue;
     var end = _progAddDays(p.cicloInicio, 27);
     if (fecha >= p.cicloInicio && fecha <= end) return p;
