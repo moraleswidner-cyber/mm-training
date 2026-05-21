@@ -1,6 +1,6 @@
 // Service Worker — NM Training
 // Incrementar CACHE_VERSION en cada deploy para forzar actualización en PWA
-var CACHE_VERSION = 'train-v7';
+var CACHE_VERSION = 'train-v8';
 var CACHE_NAME = 'nm-train-' + CACHE_VERSION;
 var APP_SHELL = ['/index.html'];
 

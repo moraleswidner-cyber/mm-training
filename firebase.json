@@ -3,6 +3,10 @@
     "public": ".",
     "ignore": [
       "firebase.json",
+      "node_modules/**",
+      "package-lock.json",
+      ".git/**",
+      ".gitignore",
       "*.ps1",
       "*.csv",
       "*.xlsx",
@@ -17,7 +21,9 @@
       "nm_alimentacion_export.json",
       "training_raw.json",
       "nutrition_raw.json",
-      "menu_abril20.json"
+      "menu_abril20.json",
+      "backup_*.json",
+      "*.backup.json"
     ],
     "headers": [
       {

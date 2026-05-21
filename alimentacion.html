@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build:2026-05-11-v25 -->
+<!-- build:2026-05-25-v28 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -11,7 +11,7 @@
 // Si el número de build almacenado no coincide con el actual, limpia todos
 // los cachés del SW y recarga forzado. Resuelve updates pegados en Safari iOS.
 (function(){
-  var BUILD = '2026-05-11-v25';
+  var BUILD = '2026-05-25-v28';
   var stored = localStorage.getItem('nm-alim-build');
   if(stored !== BUILD){
     localStorage.setItem('nm-alim-build', BUILD);
@@ -530,6 +530,9 @@ button:active{opacity:.7;transform:scale(.98);}
 
       <!-- ALERTAS -->
       <div id="seg-alertas-box" style="display:none;margin-bottom:12px;"></div>
+
+      <!-- PROGRESO VS META DEL PERIODO (v28) -->
+      <div id="seg-meta-periodo-box" style="display:none;margin-bottom:12px;"></div>
 
       <!-- BODY COMPOSITION -->
       <div class="card">
@@ -1130,7 +1133,7 @@ var METS_PRESETS = [
 ];
 
 // ─────────── ACTIVITY PRESETS DEFAULT ───────────
-var PRESETS_VERSION = 4;
+var PRESETS_VERSION = 5;
 var ACT_PRESETS_DEFAULT = [
   // Deportes
   {id:"ap_padel1",  nombre:"Partido de Pádel 1h",          tipo:"padel",     duracion:60},
@@ -1155,41 +1158,52 @@ var ACT_PRESETS_DEFAULT = [
   {id:"ap_d2c", nombre:"P3 · D2 Upper A — Tracción + Rehab Hombro",            tipo:"gym", duracion:55, diaKey:"d2c"},
   {id:"ap_d4c", nombre:"P3 · D4 Lower B — Hinge Potencia + Posterior Chain",   tipo:"gym", duracion:75, diaKey:"d4c"},
   {id:"ap_d5c", nombre:"P3 · D5 Upper B — Tracción Unilat + Core + Gemelo",    tipo:"gym", duracion:55, diaKey:"d5c"},
+  // Entrenamiento NM — P4 Rehab (desde 25/05/2026) — sin upper, sin fútbol
+  {id:"ap_d1d", nombre:"P4 · D1 TI A — Cuádriceps + Glúteo + Core",            tipo:"gym",       duracion:70, diaKey:"d1d"},
+  {id:"ap_d2d", nombre:"P4 · D2 Cardio LISS — Bici/elíptica",                  tipo:"cardio_m",  duracion:35, diaKey:"d2d"},
+  {id:"ap_d3d", nombre:"P4 · D3 TI B — Cadena Posterior + Core",               tipo:"gym",       duracion:70, diaKey:"d3d"},
+  {id:"ap_d4d", nombre:"P4 · D4 TI C — Mixto (uni+bi) + Core",                 tipo:"gym",       duracion:65, diaKey:"d4d"},
+  {id:"ap_d5d", nombre:"P4 · D5 Cardio largo — Bici+elíptica+core",            tipo:"cardio_m",  duracion:70, diaKey:"d5d"},
   {id:"ap_fut7",  nombre:"Futbolito 7v7 (80 min)",  tipo:"futbol7",  duracion:80},
   {id:"ap_fut11", nombre:"Fútbol 11v11 (80 min)",   tipo:"futbol11", duracion:80}
 ];
 
 // ─────────── MENU PRESETS DEFAULT ───────────
-// Incrementar MENU_PRESETS_VERSION para forzar reinserción en próximo deploy
-// v4 (2026-05): periodización deportiva — 1 preset por día de la semana (7 presets déficit),
-//     cena fija fajitas+pollo molido+palta, combo PM congelado (3 yogur Nestlé + whey)
-//     en Lun/Mar/Mié/Sáb/Dom, sin combo en Jue/Vie (pre-fútbol y descanso),
-//     etiquetas reales de productos consumidos por el usuario.
-var MENU_PRESETS_VERSION = 4;
+// Incrementar MENU_PRESETS_VERSION para forzar reinserción en próximo deploy.
+// v8 (P4 Rehab — 2026-05-25 a 2026-06-22):
+//   7 presets, uno por día de la semana, escenario déficit moderado (-284 kcal/día).
+//   Sin fútbol, sin combo pre-fútbol jueves, SIN CREMA DE MANÍ (eliminada).
+//   Combo PM congelado a las 17:00 en Lun/Mié/Vie (días de fuerza tren inferior).
+//   Mar y Sáb son cardio (LISS y largo), sin combo congelado.
+//   Mantención estimada P4 = 2585 kcal/día (bajó vs P3 sin fútbol/pliometría).
+//   Proteína promedio 187g/día (2.12 g/kg) — bajó vs P3 (2.28).
+//   Cenas post-gym a las 22:00 los Lun/Mié/Vie.
+var MENU_PRESETS_VERSION = 7;
 var MENU_PRESETS_DEFAULT = [
-  // ══════════════════════════ DÉFICIT — 7 días/semana ══════════════════════════
-  // ── LUN — GYM + COMBO ───────────────────────────────────────────────────────
-  {id:"mp_lun_gym_combo_def", nombre:"🏋️ Lun — Gym + Combo",
-   desc:"Gym noche · ~2428 kcal · P ~202g · G ~63g · C ~267g",
+  // ══════════════════════════ P4 REHAB v8 — 7 días/semana ══════════════════════
+  // ── LUN — GYM FUERZA TI A + COMBO ───────────────────────────────────────────
+  {id:"mp_lun_P4_gym_fuerza", nombre:"🦵 Lun — Gym TI A + Combo",
+   desc:"P4 Rehab · Tren Inferior A · ~2330 kcal · P ~190g · G ~63g · C ~258g",
    items:[
     {nombre:"Avena instantánea 60g",     cal:242, prot:8,  gras:5,  carb:40, cantidad:60,  comida:"desayuno"},
     {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
     {nombre:"Plátano",                   cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
     {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
     {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz Banquete cocido 200g",cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
+    {nombre:"Pechuga cocida 170g",       cal:280, prot:53, gras:6,  carb:0,  cantidad:170, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 180g",cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
     {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
     {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
-    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
-    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
-    {nombre:"Pollo molido Ariztia 180g", cal:203, prot:36, gras:6,  carb:0,  cantidad:180, comida:"cena"},
-    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
+    {nombre:"COMBO Yogur Nestlé ×3 (17:00)",cal:340, prot:31, gras:8, carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop (17:00)",  cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"½ plátano pre-gym (19:30)", cal:54,  prot:1,  gras:0,  carb:14, cantidad:60,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2 (22:00)",cal:256, prot:9, gras:5, carb:44, cantidad:80, comida:"cena"},
+    {nombre:"Pollo molido Ariztia 150g (22:00)",cal:170, prot:30, gras:5, carb:0, cantidad:150, comida:"cena"},
+    {nombre:"Palta (22:00)",             cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── MAR — GYM + COMBO ───────────────────────────────────────────────────────
-  {id:"mp_mar_gym_combo_def", nombre:"🏋️ Mar — Gym + Combo",
-   desc:"Gym noche · ~2392 kcal · P ~206g · G ~71g · C ~239g",
+  // ── MAR — CARDIO LISS ───────────────────────────────────────────────────────
+  {id:"mp_mar_P4_cardio", nombre:"🚴 Mar — Cardio LISS (día liviano)",
+   desc:"P4 Rehab · Cardio LISS bici/elíptica · ~2280 kcal · P ~180g · G ~62g · C ~250g · SIN combo",
    items:[
     {nombre:"Pan integral ×3 reb",       cal:210, prot:9,  gras:3,  carb:38, cantidad:90,  comida:"desayuno"},
     {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"desayuno"},
@@ -1197,18 +1211,18 @@ var MENU_PRESETS_DEFAULT = [
     {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"colacion1"},
     {nombre:"Avena instantánea 25g",     cal:101, prot:3,  gras:2,  carb:17, cantidad:25,  comida:"colacion1"},
     {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz Banquete cocido 200g",cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 180g",cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
     {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
     {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
-    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
-    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Manzana (pre-cardio 17:00)",cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion2"},
+    {nombre:"Yogur Nestlé Protein 200g (post-cardio)",cal:162, prot:15, gras:4, carb:18, cantidad:200, comida:"colacion2"},
     {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
-    {nombre:"Pollo molido Ariztia 180g", cal:203, prot:36, gras:6,  carb:0,  cantidad:180, comida:"cena"},
+    {nombre:"Pollo molido Ariztia 150g", cal:170, prot:30, gras:5,  carb:0,  cantidad:150, comida:"cena"},
     {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── MIÉ — GYM + COMBO (atún en almuerzo) ────────────────────────────────────
-  {id:"mp_mie_gym_combo_def", nombre:"🏋️ Mié — Gym + Combo",
-   desc:"Gym noche · ~2368 kcal · P ~200g · G ~58g · C ~270g",
+  // ── MIÉ — GYM FUERZA TI B + COMBO ───────────────────────────────────────────
+  {id:"mp_mie_P4_gym_fuerza", nombre:"🦵 Mié — Gym TI B + Combo",
+   desc:"P4 Rehab · Tren Inferior B (Cadena Posterior) · ~2330 kcal · P ~190g · G ~63g · C ~258g",
    items:[
     {nombre:"Avena instantánea 60g",     cal:242, prot:8,  gras:5,  carb:40, cantidad:60,  comida:"desayuno"},
     {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
@@ -1219,94 +1233,92 @@ var MENU_PRESETS_DEFAULT = [
     {nombre:"Arroz Banquete cocido 200g",cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
     {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
     {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
-    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
-    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
-    {nombre:"Pollo molido Ariztia 200g", cal:226, prot:40, gras:7,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
+    {nombre:"COMBO Yogur Nestlé ×3 (17:00)",cal:340, prot:31, gras:8, carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop (17:00)",  cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"½ plátano pre-gym (19:30)", cal:54,  prot:1,  gras:0,  carb:14, cantidad:60,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2 (22:00)",cal:256, prot:9, gras:5, carb:44, cantidad:80, comida:"cena"},
+    {nombre:"Pollo molido Ariztia 150g (22:00)",cal:170, prot:30, gras:5, carb:0, cantidad:150, comida:"cena"},
+    {nombre:"Palta (22:00)",             cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── JUE — FUTBOLITO 21h (sin combo, carga carbos) ───────────────────────────
-  {id:"mp_jue_futbol_def", nombre:"⚽ Jue — Futbolito 21h",
-   desc:"Futbolito noche · ~2650 kcal · P ~194g · G ~60g · C ~346g · SIN combo (pre-partido)",
-   items:[
-    {nombre:"Avena instantánea 60g",     cal:242, prot:8,  gras:5,  carb:40, cantidad:60,  comida:"desayuno"},
-    {nombre:"Yogur Nestlé Protein 250g", cal:203, prot:19, gras:5,  carb:22, cantidad:250, comida:"desayuno"},
-    {nombre:"Plátano",                   cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
-    {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
-    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
-    {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
-    {nombre:"Arroz Banquete cocido 280g (carga)",cal:364, prot:8, gras:1, carb:79, cantidad:280, comida:"almuerzo"},
-    {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"almuerzo"},
-    {nombre:"Palta 30g",                 cal:48,  prot:1,  gras:5,  carb:3,  cantidad:30,  comida:"almuerzo"},
-    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
-    {nombre:"Plátano pre-fútbol",        cal:134, prot:2,  gras:0,  carb:35, cantidad:150, comida:"colacion2"},
-    {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"colacion2"},
-    {nombre:"Miel 15g",                  cal:46,  prot:0,  gras:0,  carb:12, cantidad:15,  comida:"colacion2"},
-    {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
-    {nombre:"Pollo molido Ariztia 200g", cal:226, prot:40, gras:7,  carb:0,  cantidad:200, comida:"cena"},
-    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"},
-    {nombre:"Whey scoop post-partido",   cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"cena"}
-  ]},
-  // ── VIE — DESCANSO TOTAL (sin combo, carbos reducidos) ──────────────────────
-  {id:"mp_vie_descanso_def", nombre:"😴 Vie — Descanso",
-   desc:"Sin actividad · ~2177 kcal · P ~186g · G ~67g · C ~215g · SIN combo (pre-Sáb)",
+  // ── JUE — DESCANSO TOTAL ────────────────────────────────────────────────────
+  {id:"mp_jue_P4_descanso", nombre:"😴 Jue — Descanso total",
+   desc:"P4 Rehab · Descanso · ~2250 kcal · P ~180g · G ~60g · C ~240g · SIN combo",
    items:[
     {nombre:"Yogur Nestlé Protein 250g", cal:203, prot:19, gras:5,  carb:22, cantidad:250, comida:"desayuno"},
-    {nombre:"Avena instantánea 35g",     cal:141, prot:5,  gras:3,  carb:23, cantidad:35,  comida:"desayuno"},
+    {nombre:"Avena instantánea 40g",     cal:161, prot:5,  gras:3,  carb:27, cantidad:40,  comida:"desayuno"},
     {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"desayuno"},
     {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
     {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"colacion1"},
     {nombre:"Palta 30g",                 cal:48,  prot:1,  gras:5,  carb:3,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 200g",       cal:330, prot:62, gras:7,  carb:0,  cantidad:200, comida:"almuerzo"},
-    {nombre:"Arroz Banquete cocido 150g",cal:195, prot:4,  gras:0,  carb:42, cantidad:150, comida:"almuerzo"},
+    {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 170g",cal:221, prot:5,  gras:1,  carb:48, cantidad:170, comida:"almuerzo"},
     {nombre:"Verduras salteadas 200g",   cal:100, prot:4,  gras:3,  carb:18, cantidad:200, comida:"almuerzo"},
     {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
     {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"colacion2"},
     {nombre:"Whey scoop ½",              cal:57,  prot:12, gras:1,  carb:1,  cantidad:15,  comida:"colacion2"},
     {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
-    {nombre:"Pollo molido Ariztia 180g", cal:203, prot:36, gras:6,  carb:0,  cantidad:180, comida:"cena"},
-    {nombre:"Palta ½",                   cal:120, prot:2,  gras:11, carb:7,  cantidad:75,  comida:"cena"}
+    {nombre:"Pollo molido Ariztia 150g", cal:170, prot:30, gras:5,  carb:0,  cantidad:150, comida:"cena"},
+    {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── SÁB — FÚTBOL 9:30 + COMBO PM ────────────────────────────────────────────
-  {id:"mp_sab_futbol_combo_def", nombre:"⚽ Sáb — Fútbol 9:30 + Combo",
-   desc:"Partido mañana + Combo PM · ~2602 kcal · P ~225g · G ~70g · C ~280g",
+  // ── VIE — GYM FUERZA TI C + COMBO ───────────────────────────────────────────
+  {id:"mp_vie_P4_gym_fuerza", nombre:"🦵 Vie — Gym TI C + Combo",
+   desc:"P4 Rehab · Tren Inferior C (Mixto) · ~2330 kcal · P ~190g · G ~63g · C ~258g",
    items:[
-    {nombre:"Plátano pre-partido",       cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Avena instantánea 60g",     cal:242, prot:8,  gras:5,  carb:40, cantidad:60,  comida:"desayuno"},
+    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
+    {nombre:"Plátano",                   cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
+    {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"colacion1"},
+    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
+    {nombre:"Pechuga cocida 170g",       cal:280, prot:53, gras:6,  carb:0,  cantidad:170, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 180g",cal:234, prot:5,  gras:1,  carb:51, cantidad:180, comida:"almuerzo"},
+    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
+    {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
+    {nombre:"COMBO Yogur Nestlé ×3 (17:00)",cal:340, prot:31, gras:8, carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop (17:00)",  cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"½ plátano pre-gym (19:30)", cal:54,  prot:1,  gras:0,  carb:14, cantidad:60,  comida:"colacion2"},
+    {nombre:"Fajita Pancho Villa XL ×2 (22:00)",cal:256, prot:9, gras:5, carb:44, cantidad:80, comida:"cena"},
+    {nombre:"Pollo molido Ariztia 150g (22:00)",cal:170, prot:30, gras:5, carb:0, cantidad:150, comida:"cena"},
+    {nombre:"Palta (22:00)",             cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
+  ]},
+  // ── SÁB — CARDIO LARGO + COMBO PM ───────────────────────────────────────────
+  {id:"mp_sab_P4_cardio_largo", nombre:"🚴 Sáb — Cardio largo + Combo",
+   desc:"P4 Rehab · Cardio largo 60-70 min · ~2380 kcal · P ~200g · G ~62g · C ~265g",
+   items:[
+    {nombre:"Plátano pre-cardio",        cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
     {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"desayuno"},
     {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
     {nombre:"Avena instantánea 25g",     cal:101, prot:3,  gras:2,  carb:17, cantidad:25,  comida:"desayuno"},
-    {nombre:"Plátano ventana dorada",    cal:134, prot:2,  gras:0,  carb:35, cantidad:150, comida:"colacion1"},
-    {nombre:"Whey scoop post-partido",   cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 200g",       cal:330, prot:62, gras:7,  carb:0,  cantidad:200, comida:"almuerzo"},
-    {nombre:"Arroz Banquete cocido 250g",cal:325, prot:7,  gras:1,  carb:71, cantidad:250, comida:"almuerzo"},
+    {nombre:"Plátano ventana dorada 12:30",cal:134, prot:2, gras:0, carb:35, cantidad:150, comida:"colacion1"},
+    {nombre:"Whey scoop post-cardio 12:30",cal:114, prot:23, gras:2, carb:2, cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 200g",cal:260, prot:5,  gras:1,  carb:56, cantidad:200, comida:"almuerzo"},
     {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
     {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
     {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"almuerzo"},
-    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
-    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"COMBO Yogur Nestlé ×3 (17:00)",cal:340, prot:31, gras:8, carb:37, cantidad:420, comida:"colacion2"},
+    {nombre:"COMBO Whey scoop (17:00)",  cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
     {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
-    {nombre:"Pollo molido Ariztia 150g (cena liviana)",cal:170, prot:30, gras:5, carb:0, cantidad:150, comida:"cena"},
+    {nombre:"Pollo molido Ariztia 150g", cal:170, prot:30, gras:5,  carb:0,  cantidad:150, comida:"cena"},
     {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]},
-  // ── DOM — GYM 12h + COMBO ───────────────────────────────────────────────────
-  {id:"mp_dom_gym_combo_def", nombre:"🏋️ Dom — Gym 12h + Combo",
-   desc:"Gym mediodía + Combo PM · ~2383 kcal · P ~204g · G ~59g · C ~264g",
+  // ── DOM — DESCANSO TOTAL ────────────────────────────────────────────────────
+  {id:"mp_dom_P4_descanso", nombre:"😴 Dom — Descanso total",
+   desc:"P4 Rehab · Descanso · ~2250 kcal · P ~180g · G ~60g · C ~240g · SIN combo",
    items:[
-    {nombre:"Avena instantánea 50g",     cal:201, prot:7,  gras:4,  carb:33, cantidad:50,  comida:"desayuno"},
-    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"desayuno"},
-    {nombre:"Plátano",                   cal:107, prot:1,  gras:0,  carb:27, cantidad:120, comida:"desayuno"},
-    {nombre:"Huevo Lider XL ×1",         cal:85,  prot:7,  gras:6,  carb:1,  cantidad:57,  comida:"desayuno"},
-    {nombre:"Pan integral ×1 reb (pre-gym)",cal:70, prot:3, gras:1, carb:13, cantidad:30,  comida:"colacion1"},
-    {nombre:"Miel 10g",                  cal:30,  prot:0,  gras:0,  carb:8,  cantidad:10,  comida:"colacion1"},
-    {nombre:"Pechuga cocida 220g (post-WO)",cal:363, prot:68, gras:8, carb:0, cantidad:220, comida:"almuerzo"},
-    {nombre:"Arroz Banquete cocido 220g",cal:286, prot:6,  gras:1,  carb:62, cantidad:220, comida:"almuerzo"},
-    {nombre:"Verduras salteadas",        cal:75,  prot:3,  gras:2,  carb:14, cantidad:150, comida:"almuerzo"},
+    {nombre:"Yogur Nestlé Protein 250g", cal:203, prot:19, gras:5,  carb:22, cantidad:250, comida:"desayuno"},
+    {nombre:"Avena instantánea 40g",     cal:161, prot:5,  gras:3,  carb:27, cantidad:40,  comida:"desayuno"},
+    {nombre:"Manzana",                   cal:78,  prot:0,  gras:0,  carb:21, cantidad:150, comida:"desayuno"},
+    {nombre:"Huevos Lider XL ×2",        cal:170, prot:14, gras:11, carb:3,  cantidad:114, comida:"colacion1"},
+    {nombre:"Pan integral ×1 reb",       cal:70,  prot:3,  gras:1,  carb:13, cantidad:30,  comida:"colacion1"},
+    {nombre:"Palta 30g",                 cal:48,  prot:1,  gras:5,  carb:3,  cantidad:30,  comida:"colacion1"},
+    {nombre:"Pechuga cocida 180g",       cal:297, prot:56, gras:6,  carb:0,  cantidad:180, comida:"almuerzo"},
+    {nombre:"Arroz Banquete cocido 170g",cal:221, prot:5,  gras:1,  carb:48, cantidad:170, comida:"almuerzo"},
+    {nombre:"Verduras salteadas 200g",   cal:100, prot:4,  gras:3,  carb:18, cantidad:200, comida:"almuerzo"},
     {nombre:"Aceite oliva 1 cdta",       cal:44,  prot:0,  gras:5,  carb:0,  cantidad:5,   comida:"almuerzo"},
-    {nombre:"COMBO Yogur Nestlé ×3",     cal:340, prot:31, gras:8,  carb:37, cantidad:420, comida:"colacion2"},
-    {nombre:"COMBO Whey scoop",          cal:114, prot:23, gras:2,  carb:2,  cantidad:30,  comida:"colacion2"},
+    {nombre:"Yogur Nestlé Protein 200g", cal:162, prot:15, gras:4,  carb:18, cantidad:200, comida:"colacion2"},
+    {nombre:"Whey scoop ½",              cal:57,  prot:12, gras:1,  carb:1,  cantidad:15,  comida:"colacion2"},
     {nombre:"Fajita Pancho Villa XL ×2", cal:256, prot:9,  gras:5,  carb:44, cantidad:80,  comida:"cena"},
-    {nombre:"Pollo molido Ariztia 150g (cena liviana)",cal:170, prot:30, gras:5, carb:0, cantidad:150, comida:"cena"},
+    {nombre:"Pollo molido Ariztia 150g", cal:170, prot:30, gras:5,  carb:0,  cantidad:150, comida:"cena"},
     {nombre:"Palta",                     cal:80,  prot:1,  gras:8,  carb:5,  cantidad:50,  comida:"cena"}
   ]}
 ];
@@ -1404,6 +1416,11 @@ function _mergeInbodyArr(fsArr){
   result.sort(function(a,b){ return a.fecha > b.fecha ? 1 : -1; });
   return result;
 }
+
+// Progresión (períodos con metas) leída en tiempo real desde el doc nm-training/main
+// — la app de entrenamiento la mantiene. Se usa en Seguimiento → bloque "Progreso vs
+// Meta del Período". Si es null o vacío, ese bloque no se muestra.
+var TRAINING_PROGRESION = null;
 
 // Sessions from nm-training — loaded from Firestore, fallback to HIST
 var SESSIONS_DATA = [
@@ -1551,6 +1568,8 @@ function loadDB(){
         // Also load sessions for gym calorie calculation
         var sesArr = d.sesiones || [];
         if(sesArr.length) SESSIONS_DATA = sesArr;
+        // Progresión (períodos + metas) para Seguimiento → bloque "Progreso vs Meta".
+        TRAINING_PROGRESION = d.progresion || null;
         // Recalculate stored gym activities using real session volume
         // (if a real session now exists for a date that had a theoretical estimate, it updates)
         _recalcGymActividades();
@@ -1569,6 +1588,7 @@ function loadDB(){
           INBODY_DATA     = INBODY_DATA_ALL[INBODY_DATA_ALL.length-1];
           var sesArr = d.sesiones || [];
           if(sesArr.length) SESSIONS_DATA = sesArr;
+          TRAINING_PROGRESION = d.progresion || null;
           _recalcGymActividades();
         }
         renderConfigInbody(); renderPerfil(); renderAll();
@@ -1730,13 +1750,19 @@ function _parseSR(str){
   if(totalSets > 0) return {sets:totalSets, reps:Math.round(totalReps/totalSets)};
   return {sets:0, reps:0};
 }
-// Grupos musculares por diaKey — reconoce v1/v2/v3.
+// Grupos musculares por diaKey — reconoce v1/v2/v3/v4.
 // Lower: piernas/glúteo dominante. Upper: torso/brazos dominante.
-var GYM_LOWER_KEYS = ["d2","d5","d2b","d5b","d1c","d4c"];
-var GYM_UPPER_KEYS = ["d1","d4","d1b","d4b","d2c","d5c"];
+// Cardio: días de cardio LISS del P4 — no aplican cálculo por volumen.
+var GYM_LOWER_KEYS  = ["d2","d5","d2b","d5b","d1c","d4c","d1d","d3d","d4d"];
+var GYM_UPPER_KEYS  = ["d1","d4","d1b","d4b","d2c","d5c"];
+var GYM_CARDIO_KEYS = ["d2d","d5d"]; // P4 cardio LISS — no se calcula por volumen
 function _isLowerDia(diaKey){ return GYM_LOWER_KEYS.indexOf(diaKey) !== -1; }
+function _isCardioDia(diaKey){ return GYM_CARDIO_KEYS.indexOf(diaKey) !== -1; }
 
 function calcGymCalFromSession(diaKey, pesoKg, durMin, actFecha){
+  // Cardio days (P4): retornar null para que el caller use estimación MET pura
+  // por duración. No tiene sentido calcular por volumen kg·rep para LISS.
+  if(_isCardioDia(diaKey)) return null;
   // Compatibilidad P1/P2: d1↔d1b, d2↔d2b, d4↔d4b, d5↔d5b
   var diaKeyAlt = /b$/.test(diaKey) ? diaKey.replace(/b$/,'') : diaKey+'b';
   var sessions = SESSIONS_DATA.filter(function(s){ return s.dia===diaKey || s.dia===diaKeyAlt; });
@@ -5103,10 +5129,80 @@ var _chSegInbody = null, _chSegGym = null, _chSegAdh = null, _chSegWell = null;
 function renderSeguimiento(){
   if(!document.getElementById("tab-seguimiento")) return;
   renderSegAlertas();
+  renderSegMetaPeriodo();
   renderSegInbody();
   renderGymPerfChart();
   renderSegAdherencia();
   renderSegWellness();
+}
+
+// ─── PROGRESO VS META DEL PERÍODO (v28) ───
+// Si el período activo (leído desde nm-training/main.progresion) tiene metas
+// definidas, muestra un panel con peso/% grasa/músculo actual vs meta, días
+// transcurridos y restantes, ritmo necesario para llegar y diagnóstico.
+function renderSegMetaPeriodo(){
+  var box = document.getElementById("seg-meta-periodo-box");
+  if(!box) return;
+  var meta = getMetaPeriodoActivo();
+  if(!meta || !meta.fechaMeta){
+    box.style.display = "none";
+    return;
+  }
+  var ib = INBODY_DATA_ALL.slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+  var last = ib.length ? ib[ib.length-1] : null;
+  if(!last){
+    box.style.display = "none";
+    return;
+  }
+
+  var today = todayStr();
+  var inicioD = new Date(meta.cicloInicio+"T12:00:00");
+  var metaD   = new Date(meta.fechaMeta+"T12:00:00");
+  var todayD  = new Date(today+"T12:00:00");
+  var totalDias    = Math.round((metaD - inicioD)/(86400000));
+  var diasPasados  = Math.max(0, Math.round((todayD - inicioD)/(86400000)));
+  var diasRestantes= Math.max(0, Math.round((metaD - todayD)/(86400000)));
+  var pctTrans     = totalDias > 0 ? Math.min(100, Math.round(diasPasados/totalDias*100)) : 0;
+
+  function row(label, actualVal, metaVal, unit, mejorEsBajo){
+    if(actualVal == null || metaVal == null) return "";
+    var faltante = mejorEsBajo ? (actualVal - metaVal) : (metaVal - actualVal);
+    var enRumbo = mejorEsBajo ? (actualVal <= metaVal) : (actualVal >= metaVal);
+    var faltanteAbs = Math.abs(faltante);
+    var ritmoNecesarioPorSemana = (diasRestantes > 0 && !enRumbo) ? (faltanteAbs / (diasRestantes/7)) : 0;
+    var statusIcon = enRumbo ? "✅" : (pctTrans > 50 && faltanteAbs > 0 ? "⚠️" : "🎯");
+    var statusCol  = enRumbo ? "var(--green)" : (pctTrans > 50 ? "var(--amber)" : "var(--text2)");
+    var statusTxt  = enRumbo
+      ? "Meta alcanzada"
+      : (diasRestantes === 0
+          ? "Período finalizado · falta " + faltanteAbs.toFixed(1) + unit
+          : "Falta " + faltanteAbs.toFixed(1) + unit + " en " + diasRestantes + "d · ritmo necesario " + ritmoNecesarioPorSemana.toFixed(2) + unit + "/sem");
+    return '<div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--bord2);font-size:11px;">'
+      + '<div style="color:var(--text1);"><span style="font-weight:700;">'+label+':</span> '+actualVal+unit+' <span style="color:var(--text3);">→ meta '+metaVal+unit+'</span></div>'
+      + '<div style="color:'+statusCol+';font-size:11px;">'+statusIcon+'</div>'
+      + '<div style="color:'+statusCol+';font-size:10px;text-align:right;max-width:200px;">'+statusTxt+'</div>'
+      + '</div>';
+  }
+
+  var rows = "";
+  rows += row("Peso",       last.peso,     meta.peso,     "kg", true);
+  rows += row("% Grasa",    last.pctGrasa, meta.pctGrasa, "%",  true);
+  rows += row("Músculo",    last.musculo,  meta.musculo,  "kg", false);
+  if(meta.visceral != null && last.visceral != null) rows += row("Grasa visceral", last.visceral, meta.visceral, "", true);
+
+  var rehab = meta.version === "v4";
+  box.style.display = "block";
+  box.innerHTML =
+    '<div style="background:'+(rehab?'rgba(245,166,35,0.10)':'rgba(74,144,226,0.10)')+';border:1px solid '+(rehab?'var(--amber)':'var(--blue)')+';border-radius:var(--rsm);padding:12px 14px;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+    + '  <div style="font-size:13px;font-weight:700;color:'+(rehab?'var(--amber)':'var(--blue)')+';">'+(rehab?'⚕️ ':'🎯 ')+esc(meta.nombrePeriodo)+' · meta al '+meta.fechaMeta+'</div>'
+    + '  <div style="font-size:10px;color:var(--text2);">'+diasPasados+'d / '+totalDias+'d ('+pctTrans+'%)</div>'
+    + '</div>'
+    + '<div style="height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-bottom:10px;">'
+    + '  <div style="height:100%;width:'+pctTrans+'%;background:'+(rehab?'var(--amber)':'var(--blue)')+';"></div>'
+    + '</div>'
+    + rows
+    + '</div>';
 }
 
 // ─── ALERTAS ───
@@ -5133,6 +5229,9 @@ function checkAlertas(){
   var alertas = [];
   var ib = INBODY_DATA_ALL.slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
 
+  // Umbrales contextuales — rehab afloja el umbral de pérdida muscular
+  var um = getUmbralesContexto();
+
   // — InBody alerts —
   if(ib.length >= 2){
     var prev = ib[ib.length-2], last = ib[ib.length-1];
@@ -5143,9 +5242,10 @@ function checkAlertas(){
     var deltaMusMes  = deltaMusculo * monthFactor;
     var deltaGraMes  = deltaGrasa   * monthFactor;
 
-    if(deltaMusMes < -0.3){
+    if(deltaMusMes < um.alertaPerdidaMuscularUmbral){
+      var ctxNota = um.isRehab ? " (umbral relajado a "+um.alertaPerdidaMuscularUmbral+"kg/mes durante rehab)" : "";
       alertas.push({nivel:"rojo", titulo:"Pérdida de músculo acelerada",
-        mensaje:"Perdiste ~"+Math.abs(deltaMusMes).toFixed(1)+"kg/mes de músculo (umbral: 0.3kg/mes). Riesgo de pérdida de masa magra.",
+        mensaje:"Perdiste ~"+Math.abs(deltaMusMes).toFixed(1)+"kg/mes de músculo"+ctxNota+". Riesgo de pérdida de masa magra.",
         accion:"Subí calorías a mantención por 2 semanas. Revisá aporte proteico (objetivo: ≥165g/día). Asegurate de dormir 7-8h."});
     }
     if(deltaGraMes > 0.5 && deltaMusMes < 0){
@@ -5199,6 +5299,37 @@ function checkAlertas(){
       alertas.push({nivel:"ambar", titulo:"Energía deportiva baja",
         mensaje:"Promedio de energía: "+avgEnergia.toFixed(1)+"/10 en últimas sesiones. Objetivo: ≥7/10.",
         accion:"Asegurate de comer carbos 1-2h antes de entrenar. Hidratación correcta. Revisá calidad de sueño."});
+    }
+  }
+
+  // — Cruce adherencia ↔ ritmo InBody (v28) —
+  // Si adherencia es buena pero el InBody no avanza al ritmo esperado, el problema
+  // no es la comida — sueño/NEAT/TMB estimado. Si adherencia es baja, ese es el
+  // problema antes que el plan. Da feedback contextual en lugar de uno solo.
+  if(ib.length >= 2){
+    var adh14b = calcAdherencia(14);
+    var ritmoAdhB = calcRitmoDesdeAdherencia(14);
+    var lastB = ib[ib.length-1], prevB = ib[ib.length-2];
+    var dBet = Math.round((new Date(lastB.fecha+"T12:00:00")-new Date(prevB.fecha+"T12:00:00"))/(1000*86400));
+    var ritmoRealGraMes = dBet > 0 ? ((lastB.grasa||0)-(prevB.grasa||0)) * (30/dBet) : null;
+
+    if(adh14b >= 75 && ritmoRealGraMes !== null && Math.abs(ritmoRealGraMes) < 0.15 && DB.config.escenario === "deficit"){
+      // Adherencia ≥75% pero el cuerpo no se mueve en déficit
+      alertas.push({nivel:"ambar", titulo:"Adherencia alta pero progreso lento",
+        mensaje:"Tu adherencia ("+adh14b+"%) está bien y estás en déficit, pero la grasa apenas se mueve ("+(ritmoRealGraMes>=0?"+":"")+ritmoRealGraMes.toFixed(2)+"kg/mes). El problema probablemente no es la comida.",
+        accion:"Revisá sueño (objetivo 7h L-V), pasos diarios (>8000 vs tus 6000 actuales), o que la estimación de tu TMB sea correcta. La cuenta calórica está OK."});
+    }
+    if(adh14b < 60 && ritmoRealGraMes !== null && ritmoRealGraMes > -0.2){
+      // Adherencia baja explica el ritmo lento — atacar adherencia antes que el plan
+      alertas.push({nivel:"ambar", titulo:"Tu adherencia explica el ritmo lento",
+        mensaje:"Adherencia "+adh14b+"% últimos 14d y ritmo de grasa "+(ritmoRealGraMes>=0?"+":"")+ritmoRealGraMes.toFixed(2)+"kg/mes. Antes de cambiar el plan, ataquemos la consistencia.",
+        accion:"Identificá los días en que fallás (fines de semana, viajes). Preparación de comidas el dom ayuda."});
+    }
+    if(ritmoAdhB && ritmoAdhB.deficitPromedioDia > 100){
+      // El usuario está consumiendo POR ENCIMA de mantención en últimos 14d
+      alertas.push({nivel:"rojo", titulo:"Estás en superávit, no en déficit",
+        mensaje:"Tus registros últimos "+ritmoAdhB.diasConData+"d promedian "+ritmoAdhB.deficitPromedioDia+" kcal sobre mantención dinámica. No estás en déficit en la práctica.",
+        accion:"Aunque el escenario en config diga 'deficit', el consumo real está arriba. Auditá: ¿hay snacks, alcoholes o porciones no registradas?"});
     }
   }
 
@@ -5313,29 +5444,72 @@ function renderSegProyecciones(ib){
   var factor = 30/daysBetween;
   var dMusMes = ((last.musculo||0)-(prev.musculo||0))*factor;
   var dGraMes = ((last.grasa||0)-(prev.grasa||0))*factor;
-  var scen = DB.config.escenario||"mantencion";
-  var expMusMes = scen==="volumen"?0.5:scen==="deficit"?-0.2:0.1;
-  var expGraMes = scen==="volumen"?0.3:scen==="deficit"?-0.5:0.0;
+
+  // Umbrales esperados según contexto del período activo (rehab vs normal).
+  // Reemplaza los valores hardcoded por escenario simple — ahora considera si
+  // estamos en P4 Rehab (v4) para esperar pérdida más conservadora y permitir
+  // leve pérdida de músculo upper sin alarmar.
+  var um = getUmbralesContexto();
+  var expMusMes = um.expMusMes;
+  var expGraMes = um.expGraMes;
+
+  // Ritmo desde adherencia: calorías reales registradas vs mantención dinámica
+  // del día (TMB × factor + actividad). Promedio de últimos 14 días con data.
+  var ritmoAdh = calcRitmoDesdeAdherencia(14);
+  var rateAdhGra = ritmoAdh ? ritmoAdh.kgMes : null;
 
   function proj(base, rate, months){
     return Math.round((base + rate*months)*10)/10;
   }
+
+  // Línea de contexto si estamos en P4 Rehab
+  var ctxHtml = um.isRehab
+    ? '<div style="font-size:10px;color:var(--amber);background:rgba(245,166,35,0.1);border-left:3px solid var(--amber);padding:6px 8px;margin-bottom:8px;">⚕️ <b>P4 Rehab activo</b> — umbrales conservadores (esperado grasa: '+expGraMes.toFixed(2)+'kg/mes, músculo: '+expMusMes.toFixed(2)+'kg/mes). Una leve pérdida de músculo upper es esperable sin entrenamiento del torso.</div>'
+    : '';
+
   var rows = [
-    {label:"Músculo kg", actual:last.musculo, rate:dMusMes, expected:expMusMes, color:"var(--green)"},
-    {label:"Grasa kg",   actual:last.grasa,   rate:dGraMes, expected:expGraMes, color:"var(--amber)"}
+    {label:"Músculo kg", actual:last.musculo, rate:dMusMes, expected:expMusMes, color:"var(--green)", isGrasa:false},
+    {label:"Grasa kg",   actual:last.grasa,   rate:dGraMes, expected:expGraMes, color:"var(--amber)", isGrasa:true}
   ];
-  body.innerHTML = rows.map(function(r){
+  body.innerHTML = ctxHtml + rows.map(function(r){
     var p1=proj(r.actual,r.rate,1), p2=proj(r.actual,r.rate,2), p3=proj(r.actual,r.rate,3);
-    var rateCol = (r.label==="Músculo kg") ? (r.rate>=0?"var(--green)":"var(--red)") : (r.rate<=0?"var(--green)":"var(--red)");
-    return '<div style="margin-bottom:8px;">'
+    var rateCol = r.isGrasa ? (r.rate<=0?"var(--green)":"var(--red)") : (r.rate>=0?"var(--green)":"var(--red)");
+
+    var html = '<div style="margin-bottom:10px;border-left:2px solid '+r.color+';padding-left:8px;">'
       +'<div style="font-size:10px;font-weight:700;color:'+r.color+';margin-bottom:3px;">'+r.label
-      +' — ritmo actual: <span style="color:'+rateCol+';">'+(r.rate>=0?"+":"")+r.rate.toFixed(2)+'kg/mes</span>'
-      +' (esperado: '+(r.expected>=0?"+":"")+r.expected.toFixed(1)+')</div>'
-      +'<div style="display:flex;gap:8px;font-size:11px;">'
+      +' — <span style="color:var(--text2);">ritmo InBody:</span> <span style="color:'+rateCol+';">'+(r.rate>=0?"+":"")+r.rate.toFixed(2)+'kg/mes</span>'
+      +' <span style="color:var(--text3);">(esperado '+(r.expected>=0?"+":"")+r.expected.toFixed(2)+')</span></div>';
+
+    // Segunda línea: ritmo desde adherencia (sólo grasa — para músculo no aplica
+    // un cálculo directo desde adherencia calórica)
+    if(r.isGrasa && rateAdhGra !== null){
+      var adhCol = rateAdhGra<=0 ? "var(--green)" : "var(--red)";
+      var diverg = Math.abs(rateAdhGra - r.rate);
+      var divergMsg = "";
+      if(diverg > 0.4){
+        // Divergencia significativa entre teoría y realidad
+        if(rateAdhGra < r.rate){
+          divergMsg = ' · <span style="color:var(--amber);">⚠ teoría > realidad: el cuerpo va más LENTO que lo esperado por tu déficit calórico (revisar TMB / actividad real / sueño)</span>';
+        } else {
+          divergMsg = ' · <span style="color:var(--green);">✓ realidad > teoría: el cuerpo va más RÁPIDO que tu déficit medido (NEAT extra o TMB mayor)</span>';
+        }
+      } else {
+        divergMsg = ' · <span style="color:var(--text2);">teoría y realidad coinciden ✓</span>';
+      }
+      html += '<div style="font-size:10px;color:var(--text2);margin-bottom:3px;">'
+        +'<span style="color:var(--text2);">ritmo teórico (desde adherencia '+ritmoAdh.diasConData+'d):</span> <span style="color:'+adhCol+';">'+(rateAdhGra>=0?"+":"")+rateAdhGra.toFixed(2)+'kg/mes</span>'
+        +' <span style="color:var(--text3);">(déficit prom. '+(ritmoAdh.deficitPromedioDia>=0?"+":"")+ritmoAdh.deficitPromedioDia+' kcal/día)</span>'
+        +divergMsg
+        +'</div>';
+    }
+
+    html += '<div style="display:flex;gap:8px;font-size:11px;">'
       +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+1m: <b>'+p1+'</b></span>'
       +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+2m: <b>'+p2+'</b></span>'
       +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+3m: <b>'+p3+'</b></span>'
       +'</div></div>';
+
+    return html;
   }).join("");
 }
 
@@ -5407,6 +5581,104 @@ function renderGymPerfChart(){
     }).join("");
     gymTbl.innerHTML = hdr + rows;
   }
+}
+
+// ─── HELPERS PARA SEGUIMIENTO INTELIGENTE (v28) ───
+// Mantención dinámica del día = TMB × factorBase + kcal_actividad_del_día.
+// Es el TDEE real estimado del día, SIN el ajuste de escenario (déficit/volumen).
+// Se usa como denominador para el "ritmo desde adherencia": comparar consumo real
+// vs esta mantención da el déficit/superávit calórico real día a día.
+function getMantencionDinamica(fecha){
+  var tmb    = getTMBForDate(fecha);
+  var factor = parseFloat(DB.config.factorBase) || 1.2;
+  var actCal = getActCalForDate(fecha);
+  return Math.round(tmb * factor + actCal);
+}
+
+// Calcula el ritmo proyectado de pérdida grasa basado en la diferencia entre
+// consumo real y mantención dinámica del día, promediado en los últimos N días.
+// Termodinámica: 1 kg grasa ≈ 7700 kcal.
+// Retorna {kgMes, deficitPromedioDia, diasConData, advertencia} o null si no hay data.
+function calcRitmoDesdeAdherencia(days){
+  var today = todayStr();
+  var sumDeficit = 0, count = 0;
+  for(var i=0;i<days;i++){
+    var d = new Date(today+"T12:00:00");
+    d.setDate(d.getDate()-i);
+    var fecha = d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+    var regs = DB.registros.filter(function(r){return r.fecha===fecha;});
+    if(!regs.length) continue;
+    var cal = regs.reduce(function(s,r){return s+(r.cal||0);},0);
+    var mant = getMantencionDinamica(fecha);
+    if(!mant || mant < 500) continue; // safety
+    sumDeficit += (cal - mant); // negativo = déficit, positivo = superávit
+    count++;
+  }
+  if(count < 3) return null; // necesita mínimo 3 días con registros para ser confiable
+  var deficitPromedioDia = sumDeficit / count;
+  // (kg grasa/mes) = (déficit_kcal/día × 30 días) / 7700 kcal/kg
+  var kgMes = (deficitPromedioDia * 30) / 7700;
+  return {
+    kgMes: Math.round(kgMes*100)/100,
+    deficitPromedioDia: Math.round(deficitPromedioDia),
+    diasConData: count,
+    advertencia: count < days/2 ? "Sólo "+count+"/"+days+" días con registros — datos limitados" : null
+  };
+}
+
+// Período activo del training según la fecha. Devuelve el período con cicloInicio
+// más reciente que cubre el día (mismo criterio que index.html v27 fix).
+function _getPeriodoActivoTraining(fecha){
+  fecha = fecha || todayStr();
+  if(!TRAINING_PROGRESION || !TRAINING_PROGRESION.periodos) return null;
+  var ps = TRAINING_PROGRESION.periodos.slice().sort(function(a,b){
+    return (b.cicloInicio || "").localeCompare(a.cicloInicio || "");
+  });
+  for(var i=0;i<ps.length;i++){
+    var p = ps[i];
+    if(!p.cicloInicio) continue;
+    var endDate = new Date(p.cicloInicio+"T12:00:00");
+    endDate.setDate(endDate.getDate()+27);
+    var endStr = endDate.getFullYear()+"-"+pad2(endDate.getMonth()+1)+"-"+pad2(endDate.getDate());
+    if(fecha >= p.cicloInicio && fecha <= endStr) return p;
+  }
+  return ps[0] || null;
+}
+
+// Meta del período activo. Retorna {peso, pctGrasa, musculo, visceral, cinturaCadera, fechaMeta}
+// o null si no hay período o no tiene metas configuradas.
+function getMetaPeriodoActivo(){
+  var p = _getPeriodoActivoTraining(todayStr());
+  if(!p || !p.metas) return null;
+  // Fecha meta = cicloInicio + 27 días (fin del ciclo de 4 semanas).
+  var fechaMeta = null;
+  if(p.cicloInicio){
+    var d = new Date(p.cicloInicio+"T12:00:00");
+    d.setDate(d.getDate()+27);
+    fechaMeta = d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+  }
+  return Object.assign({}, p.metas, {
+    fechaMeta: fechaMeta,
+    cicloInicio: p.cicloInicio,
+    nombrePeriodo: p.nombre || "Período",
+    version: p.version || ""
+  });
+}
+
+// Umbrales contextuales por versión del plan activo. Durante rehab (v4), se ablandan
+// los umbrales de pérdida muscular (porque no se entrena upper) y se ajusta el
+// ritmo esperado de grasa (más conservador, alineado con el plan v8).
+function getUmbralesContexto(){
+  var p = _getPeriodoActivoTraining(todayStr());
+  var v = (p && p.version) || "";
+  var isRehab = (v === "v4");
+  return {
+    isRehab: isRehab,
+    versionActiva: v,
+    expGraMes: isRehab ? -0.25 : -0.50, // P4 espera -0.25 kg/mes (1 kg en 4 sem), no -0.5
+    expMusMes: isRehab ? -0.10 : -0.20, // P4 permite leve pérdida upper (no se entrena)
+    alertaPerdidaMuscularUmbral: isRehab ? -0.50 : -0.30 // mucho más laxo en rehab
+  };
 }
 
 // ─── NUTRITION ADHERENCE ───

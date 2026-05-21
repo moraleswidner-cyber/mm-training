@@ -1,10 +1,47 @@
 <!DOCTYPE html>
+<!-- build:2026-05-25-v28 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
+<script>
+// ── VERSION GUARD (estructural desde v28) — independiente del Service Worker.
+// Si el número de build almacenado no coincide con el actual, limpia todos los
+// cachés del SW y recarga forzado. Resuelve updates pegados en Safari iOS y
+// Chrome mobile cuando el SW viejo sirve HTML cacheado.
+// Bail-out tras 3 intentos para evitar loops infinitos si HTML y SW están
+// desincronizados en el servidor.
+(function(){
+  var BUILD = '2026-05-25-v28';
+  var stored = localStorage.getItem('nm-train-build');
+  if(stored === BUILD){
+    localStorage.removeItem('nm-train-build-attempts');
+    return;
+  }
+  var attempts = parseInt(localStorage.getItem('nm-train-build-attempts')||"0",10);
+  if(attempts >= 3){
+    console.warn('Version guard bail-out tras 3 intentos. BUILD='+BUILD+' stored='+stored);
+    localStorage.setItem('nm-train-build', BUILD);
+    localStorage.removeItem('nm-train-build-attempts');
+    return;
+  }
+  localStorage.setItem('nm-train-build', BUILD);
+  localStorage.setItem('nm-train-build-attempts', String(attempts + 1));
+  if('caches' in window){
+    caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+    }).then(function(){
+      if(navigator.serviceWorker){
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          return Promise.all(regs.map(function(r){ return r.unregister(); }));
+        }).then(function(){ window.location.reload(true); });
+      } else { window.location.reload(true); }
+    });
+  } else { window.location.reload(true); }
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -938,32 +975,320 @@ var PLAN_V3 = {
 // Fusionar PLAN_V3 en PLAN para acceso unificado
 Object.keys(PLAN_V3).forEach(function(k){ PLAN[k] = PLAN_V3[k]; });
 
+// ── PLAN v4 — P4 Rehab (desde 25/05/2026) — solo tren inferior + cardio LISS + core ──
+// Restricciones del kine: sin upper body, sin pliometría, sin sprints, sin fútbol.
+// 5 días/semana: Lun/Mié/Vie fuerza tren inferior (d1d/d3d/d4d), Mar/Sáb cardio (d2d/d5d).
+// Los valores S1-S4 son iniciales — el usuario ajustará cada semana al "Restaurar base"
+// si la progresión lo amerita. Por ser fase de rehab, las cargas son conservadoras.
+var PLAN_V4 = {
+  d1d:{
+    nombre:"Día 1 — TI A", subtitulo:"Cuádriceps + Glúteo + Core",
+    color:"blue", version:"v4", duracion:70,
+    exs:[
+      {n:"Calentamiento bici",      tipo:"cardio",    descanso:"—",
+       s1:{ser:"5-8 min",p:"manos apoyadas",nota:"Suave, elevar temperatura"},
+       s2:{ser:"5-8 min",p:"manos apoyadas"},
+       s3:{ser:"5-8 min",p:"manos apoyadas"},
+       s4:{ser:"5-8 min",p:"manos apoyadas"}},
+      {n:"Prensa 45°",              tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"5x10",p:"100 kg",nota:"Principal. Serie 1 al 60% (aprox). Subir a 70-80% en series 2-5. Excéntrico controlado."},
+       s2:{ser:"5x10",p:"105 kg"},
+       s3:{ser:"5x10",p:"110 kg"},
+       s4:{ser:"5x10",p:"95 kg",adj:"descarga"}},
+      {n:"Hip Thrust máquina",      tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"4x12",p:"75 kg",nota:"Apretar glúteo arriba 1 seg. Al 75%."},
+       s2:{ser:"4x12",p:"80 kg"},
+       s3:{ser:"4x12",p:"85 kg"},
+       s4:{ser:"4x12",p:"70 kg",adj:"descarga"}},
+      {n:"Extensión cuádriceps",    tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"4x12",p:"60 kg",nota:"Cuádriceps aislado. Pausa arriba 1 seg, excéntrico 2 seg."},
+       s2:{ser:"4x12",p:"65 kg"},
+       s3:{ser:"4x12",p:"70 kg"},
+       s4:{ser:"4x12",p:"55 kg",adj:"descarga"}},
+      {n:"Glute Kickback",          tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x12",p:"25 kg c/pierna",nota:"Patada de glúteo · antebrazos firmes apoyados, SIN braceo · cada pierna por separado"},
+       s2:{ser:"3x12",p:"27.5 kg c/pierna"},
+       s3:{ser:"3x12",p:"30 kg c/pierna"},
+       s4:{ser:"3x12",p:"22.5 kg c/pierna",adj:"descarga"}},
+      {n:"Aductores",               tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x15",p:"115 kg",nota:"Misma máquina del P3 · 3 series"},
+       s2:{ser:"3x15",p:"117.5 kg"},
+       s3:{ser:"3x15",p:"120 kg"},
+       s4:{ser:"3x15",p:"110 kg",adj:"descarga"}},
+      {n:"Gemelo máquina",          tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"4x15",p:"85 kg",nota:"Punto de quiebre al final · completo ROM"},
+       s2:{ser:"4x15",p:"87.5 kg"},
+       s3:{ser:"4x15",p:"90 kg"},
+       s4:{ser:"4x15",p:"82.5 kg",adj:"descarga"}},
+      {n:"CORE: Crunch máquina",    tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x15",p:"40 kg",nota:"Bloque core 10 min final"},
+       s2:{ser:"3x15",p:"42.5 kg"},
+       s3:{ser:"3x15",p:"45 kg"},
+       s4:{ser:"3x15",p:"35 kg",adj:"descarga"}},
+      {n:"CORE: Plancha codos",     tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x30s",p:"BW",nota:"Antebrazos quietos · ⚠️ CONFIRMAR con kine"},
+       s2:{ser:"3x35s",p:"BW"},
+       s3:{ser:"3x40s",p:"BW"},
+       s4:{ser:"3x30s",p:"BW",adj:"descarga"}},
+      {n:"CORE: Dead Bug solo piernas",tipo:"core",   descanso:"45 seg",
+       s1:{ser:"3x10",p:"BW",nota:"BRAZOS QUIETOS al lado · solo extensión de piernas alternadas"},
+       s2:{ser:"3x12",p:"BW"},
+       s3:{ser:"3x12",p:"BW"},
+       s4:{ser:"3x10",p:"BW",adj:"descarga"}},
+      {n:"CORE: Crunch suelo",      tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x15",p:"BW",nota:"Manos al pecho · BW · respiración exhalar arriba"},
+       s2:{ser:"3x15",p:"BW"},
+       s3:{ser:"3x18",p:"BW"},
+       s4:{ser:"3x15",p:"BW",adj:"descarga"}}
+    ]
+  },
+  d2d:{
+    nombre:"Día 2 — Cardio LISS", subtitulo:"Bici/elíptica controlado · manos apoyadas",
+    color:"green", version:"v4", duracion:35, tipo:"cardio",
+    exs:[
+      {n:"Calentamiento bici",      tipo:"cardio",    descanso:"—",
+       s1:{ser:"5 min",p:"bici suave",nota:"Muy suave, elevar pulso progresivo"},
+       s2:{ser:"5 min",p:"bici suave"},
+       s3:{ser:"5 min",p:"bici suave"},
+       s4:{ser:"5 min",p:"bici suave"}},
+      {n:"Cardio LISS",             tipo:"cardio",    descanso:"—",
+       s1:{ser:"25 min",p:"65-75% FC max",nota:"Bici (preferido) o elíptica con MANOS APOYADAS todo el tiempo · ~120-140 bpm"},
+       s2:{ser:"28 min",p:"65-75% FC max"},
+       s3:{ser:"30 min",p:"65-75% FC max"},
+       s4:{ser:"25 min",p:"65-70% FC max",adj:"descarga"}},
+      {n:"Enfriamiento",            tipo:"cardio",    descanso:"—",
+       s1:{ser:"5 min",p:"bajar progresivo",nota:"Bajar intensidad gradualmente"},
+       s2:{ser:"5 min",p:"bajar progresivo"},
+       s3:{ser:"5 min",p:"bajar progresivo"},
+       s4:{ser:"5 min",p:"bajar progresivo"}}
+    ]
+  },
+  d3d:{
+    nombre:"Día 3 — TI B", subtitulo:"Cadena Posterior (Glúteo + Isquios) + Core",
+    color:"blue", version:"v4", duracion:70,
+    exs:[
+      {n:"Calentamiento bici",      tipo:"cardio",    descanso:"—",
+       s1:{ser:"5-8 min",p:"manos apoyadas",nota:"Suave"},
+       s2:{ser:"5-8 min",p:"manos apoyadas"},
+       s3:{ser:"5-8 min",p:"manos apoyadas"},
+       s4:{ser:"5-8 min",p:"manos apoyadas"}},
+      {n:"Hip Thrust máquina",      tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"4x12",p:"80 kg",nota:"PRINCIPAL hoy · 75-80% · apretar glúteo 1 seg arriba"},
+       s2:{ser:"4x12",p:"85 kg"},
+       s3:{ser:"4x12",p:"90 kg"},
+       s4:{ser:"4x12",p:"75 kg",adj:"descarga"}},
+      {n:"Curl Isquios",            tipo:"aislado",   descanso:"90 seg",
+       s1:{ser:"5x10",p:"50 kg",nota:"Al 75% · 5 series altas (más volumen) · excéntrico 2 seg"},
+       s2:{ser:"5x10",p:"52.5 kg"},
+       s3:{ser:"5x10",p:"55 kg"},
+       s4:{ser:"5x10",p:"45 kg",adj:"descarga"}},
+      {n:"Extensión lumbar",        tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"3x12",p:"BW",nota:"O Glute Bridge · espalda neutra, contracción glúteo arriba"},
+       s2:{ser:"3x12",p:"BW + 5 kg"},
+       s3:{ser:"3x12",p:"BW + 10 kg"},
+       s4:{ser:"3x12",p:"BW",adj:"descarga"}},
+      {n:"Glute Kickback",          tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"4x10",p:"27.5 kg c/pierna",nota:"MÁS volumen hoy (4 series) · antebrazos firmes, sin braceo"},
+       s2:{ser:"4x10",p:"30 kg c/pierna"},
+       s3:{ser:"4x10",p:"32.5 kg c/pierna"},
+       s4:{ser:"4x10",p:"25 kg c/pierna",adj:"descarga"}},
+      {n:"Abductores",              tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x15",p:"115 kg",nota:"POR SEPARADO — no biserie con aductores"},
+       s2:{ser:"3x15",p:"117.5 kg"},
+       s3:{ser:"3x15",p:"120 kg"},
+       s4:{ser:"3x15",p:"110 kg",adj:"descarga"}},
+      {n:"Aductores",               tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x15",p:"115 kg"},
+       s2:{ser:"3x15",p:"117.5 kg"},
+       s3:{ser:"3x15",p:"120 kg"},
+       s4:{ser:"3x15",p:"110 kg",adj:"descarga"}},
+      {n:"Gemelo máquina",          tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"4x15",p:"87.5 kg"},
+       s2:{ser:"4x15",p:"90 kg"},
+       s3:{ser:"4x15",p:"92.5 kg"},
+       s4:{ser:"4x15",p:"82.5 kg",adj:"descarga"}},
+      {n:"CORE: Crunch máquina",    tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x15",p:"40 kg",nota:"Bloque core 10 min final"},
+       s2:{ser:"3x15",p:"42.5 kg"},
+       s3:{ser:"3x15",p:"45 kg"},
+       s4:{ser:"3x15",p:"35 kg",adj:"descarga"}},
+      {n:"CORE: Plancha codos",     tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x30s",p:"BW"},
+       s2:{ser:"3x35s",p:"BW"},
+       s3:{ser:"3x40s",p:"BW"},
+       s4:{ser:"3x30s",p:"BW",adj:"descarga"}},
+      {n:"CORE: Dead Bug solo piernas",tipo:"core",   descanso:"45 seg",
+       s1:{ser:"3x10",p:"BW"},
+       s2:{ser:"3x12",p:"BW"},
+       s3:{ser:"3x12",p:"BW"},
+       s4:{ser:"3x10",p:"BW",adj:"descarga"}},
+      {n:"CORE: Crunch suelo",      tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x15",p:"BW"},
+       s2:{ser:"3x15",p:"BW"},
+       s3:{ser:"3x18",p:"BW"},
+       s4:{ser:"3x15",p:"BW",adj:"descarga"}}
+    ]
+  },
+  d4d:{
+    nombre:"Día 4 — TI C", subtitulo:"Mixto (unilateral + bilateral) + Core",
+    color:"blue", version:"v4", duracion:65,
+    exs:[
+      {n:"Calentamiento bici",      tipo:"cardio",    descanso:"—",
+       s1:{ser:"5-8 min",p:"manos apoyadas"},
+       s2:{ser:"5-8 min",p:"manos apoyadas"},
+       s3:{ser:"5-8 min",p:"manos apoyadas"},
+       s4:{ser:"5-8 min",p:"manos apoyadas"}},
+      {n:"Prensa 45° unilateral",   tipo:"compuesto", descanso:"2 min",
+       s1:{ser:"3x10",p:"50 kg c/pierna",nota:"Al 60-65% · cada pierna por separado · excéntrico 2 seg"},
+       s2:{ser:"3x10",p:"55 kg c/pierna"},
+       s3:{ser:"3x10",p:"60 kg c/pierna"},
+       s4:{ser:"3x10",p:"45 kg c/pierna",adj:"descarga"}},
+      {n:"Extensión cuádriceps",    tipo:"aislado",   descanso:"75 seg",
+       s1:{ser:"4x10",p:"60 kg",nota:"Pausa arriba 1 seg"},
+       s2:{ser:"4x10",p:"65 kg"},
+       s3:{ser:"4x10",p:"70 kg"},
+       s4:{ser:"4x10",p:"55 kg",adj:"descarga"}},
+      {n:"Curl Isquios",            tipo:"aislado",   descanso:"90 seg",
+       s1:{ser:"4x10",p:"50 kg",nota:"Control excéntrico 2 seg"},
+       s2:{ser:"4x10",p:"52.5 kg"},
+       s3:{ser:"4x10",p:"55 kg"},
+       s4:{ser:"4x10",p:"45 kg",adj:"descarga"}},
+      {n:"Hip Thrust máquina",      tipo:"compuesto", descanso:"90 seg",
+       s1:{ser:"3x12",p:"75 kg",nota:"Sesión más corta · 3 series"},
+       s2:{ser:"3x12",p:"80 kg"},
+       s3:{ser:"3x12",p:"85 kg"},
+       s4:{ser:"3x12",p:"70 kg",adj:"descarga"}},
+      {n:"Glute Kickback",          tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x12",p:"27.5 kg c/pierna",nota:"Antebrazos firmes, sin braceo"},
+       s2:{ser:"3x12",p:"30 kg c/pierna"},
+       s3:{ser:"3x12",p:"32.5 kg c/pierna"},
+       s4:{ser:"3x12",p:"25 kg c/pierna",adj:"descarga"}},
+      {n:"Aductores",               tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x15",p:"115 kg"},
+       s2:{ser:"3x15",p:"117.5 kg"},
+       s3:{ser:"3x15",p:"120 kg"},
+       s4:{ser:"3x15",p:"110 kg",adj:"descarga"}},
+      {n:"Abductores",              tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"3x15",p:"115 kg"},
+       s2:{ser:"3x15",p:"117.5 kg"},
+       s3:{ser:"3x15",p:"120 kg"},
+       s4:{ser:"3x15",p:"110 kg",adj:"descarga"}},
+      {n:"Gemelo máquina",          tipo:"aislado",   descanso:"60 seg",
+       s1:{ser:"4x15",p:"85 kg"},
+       s2:{ser:"4x15",p:"87.5 kg"},
+       s3:{ser:"4x15",p:"90 kg"},
+       s4:{ser:"4x15",p:"82.5 kg",adj:"descarga"}},
+      {n:"CORE: Crunch máquina",    tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x15",p:"40 kg"},
+       s2:{ser:"3x15",p:"42.5 kg"},
+       s3:{ser:"3x15",p:"45 kg"},
+       s4:{ser:"3x15",p:"35 kg",adj:"descarga"}},
+      {n:"CORE: Plancha codos",     tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x40s",p:"BW",nota:"Vie viene con +10s vs L/Mié"},
+       s2:{ser:"3x45s",p:"BW"},
+       s3:{ser:"3x50s",p:"BW"},
+       s4:{ser:"3x40s",p:"BW",adj:"descarga"}},
+      {n:"CORE: Dead Bug solo piernas",tipo:"core",   descanso:"45 seg",
+       s1:{ser:"3x10",p:"BW"},
+       s2:{ser:"3x12",p:"BW"},
+       s3:{ser:"3x12",p:"BW"},
+       s4:{ser:"3x10",p:"BW",adj:"descarga"}},
+      {n:"CORE: Crunch suelo",      tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x15",p:"BW"},
+       s2:{ser:"3x15",p:"BW"},
+       s3:{ser:"3x18",p:"BW"},
+       s4:{ser:"3x15",p:"BW",adj:"descarga"}}
+    ]
+  },
+  d5d:{
+    nombre:"Día 5 — Cardio Largo", subtitulo:"Bici + elíptica + cinta opcional + Core",
+    color:"green", version:"v4", duracion:70, tipo:"cardio",
+    exs:[
+      {n:"Calentamiento",           tipo:"cardio",    descanso:"—",
+       s1:{ser:"5 min",p:"bici suave"},
+       s2:{ser:"5 min",p:"bici suave"},
+       s3:{ser:"5 min",p:"bici suave"},
+       s4:{ser:"5 min",p:"bici suave"}},
+      {n:"Bici",                    tipo:"cardio",    descanso:"—",
+       s1:{ser:"20 min",p:"65-75% FC max",nota:"~120-140 bpm"},
+       s2:{ser:"22 min",p:"65-75% FC max"},
+       s3:{ser:"25 min",p:"65-75% FC max"},
+       s4:{ser:"20 min",p:"65-70% FC max",adj:"descarga"}},
+      {n:"Elíptica",                tipo:"cardio",    descanso:"—",
+       s1:{ser:"20 min",p:"brazos apoyados",nota:"BRAZOS APOYADOS, no traccionar · 65-75% FC max"},
+       s2:{ser:"22 min",p:"brazos apoyados"},
+       s3:{ser:"25 min",p:"brazos apoyados"},
+       s4:{ser:"20 min",p:"brazos apoyados",adj:"descarga"}},
+      {n:"Cinta inclinada (opcional)",tipo:"cardio",  descanso:"—",
+       s1:{ser:"10 min",p:"15% incl · 5 km/h",nota:"OPCIONAL si quedan fuerzas"},
+       s2:{ser:"10 min",p:"15% incl · 5 km/h"},
+       s3:{ser:"10 min",p:"15% incl · 5 km/h"},
+       s4:{ser:"—",     p:"—",adj:"omitir",nota:"Omitir en S4 (descarga)"}},
+      {n:"CORE: Crunch máquina",    tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x15",p:"40 kg",nota:"Bloque core final 10-12 min"},
+       s2:{ser:"3x15",p:"42.5 kg"},
+       s3:{ser:"3x15",p:"45 kg"},
+       s4:{ser:"3x15",p:"35 kg",adj:"descarga"}},
+      {n:"CORE: Plancha codos",     tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x45s",p:"BW"},
+       s2:{ser:"3x45s",p:"BW"},
+       s3:{ser:"3x50s",p:"BW"},
+       s4:{ser:"3x40s",p:"BW",adj:"descarga"}},
+      {n:"CORE: Dead Bug solo piernas",tipo:"core",   descanso:"45 seg",
+       s1:{ser:"3x12",p:"BW"},
+       s2:{ser:"3x12",p:"BW"},
+       s3:{ser:"3x14",p:"BW"},
+       s4:{ser:"3x12",p:"BW",adj:"descarga"}},
+      {n:"CORE: Crunch suelo",      tipo:"core",      descanso:"45 seg",
+       s1:{ser:"3x15",p:"BW"},
+       s2:{ser:"3x15",p:"BW"},
+       s3:{ser:"3x18",p:"BW"},
+       s4:{ser:"3x15",p:"BW",adj:"descarga"}},
+      {n:"Enfriamiento",            tipo:"cardio",    descanso:"—",
+       s1:{ser:"5 min",p:"bici suave"},
+       s2:{ser:"5 min",p:"bici suave"},
+       s3:{ser:"5 min",p:"bici suave"},
+       s4:{ser:"5 min",p:"bici suave"}}
+    ]
+  }
+};
+// Fusionar PLAN_V4 en PLAN para acceso unificado
+Object.keys(PLAN_V4).forEach(function(k){ PLAN[k] = PLAN_V4[k]; });
+
 // ═══════════════════ VERSIONES DE PLAN ═══════════════════
 // Cada período de entrenamiento está asociado a UNA versión del plan.
 // Esto evita que la pestaña Progresión muestre días de todas las versiones
 // mezclados en cada período.
-var V1_KEYS = ["d1","d2","d4","d5"];     // P1 — Torso/Pierna
-var V2_KEYS = ["d1b","d2b","d4b","d5b"]; // P2 — Full Body
-var V3_KEYS = ["d1c","d2c","d4c","d5c"]; // P3 — Upper/Lower Potencia
-var ALL_VERSION_KEYS = V1_KEYS.concat(V2_KEYS, V3_KEYS);
+var V1_KEYS = ["d1","d2","d4","d5"];      // P1 — Torso/Pierna
+var V2_KEYS = ["d1b","d2b","d4b","d5b"];  // P2 — Full Body
+var V3_KEYS = ["d1c","d2c","d4c","d5c"];  // P3 — Upper/Lower Potencia
+var V4_KEYS = ["d1d","d2d","d3d","d4d","d5d"]; // P4 — Rehab (5 días: 3 lower + 2 cardio)
+var ALL_VERSION_KEYS = V1_KEYS.concat(V2_KEYS, V3_KEYS, V4_KEYS);
+
+// Días de cardio del P4 — no son gym de pesas, no aplican calcGymCalFromSession.
+var CARDIO_DAY_KEYS = ["d2d","d5d"];
+function _isCardioDia(diaKey){ return CARDIO_DAY_KEYS.indexOf(diaKey) !== -1; }
 
 function _versionKeys(v){
+  if(v === "v4") return V4_KEYS;
   if(v === "v3") return V3_KEYS;
   if(v === "v2") return V2_KEYS;
   return V1_KEYS;
 }
 function _versionLabel(v){
+  if(v === "v4") return "v4 — Rehab tren inferior + cardio LISS";
   if(v === "v3") return "v3 — Upper/Lower Potencia";
   if(v === "v2") return "v2 — Full Body";
   return "v1 — Torso/Pierna";
 }
 // Detecta versión a partir del id del período como heurística estable
-// (P1=v1, P2=v2, P3+=v3). Solo se usa en migración inicial — luego
+// (P1=v1, P2=v2, P3=v3, P4+=v4). Solo se usa en migración inicial — luego
 // queda guardado p.version y prevalece eso.
 function _defaultVersionForId(id){
   if(id === 1) return "v1";
   if(id === 2) return "v2";
-  return "v3";
+  if(id === 3) return "v3";
+  return "v4";
 }
 
 // ═══════════════════ MUSCLE GROUPS ═══════════════════
@@ -1030,9 +1355,12 @@ var MUSC_ORDER=["pecho","espalda","hombro","cuadriceps","isquios","gluteo","bice
 var MUSC_COLORS={"pecho":"#4f8ef7","espalda":"#3ecf8e","hombro":"#a78bfa","cuadriceps":"#f5a623","isquios":"#f76f6f","gluteo":"#f0b429","biceps":"#3ecf8e","triceps":"#4f8ef7","gemelo":"#9090a8","core":"#a78bfa","aductores":"#f5a623"};
 
 // ═══════════════════ RUTINA SEMANAL ═══════════════════
+// Hasta v27 había 4 slots (A-D) hardcoded. Desde v28 son 5 slots (A-E) para
+// soportar el P4 Rehab que tiene 5 sesiones por semana (Lun fuerza, Mar cardio,
+// Mié fuerza, Vie fuerza, Sáb cardio).
 var RUTINA_DEFAULT = {
-  nombre: "Plan v3 — Upper/Lower Potencia",
-  slots: ["d1c","d2c","d4c","d5c"]
+  nombre: "Plan v4 — Rehab tren inferior + cardio LISS",
+  slots: ["d1d","d2d","d3d","d4d","d5d"]
 };
 
 function getRutina(){
@@ -1359,13 +1687,17 @@ function showTab(t,btn){
   if(t==="exportar") updateStorageInfo();
 }
 
+// Configurable: el modal genera N slots dinámicamente. Por defecto 5 (Lun-Vie+Sáb del P4).
+// Si en un futuro un plan tiene más sesiones por semana, sólo cambiar este número.
+var RUTINA_SLOTS_COUNT = 5;
+var RUTINA_SLOT_LABELS = ["Slot A","Slot B","Slot C","Slot D","Slot E","Slot F","Slot G"];
+
 function openRutinaConfig(){
   var r = getRutina();
   document.getElementById("rut-nombre").value = r.nombre||"";
   var allKeys = getAllPlanKeys();
   var slotsHtml = "";
-  var labels = ["Slot A","Slot B","Slot C","Slot D"];
-  for(var i=0;i<4;i++){
+  for(var i=0;i<RUTINA_SLOTS_COUNT;i++){
     var sel = "<select id='rut-slot-"+i+"' style='font-size:12px;padding:7px 10px;'>";
     sel += "<option value=''>(ninguno)</option>";
     allKeys.forEach(function(k){
@@ -1373,7 +1705,7 @@ function openRutinaConfig(){
       sel += "<option value='"+k+"' "+selected+">"+getPlanLabel(k)+"</option>";
     });
     sel += "</select>";
-    slotsHtml += "<div style='margin-bottom:6px;'><span class='label'>"+labels[i]+"</span>"+sel+"</div>";
+    slotsHtml += "<div style='margin-bottom:6px;'><span class='label'>"+RUTINA_SLOT_LABELS[i]+"</span>"+sel+"</div>";
   }
   document.getElementById("rut-slots").innerHTML = slotsHtml;
   document.getElementById("modal-rutina").style.display = "block";
@@ -1385,7 +1717,7 @@ function closeRutinaConfig(){
 
 function saveRutinaConfig(){
   var slots = [];
-  for(var i=0;i<4;i++){
+  for(var i=0;i<RUTINA_SLOTS_COUNT;i++){
     var v = (document.getElementById("rut-slot-"+i)||{value:""}).value;
     if(v) slots.push(v);
   }
@@ -2385,25 +2717,33 @@ function progNuevoPeriodo() {
   var newId = ps.length ? (Math.max.apply(null, ps.map(function(p){return p.id||0;})) + 1) : 1;
 
   // Preguntar versión del plan para este período. Default a la última versión
-  // disponible (v3) — el usuario puede cambiar a v1/v2 si está creando uno
-  // retrospectivo. Aceptamos sólo "v1"/"v2"/"v3".
+  // disponible (v4) — el usuario puede cambiar a v1/v2/v3 si está creando uno
+  // retrospectivo. Aceptamos sólo "v1"/"v2"/"v3"/"v4".
   var defaultVer = _defaultVersionForId(newId);
   var verInput = prompt(
     "¿Qué versión del plan tendrá este período?\n\n" +
-    "  v1 — Torso/Pierna\n" +
-    "  v2 — Full Body\n" +
-    "  v3 — Upper/Lower Potencia (P3)\n\n" +
-    "Escribí: v1, v2 o v3",
+    "  v1 — Torso/Pierna (P1)\n" +
+    "  v2 — Full Body (P2)\n" +
+    "  v3 — Upper/Lower Potencia (P3)\n" +
+    "  v4 — Rehab tren inferior + cardio LISS (P4)\n\n" +
+    "Escribí: v1, v2, v3 o v4",
     defaultVer
   );
   if (verInput === null) return; // canceló
   verInput = (verInput || "").trim().toLowerCase();
-  if (["v1","v2","v3"].indexOf(verInput) === -1) {
+  if (["v1","v2","v3","v4"].indexOf(verInput) === -1) {
     alert("Versión inválida. Cancelado.");
     return;
   }
 
   var newP = {id: newId, nombre: "Período " + newId, cicloInicio: "", plan: {}, version: verInput};
+
+  // Metas por defecto según versión — el usuario las puede editar luego.
+  // Estas son las que la app usa en Seguimiento → "Progreso vs Meta del Período".
+  if (verInput === "v4") {
+    // Metas del P4 Rehab v8 al fin del período (4 semanas):
+    newP.metas = {peso: 87.5, pctGrasa: 18.8, musculo: 40.8, visceral: 6, cinturaCadera: 0.89};
+  }
 
   if (ps.length > 0) {
     var last = ps[ps.length - 1];

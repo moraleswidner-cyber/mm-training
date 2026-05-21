@@ -39,3 +39,7 @@ alimentos_verificacion.csv
 alimentos_verificacion.xlsx
 menus_macros.xlsx
 calendario_nutricional.pdf
+
+# === Backups locales de Firestore (datos personales — nunca subir) ===
+backup_*.json
+*.backup.json
