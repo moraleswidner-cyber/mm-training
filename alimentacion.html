@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build:2026-05-25-v29 -->
+<!-- build:2026-05-25-v30 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -11,7 +11,7 @@
 // Si el número de build almacenado no coincide con el actual, limpia todos
 // los cachés del SW y recarga forzado. Resuelve updates pegados en Safari iOS.
 (function(){
-  var BUILD = '2026-05-25-v29';
+  var BUILD = '2026-05-25-v30';
   var stored = localStorage.getItem('nm-alim-build');
   if(stored !== BUILD){
     localStorage.setItem('nm-alim-build', BUILD);
@@ -5516,23 +5516,42 @@ function renderSegProyecciones(ib){
       +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+3m: <b>'+p3+'</b></span>'
       +'</div></div>';
 
-    // PROYECCIÓN B — ritmo adherencia (sólo grasa, si hay datos)
-    // Asume que se mantiene el déficit calórico promedio de los últimos N días.
+    // PROYECCIÓN B — ritmo adherencia OPTIMISTA (sólo grasa, si hay datos)
+    // Asume que se mantiene el déficit calórico promedio de los últimos N días
+    // SIN considerar adaptación metabólica ni reducción de gasto por pérdida.
     if(hasAdh){
       var p1a = proj(r.actual, rateAdhGra, 1);
       var p2a = proj(r.actual, rateAdhGra, 2);
       var p3a = proj(r.actual, rateAdhGra, 3);
-      // Diferencia entre ambas proyecciones a 3m (info de "cuánto mejorás si mantenés adherencia")
+      // Diferencia entre proyección optimista y la InBody a 3m
       var deltaAdh = Math.round((p3a - p3)*10)/10;
       var ganciaTxt = deltaAdh < 0
         ? ' · <span style="color:var(--green);">'+Math.abs(deltaAdh).toFixed(1)+'kg menos de grasa a 3m que si seguís ritmo actual</span>'
         : '';
       html += '<div style="margin-top:6px;">'
-        +'<div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">🎯 si mantenés adherencia actual ('+ritmoAdh.diasConData+'d)' + ganciaTxt + '</div>'
+        +'<div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">🎯 si mantenés adherencia (optimista — sin adaptación)' + ganciaTxt + '</div>'
         +'<div style="display:flex;gap:8px;font-size:11px;">'
         +'<span style="background:rgba(62,207,142,0.12);border:1px solid rgba(62,207,142,0.35);border-radius:var(--rxs);padding:4px 8px;">+1m: <b>'+p1a+'</b></span>'
         +'<span style="background:rgba(62,207,142,0.12);border:1px solid rgba(62,207,142,0.35);border-radius:var(--rxs);padding:4px 8px;">+2m: <b>'+p2a+'</b></span>'
         +'<span style="background:rgba(62,207,142,0.12);border:1px solid rgba(62,207,142,0.35);border-radius:var(--rxs);padding:4px 8px;">+3m: <b>'+p3a+'</b></span>'
+        +'</div></div>';
+
+      // PROYECCIÓN C — ritmo adherencia REALISTA (factor 0.75)
+      // Ajusta por: adaptación metabólica (-5%), reducción gasto por pérdida
+      // de peso, caída de NEAT, eficiencia termodinámica imperfecta, eventos
+      // sociales/viajes. Empíricamente 0.75 es el factor de "honestidad" para
+      // proyecciones largas (90 días) en déficit moderado.
+      var realFactor = 0.75;
+      var rateAdhReal = rateAdhGra * realFactor;
+      var p1real = proj(r.actual, rateAdhReal, 1);
+      var p2real = proj(r.actual, rateAdhReal, 2);
+      var p3real = proj(r.actual, rateAdhReal, 3);
+      html += '<div style="margin-top:6px;">'
+        +'<div style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">📐 realista (×0.75: adaptación metabólica + NEAT + variabilidad)</div>'
+        +'<div style="display:flex;gap:8px;font-size:11px;">'
+        +'<span style="background:rgba(79,142,247,0.12);border:1px solid rgba(79,142,247,0.35);border-radius:var(--rxs);padding:4px 8px;">+1m: <b>'+p1real+'</b></span>'
+        +'<span style="background:rgba(79,142,247,0.12);border:1px solid rgba(79,142,247,0.35);border-radius:var(--rxs);padding:4px 8px;">+2m: <b>'+p2real+'</b></span>'
+        +'<span style="background:rgba(79,142,247,0.12);border:1px solid rgba(79,142,247,0.35);border-radius:var(--rxs);padding:4px 8px;">+3m: <b>'+p3real+'</b></span>'
         +'</div></div>';
     }
 
