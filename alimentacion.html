@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build:2026-05-25-v28 -->
+<!-- build:2026-05-25-v29 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -11,7 +11,7 @@
 // Si el número de build almacenado no coincide con el actual, limpia todos
 // los cachés del SW y recarga forzado. Resuelve updates pegados en Safari iOS.
 (function(){
-  var BUILD = '2026-05-25-v28';
+  var BUILD = '2026-05-25-v29';
   var stored = localStorage.getItem('nm-alim-build');
   if(stored !== BUILD){
     localStorage.setItem('nm-alim-build', BUILD);
@@ -5472,43 +5472,71 @@ function renderSegProyecciones(ib){
     {label:"Grasa kg",   actual:last.grasa,   rate:dGraMes, expected:expGraMes, color:"var(--amber)", isGrasa:true}
   ];
   body.innerHTML = ctxHtml + rows.map(function(r){
+    // Proyección 1 — basada en ritmo InBody (entre los 2 últimos InBodys)
     var p1=proj(r.actual,r.rate,1), p2=proj(r.actual,r.rate,2), p3=proj(r.actual,r.rate,3);
     var rateCol = r.isGrasa ? (r.rate<=0?"var(--green)":"var(--red)") : (r.rate>=0?"var(--green)":"var(--red)");
 
-    var html = '<div style="margin-bottom:10px;border-left:2px solid '+r.color+';padding-left:8px;">'
+    var html = '<div style="margin-bottom:14px;border-left:2px solid '+r.color+';padding-left:8px;">'
       +'<div style="font-size:10px;font-weight:700;color:'+r.color+';margin-bottom:3px;">'+r.label
       +' — <span style="color:var(--text2);">ritmo InBody:</span> <span style="color:'+rateCol+';">'+(r.rate>=0?"+":"")+r.rate.toFixed(2)+'kg/mes</span>'
       +' <span style="color:var(--text3);">(esperado '+(r.expected>=0?"+":"")+r.expected.toFixed(2)+')</span></div>';
 
-    // Segunda línea: ritmo desde adherencia (sólo grasa — para músculo no aplica
-    // un cálculo directo desde adherencia calórica)
-    if(r.isGrasa && rateAdhGra !== null){
+    // Segunda línea: ritmo desde adherencia (sólo aplica para grasa — músculo
+    // no se proyecta directamente desde adherencia calórica).
+    var hasAdh = (r.isGrasa && rateAdhGra !== null);
+    if(hasAdh){
       var adhCol = rateAdhGra<=0 ? "var(--green)" : "var(--red)";
       var diverg = Math.abs(rateAdhGra - r.rate);
       var divergMsg = "";
       if(diverg > 0.4){
-        // Divergencia significativa entre teoría y realidad
+        // Para grasa: ritmo más NEGATIVO = más pérdida = "mejor" en déficit.
         if(rateAdhGra < r.rate){
-          divergMsg = ' · <span style="color:var(--amber);">⚠ teoría > realidad: el cuerpo va más LENTO que lo esperado por tu déficit calórico (revisar TMB / actividad real / sueño)</span>';
+          // Teoría predice más pérdida que la realidad → cuerpo responde MENOS
+          divergMsg = ' · <span style="color:var(--amber);">⚠ tu cuerpo perdió MENOS grasa que lo que tu déficit calórico predice. Posibles causas: TMB real menor a la estimada, kcal de gym sobreestimadas, sueño/cortisol, retención de agua, snacks no registrados.</span>';
         } else {
-          divergMsg = ' · <span style="color:var(--green);">✓ realidad > teoría: el cuerpo va más RÁPIDO que tu déficit medido (NEAT extra o TMB mayor)</span>';
+          // Teoría predice menos pérdida que la realidad → cuerpo responde MÁS
+          divergMsg = ' · <span style="color:var(--green);">✓ tu cuerpo perdió MÁS grasa que lo predicho por tu déficit calórico. Probable causa: NEAT mayor a lo estimado o TMB real superior.</span>';
         }
       } else {
-        divergMsg = ' · <span style="color:var(--text2);">teoría y realidad coinciden ✓</span>';
+        divergMsg = ' · <span style="color:var(--text2);">cuerpo y teoría coinciden ✓</span>';
       }
       html += '<div style="font-size:10px;color:var(--text2);margin-bottom:3px;">'
-        +'<span style="color:var(--text2);">ritmo teórico (desde adherencia '+ritmoAdh.diasConData+'d):</span> <span style="color:'+adhCol+';">'+(rateAdhGra>=0?"+":"")+rateAdhGra.toFixed(2)+'kg/mes</span>'
+        +'<span style="color:var(--text2);">ritmo teórico (adherencia '+ritmoAdh.diasConData+'d):</span> <span style="color:'+adhCol+';">'+(rateAdhGra>=0?"+":"")+rateAdhGra.toFixed(2)+'kg/mes</span>'
         +' <span style="color:var(--text3);">(déficit prom. '+(ritmoAdh.deficitPromedioDia>=0?"+":"")+ritmoAdh.deficitPromedioDia+' kcal/día)</span>'
         +divergMsg
         +'</div>';
     }
 
-    html += '<div style="display:flex;gap:8px;font-size:11px;">'
+    // PROYECCIÓN A — ritmo InBody (extrapolación lineal del pasado real)
+    html += '<div style="margin-top:8px;">'
+      +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">📊 si sigue el ritmo InBody actual (pasado real)</div>'
+      +'<div style="display:flex;gap:8px;font-size:11px;">'
       +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+1m: <b>'+p1+'</b></span>'
       +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+2m: <b>'+p2+'</b></span>'
       +'<span style="background:var(--bg3);border-radius:var(--rxs);padding:4px 8px;">+3m: <b>'+p3+'</b></span>'
       +'</div></div>';
 
+    // PROYECCIÓN B — ritmo adherencia (sólo grasa, si hay datos)
+    // Asume que se mantiene el déficit calórico promedio de los últimos N días.
+    if(hasAdh){
+      var p1a = proj(r.actual, rateAdhGra, 1);
+      var p2a = proj(r.actual, rateAdhGra, 2);
+      var p3a = proj(r.actual, rateAdhGra, 3);
+      // Diferencia entre ambas proyecciones a 3m (info de "cuánto mejorás si mantenés adherencia")
+      var deltaAdh = Math.round((p3a - p3)*10)/10;
+      var ganciaTxt = deltaAdh < 0
+        ? ' · <span style="color:var(--green);">'+Math.abs(deltaAdh).toFixed(1)+'kg menos de grasa a 3m que si seguís ritmo actual</span>'
+        : '';
+      html += '<div style="margin-top:6px;">'
+        +'<div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">🎯 si mantenés adherencia actual ('+ritmoAdh.diasConData+'d)' + ganciaTxt + '</div>'
+        +'<div style="display:flex;gap:8px;font-size:11px;">'
+        +'<span style="background:rgba(62,207,142,0.12);border:1px solid rgba(62,207,142,0.35);border-radius:var(--rxs);padding:4px 8px;">+1m: <b>'+p1a+'</b></span>'
+        +'<span style="background:rgba(62,207,142,0.12);border:1px solid rgba(62,207,142,0.35);border-radius:var(--rxs);padding:4px 8px;">+2m: <b>'+p2a+'</b></span>'
+        +'<span style="background:rgba(62,207,142,0.12);border:1px solid rgba(62,207,142,0.35);border-radius:var(--rxs);padding:4px 8px;">+3m: <b>'+p3a+'</b></span>'
+        +'</div></div>';
+    }
+
+    html += '</div>';
     return html;
   }).join("");
 }
