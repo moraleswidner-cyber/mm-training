@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build:2026-05-25-v30 -->
+<!-- build:2026-05-28-v31 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -11,7 +11,7 @@
 // Si el número de build almacenado no coincide con el actual, limpia todos
 // los cachés del SW y recarga forzado. Resuelve updates pegados en Safari iOS.
 (function(){
-  var BUILD = '2026-05-25-v30';
+  var BUILD = '2026-05-28-v31';
   var stored = localStorage.getItem('nm-alim-build');
   if(stored !== BUILD){
     localStorage.setItem('nm-alim-build', BUILD);
@@ -82,8 +82,12 @@ button:active{opacity:.7;transform:scale(.98);}
 #hdr{padding:max(14px,env(safe-area-inset-top)) 16px 0;flex-shrink:0;}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .hdr-title{font-size:18px;font-weight:700;letter-spacing:-.4px;}
-#save-dot{font-size:10px;color:var(--green);opacity:0;transition:opacity .4s;}
-#save-dot.show{opacity:1;}
+/* Indicador de estado de sincronización con Firestore (v31) */
+#save-dot{font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;transition:all .3s;display:inline-flex;align-items:center;gap:4px;}
+#save-dot.synced{background:rgba(62,207,142,0.18);color:var(--green);border:1px solid rgba(62,207,142,0.4);}
+#save-dot.saving{background:rgba(245,166,35,0.18);color:var(--amber);border:1px solid rgba(245,166,35,0.4);}
+#save-dot.error{background:rgba(247,111,111,0.18);color:var(--red);border:1px solid rgba(247,111,111,0.5);animation:pulseErr 1.6s infinite;}
+@keyframes pulseErr{0%,100%{opacity:1;}50%{opacity:.6;}}
 
 #nav{display:flex;gap:2px;padding:0 16px 10px;overflow-x:auto;flex-shrink:0;scrollbar-width:none;}
 #nav::-webkit-scrollbar{display:none;}
@@ -252,7 +256,7 @@ button:active{opacity:.7;transform:scale(.98);}
     <div class="hdr-top">
       <div class="hdr-title">NM · Alimentación</div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <span id="save-dot">● guardado</span>
+        <span id="save-dot" class="synced" title="Estado de sincronización con la nube">● sincronizado</span>
         <a href="index.html" style="font-size:12px;color:var(--text2);text-decoration:none;">Entrenamiento →</a>
       </div>
     </div>
@@ -1467,7 +1471,15 @@ var SESSIONS_DATA = [
 
 // ─────────── FIREBASE ───────────
 var _fbAlim  = null;
-var _savedAt = 0; // timestamp of last local save — suppresses snapshot overwrite for 1s
+// Timestamp del último save local — suprime overwrite del snapshot durante
+// SAVE_SUPPRESS_MS para evitar que el snapshot del servidor (que aún no recibió
+// nuestro último write) pise los cambios locales del usuario en redes lentas.
+var _savedAt = 0;
+var SAVE_SUPPRESS_MS = 5000; // 5s en v31 (era 1s en v30 — muy corto para mobile data)
+// Estado de sincronización: 'synced' | 'saving' | 'error'
+var _syncState = 'synced';
+// Cola de saves pendientes — si .set() falla, reintenta en background.
+var _retryTimer = null;
 var _fbTrain = null;
 var _useFS   = false;
 var _viewDate = todayStr();
@@ -1495,7 +1507,7 @@ function loadDB(){
     _fbAlim.onSnapshot(function(doc){
       // If we just saved locally (<1 s ago), skip overwriting in-memory DB so the
       // UI doesn't flicker back to the server state before our write is confirmed.
-      var freshSave = (Date.now() - _savedAt) < 1000;
+      var freshSave = (Date.now() - _savedAt) < SAVE_SUPPRESS_MS;
       if(doc.exists){
         var d = doc.data();
         if(!freshSave){
@@ -1636,10 +1648,20 @@ function _loadLocal(){
   }
 }
 
+// saveDB — v31:
+// 1) Guarda SIEMPRE en localStorage (backup local, instantáneo, síncrono).
+// 2) Setea timestamp de supresión (ventana de 5s para que el snapshot remoto
+//    no pise los cambios locales mientras viaja el write al servidor).
+// 3) Envía a Firestore (asíncrono). Maneja éxito y error con UI feedback.
+// 4) Si falla, programa reintento en background cada 15s mientras no llegue.
 function saveDB(){
-  flash();
-  _savedAt = Date.now(); // mark local save — suppresses onSnapshot overwrite for 1s
+  _savedAt = Date.now();
+
+  // ── Backup local SIEMPRE (no solo en error) ──
+  try{ localStorage.setItem("nm-alim-v1", JSON.stringify(DB)); }catch(e){}
+
   if(_useFS && _fbAlim){
+    setSyncState('saving');
     _fbAlim.set({
       config:          DB.config,
       alimentos:       DB.alimentos,
@@ -1651,19 +1673,43 @@ function saveDB(){
       planSemanal:     DB.planSemanal||{},
       gymPerformance:  DB.gymPerformance||[],
       wellnessRecords: DB.wellnessRecords||[]
+    }).then(function(){
+      setSyncState('synced');
+      // Si había un reintento programado, cancelarlo — ya estamos al día.
+      if(_retryTimer){ clearTimeout(_retryTimer); _retryTimer = null; }
     }).catch(function(e){
-      try{ localStorage.setItem("nm-alim-v1", JSON.stringify(DB)); }catch(e2){}
+      console.warn('saveDB: Firestore set falló — datos en localStorage', e && e.message);
+      setSyncState('error');
+      // Reintentar en background cada 15s (con el estado actual de DB en memoria).
+      if(_retryTimer) clearTimeout(_retryTimer);
+      _retryTimer = setTimeout(saveDB, 15000);
     });
   } else {
-    try{ localStorage.setItem("nm-alim-v1", JSON.stringify(DB)); }catch(e){}
+    // Modo solo-local
+    setSyncState('synced');
   }
 }
 
-function flash(){
+// Cambia el estado visual del indicador de sincronización.
+function setSyncState(state){
+  _syncState = state;
   var dot = document.getElementById("save-dot");
-  dot.classList.add("show");
-  setTimeout(function(){ dot.classList.remove("show"); }, 1500);
+  if(!dot) return;
+  dot.classList.remove("synced","saving","error");
+  dot.classList.add(state);
+  if(state === 'synced')      dot.textContent = '● sincronizado';
+  else if(state === 'saving') dot.textContent = '⏳ guardando…';
+  else if(state === 'error')  dot.textContent = '⚠ sin sincronizar';
+  dot.title = state === 'error'
+    ? 'Hay cambios sin guardar en la nube. Cambios en localStorage. Reintento automático cada 15s.'
+    : state === 'saving'
+      ? 'Enviando cambios al servidor…'
+      : 'Todos los cambios sincronizados con Firestore.';
 }
+
+// Compatibilidad con código viejo que llamaba flash() — ahora es un no-op porque
+// el indicador se actualiza desde setSyncState dentro de saveDB.
+function flash(){ /* deprecated en v31 — usar setSyncState */ }
 
 // ─────────── TARGETS ───────────
 // Returns the most recent InBody record at or before `fecha`.
